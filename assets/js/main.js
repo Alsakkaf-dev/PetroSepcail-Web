@@ -70,6 +70,8 @@ PS.dict = {
   "footer.products": "Product families",
   "footer.contact": "Contact",
   "footer.privacy": "Privacy Policy",
+  "footer.copyright": "Copyright",
+  "crumbs.aria": "Breadcrumb",
   "footer.rights": "All rights reserved.",
   "footer.cr": "Commercial Registration",
   "footer.sales": "Sales",
