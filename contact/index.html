@@ -49,3 +49,126 @@
       </nav>
     </div>
   </header>
+
+  <main id="main">
+    <section class="page-hero">
+      <div class="viscosity" aria-hidden="true"></div>
+      <div class="container">
+        <nav class="breadcrumbs" aria-label="مسار التنقل" data-i18n-attr="aria-label:crumbs.aria">
+          <a href="/" data-i18n="nav.home">الرئيسية</a>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg>
+          <span aria-current="page" data-i18n="nav.contact">تواصل معنا</span>
+        </nav>
+        <p class="eyebrow reveal" data-i18n="c.eyebrow">تواصل معنا</p>
+        <h1 class="reveal" style="--delay:.08s" data-i18n="c.title">يسعدنا سماعك — في أي وقت</h1>
+        <p class="lead reveal" style="--delay:.16s" data-i18n="c.lead">للاستفسارات والتوريد والتوزيع — اتصل بنا أو أرسل رسالتك وسيرد عليك فريقنا في أقرب وقت.</p>
+      </div>
+    </section>
+
+    <section class="section bg-mesh--soft">
+      <div class="container">
+        <div class="grid grid--4" data-stagger="0.09" style="margin-block-end: var(--sp-7);">
+          <article class="card contact-card reveal">
+            <div class="contact-card__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg></div>
+            <div>
+              <h3 data-i18n="footer.sales">المبيعات</h3>
+              <a class="phone nowrap" href="tel:+966556976912">+966 55 697 6912</a>
+              <p class="small" data-i18n="c.sales.t">توريد وتوزيع وطلبات الجملة</p>
+            </div>
+          </article>
+          <article class="card contact-card reveal">
+            <div class="contact-card__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M8 10h8m-8 4h5m8-2a9 9 0 0 1-13.4 7.8L3 21l1.2-4.6A9 9 0 1 1 21 12z"/></svg></div>
+            <div>
+              <h3 data-i18n="footer.support">خدمة العملاء</h3>
+              <a class="phone nowrap" href="tel:+966553629175">+966 55 362 9175</a>
+              <p class="small" data-i18n="c.support.t">استفسارات المنتجات وما بعد البيع</p>
+            </div>
+          </article>
+          <article class="card contact-card reveal">
+            <div class="contact-card__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m4 7 8 6 8-6"/></svg></div>
+            <div>
+              <h3 data-i18n="c.email.h">البريد الإلكتروني</h3>
+              <a class="ltr" href="mailto:zoer4019@gmail.com">zoer4019@gmail.com</a>
+              <p class="small" data-i18n="c.email.t">نرد خلال يوم عمل واحد</p>
+            </div>
+          </article>
+          <article class="card contact-card reveal">
+            <div class="contact-card__ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 21s-7-4.4-7-10a7 7 0 0 1 14 0c0 5.6-7 10-7 10z"/><circle cx="12" cy="11" r="2.5"/></svg></div>
+            <div>
+              <h3 data-i18n="c.addr.h">العنوان</h3>
+              <p class="small" data-i18n="footer.address">طريق مكة القديم، كيلو 8، جدة 22347، المملكة العربية السعودية</p>
+            </div>
+          </article>
+        </div>
+
+        <div class="pd-layout">
+          <div>
+            <div class="section-head reveal" style="margin-block-end: var(--sp-4);">
+              <p class="eyebrow" data-i18n="c.form.eyebrow">أرسل رسالة</p>
+              <h2 data-i18n="c.form.title">نموذج التواصل</h2>
+              <div class="divider" aria-hidden="true"><svg viewBox="0 0 10 10" fill="currentColor"><path d="M5 0l5 5-5 5-5-5z"/></svg></div>
+            </div>
+            <div class="card reveal" style="--delay:.1s">
+              <form id="contact-form" novalidate>
+                <div class="form-grid">
+                  <div class="field">
+                    <label for="cf-name" data-i18n="form.name">الاسم</label>
+                    <input id="cf-name" name="name" type="text" autocomplete="name" required>
+                    <p class="error-msg" role="alert">هذا الحقل مطلوب</p>
+                  </div>
+                  <div class="field">
+                    <label for="cf-email" data-i18n="form.email">البريد الإلكتروني</label>
+                    <input id="cf-email" name="email" type="email" autocomplete="email" required dir="ltr">
+                    <p class="error-msg" role="alert">هذا الحقل مطلوب</p>
+                  </div>
+                  <div class="field field--full">
+                    <label for="cf-phone" data-i18n="form.phone">رقم الهاتف</label>
+                    <input id="cf-phone" name="phone" type="tel" autocomplete="tel" required dir="ltr" placeholder="+966 5X XXX XXXX">
+                    <p class="error-msg" role="alert">هذا الحقل مطلوب</p>
+                  </div>
+                  <div class="field field--full">
+                    <label for="cf-message" data-i18n="form.message">رسالتك</label>
+                    <textarea id="cf-message" name="message" required></textarea>
+                    <p class="error-msg" role="alert">هذا الحقل مطلوب</p>
+                  </div>
+                  <div class="hp-field" aria-hidden="true">
+                    <label for="cf-website">Website</label>
+                    <input id="cf-website" name="website" type="text" tabindex="-1" autocomplete="off">
+                  </div>
+                </div>
+                <button class="btn btn--gold btn--lg" type="submit" style="margin-block-start: var(--sp-4); inline-size: 100%;">
+                  <span data-i18n="form.send">إرسال الرسالة</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m21 3-9.5 9.5M21 3l-6.5 18-3-8.5L3 9.5z"/></svg>
+                </button>
+              </form>
+              <div class="form-status" role="status" aria-live="polite">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21a9 9 0 1 0-9-9 9 9 0 0 0 9 9z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg>
+                <p class="form-status__msg"></p>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="section-head reveal" style="margin-block-end: var(--sp-4);">
+              <p class="eyebrow" data-i18n="c.map.eyebrow">موقعنا</p>
+              <h2 data-i18n="c.map.title">تفضل بزيارتنا</h2>
+              <div class="divider" aria-hidden="true"><svg viewBox="0 0 10 10" fill="currentColor"><path d="M5 0l5 5-5 5-5-5z"/></svg></div>
+            </div>
+            <div class="map-wrap reveal" style="--delay:.12s; padding: 0; overflow: hidden;">
+              <iframe title="خريطة موقع بتروسبيشل — طريق مكة القديم، جدة" data-i18n-attr="title:c.map.iframe"
+                src="https://www.openstreetmap.org/export/embed.html?bbox=39.187%2C21.435%2C39.287%2C21.505&amp;layer=mapnik&amp;marker=21.470%2C39.237"
+                style="inline-size: 100%; block-size: 340px; border: 0; display: block;" loading="lazy"></iframe>
+            </div>
+            <div class="card reveal" style="--delay:.18s; margin-block-start: var(--sp-3); padding: var(--sp-4);">
+              <h3 class="small" style="color: var(--gold-700); margin-block-end: .5rem;" data-i18n="c.social.h">تابعنا</h3>
+              <ul class="socials" aria-label="حساباتنا الاجتماعية">
+                <li><a href="https://x.com/altshhym" target="_blank" rel="noopener" aria-label="X (تويتر)"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.7 3H21l-7.3 8.3L22.2 21h-6.6l-5-6.1L4.7 21H1.4l7.8-8.9L2 3h6.8l4.6 5.6zm-1.2 16h1.9L7.7 4.9H5.7z"/></svg></a></li>
+                <li><a href="https://www.instagram.com/petrospecial/" target="_blank" rel="noopener" aria-label="إنستغرام"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r="1.1" fill="currentColor" stroke="none"/></svg></a></li>
+                <li><a href="https://www.facebook.com/share/1CiEcTSzvf/" target="_blank" rel="noopener" aria-label="فيسبوك"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M14 8h3V4.5h-3A3.5 3.5 0 0 0 10.5 8v2.5H8V14h2.5v6H14v-6h2.7l.8-3.5H14V8.5a.5.5 0 0 1 .5-.5z" fill="currentColor" stroke="none"/></svg></a></li>
+                <li><a href="https://www.youtube.com/@MohammedAlsakkaf-x6y" target="_blank" rel="noopener" aria-label="يوتيوب"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="2.5" y="6" width="19" height="12" rx="3.5"/><path d="m10.5 9.5 4.5 2.5-4.5 2.5z" fill="currentColor" stroke="none"/></svg></a></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
