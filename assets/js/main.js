@@ -261,3 +261,95 @@ PS.dict = {
     }));
   });
 })();
+
+
+/* ============ Contact form: validation + submission ============ */
+(() => {
+  document.addEventListener("DOMContentLoaded", () => {
+    const form = PS.qs("#contact-form");
+    if (!form) return;
+
+    const status = PS.qs(".form-status", form.parentElement);
+    const submitBtn = PS.qs("button[type=submit]", form);
+    const loadedAt = Date.now();
+
+    const setStatus = ok => {
+      if (!status) return;
+      status.classList.remove("is-success", "is-error");
+      status.classList.add(ok ? "is-success" : "is-error");
+      PS.qs(".form-status__msg", status).textContent =
+        PS.lang === "en"
+          ? PS.dict[ok ? "form.success" : "form.error"]
+          : (ok
+            ? "شكراً لك! تم استلام رسالتك — سيتواصل معك فريقنا في أقرب وقت."
+            : "حدث خطأ ولم يتم إرسال الرسالة. حاول مرة أخرى أو اتصل بنا مباشرة.");
+      status.scrollIntoView({ behavior: PS.reducedMotion ? "auto" : "smooth", block: "nearest" });
+    };
+
+    const validate = () => {
+      let ok = true;
+      PS.qsa(".field [required]", form).forEach(input => {
+        const field = input.closest(".field");
+        const msg = PS.qs(".error-msg", field);
+        let bad = !input.value.trim();
+        if (!bad && input.type === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.value)) {
+          bad = true;
+          if (msg) msg.textContent = PS.lang === "en" ? PS.dict["form.badEmail"] : "يرجى إدخال بريد إلكتروني صحيح";
+        } else if (msg) {
+          msg.textContent = PS.lang === "en" ? PS.dict["form.required"] : "هذا الحقل مطلوب";
+        }
+        field.classList.toggle("is-invalid", bad);
+        if (bad) ok = false;
+      });
+      return ok;
+    };
+
+    form.addEventListener("submit", async e => {
+      e.preventDefault();
+      if (!validate()) return;
+      /* Anti-spam: honeypot filled or submitted inhumanly fast */
+      if (form.website && form.website.value) return;
+      if (Date.now() - loadedAt < 3000) { setStatus(false); return; }
+
+      const payload = {
+        name: form.name.value.trim(),
+        email: form.email.value.trim(),
+        phone: form.phone.value.trim(),
+        message: form.message.value.trim(),
+        locale: PS.lang || "ar"
+      };
+
+      if (!PS.CONTACT) {
+        /* Backend not provisioned yet — never a dead form: hand off to mail app */
+        const body = encodeURIComponent(`${payload.name}\n${payload.phone}\n\n${payload.message}`);
+        window.location.href = `mailto:zoer4019@gmail.com?subject=${encodeURIComponent("رسالة من موقع بتروسبيشل")}&body=${body}`;
+        return;
+      }
+
+      const idle = submitBtn.textContent;
+      submitBtn.disabled = true;
+      submitBtn.textContent = PS.lang === "en" ? PS.dict["form.sending"] : "جارٍ الإرسال…";
+      try {
+        const res = await fetch(`${PS.CONTACT.url}/rest/v1/contact_messages`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: PS.CONTACT.key,
+            Authorization: `Bearer ${PS.CONTACT.key}`,
+            Prefer: "return=minimal"
+          },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        setStatus(true);
+        form.reset();
+      } catch (err) {
+        console.error("contact submit failed", err);
+        setStatus(false);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = idle;
+      }
+    });
+  });
+})();
