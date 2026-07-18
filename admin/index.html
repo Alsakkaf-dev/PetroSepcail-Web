@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>صندوق الرسائل — إدارة | بتروسبيشل</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/svg+xml" href="/assets/img/icons/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@700;800&family=Tajawal:wght@400;500;700&family=Montserrat:wght@400;600;700;800&display=swap">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+</head>
+<body>
+  <main id="main" class="section bg-mesh" style="min-block-size: 100svh; padding-block-start: var(--sp-7);">
+    <div class="container">
+      <div style="display: flex; align-items: center; gap: var(--sp-3); margin-block-end: var(--sp-5); flex-wrap: wrap;">
+        <a href="/" class="brand"><img src="/assets/img/logos/main-logo.png" alt="بتروسبيشل" width="204" height="68" style="block-size: 2.6rem; inline-size: auto;"></a>
+        <h1 style="font-size: var(--fs-700);">صندوق رسائل الموقع</h1>
+        <button class="btn btn--ghost btn--sm" id="btn-logout" style="margin-inline-start: auto; display: none;">تسجيل الخروج</button>
+      </div>
+
+      <!-- Login -->
+      <div class="card" id="login-card" style="max-width: 26rem; margin-inline: auto;">
+        <h2 style="font-size: var(--fs-600); margin-block-end: var(--sp-4); color: var(--blue);">دخول المدير</h2>
+        <form id="login-form" novalidate>
+          <div class="flow">
+            <div class="field">
+              <label for="ad-email">البريد الإلكتروني</label>
+              <input id="ad-email" type="email" autocomplete="username" required dir="ltr">
+            </div>
+            <div class="field">
+              <label for="ad-pass">كلمة المرور</label>
+              <input id="ad-pass" type="password" autocomplete="current-password" required dir="ltr">
+            </div>
+            <button class="btn btn--gold" type="submit" style="inline-size: 100%;">دخول</button>
+            <p class="small text-muted" id="login-err" role="alert" style="display: none; color: #b91c1c;">تعذر الدخول — تحقق من البريد وكلمة المرور.</p>
+          </div>
+        </form>
+      </div>
