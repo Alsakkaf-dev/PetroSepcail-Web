@@ -559,3 +559,117 @@ html[dir="rtl"] .link-more svg, html[dir="rtl"] .btn svg.arrow { transform: scal
 .chip--family-special { background: #e8edfb; color: var(--f-special); border-color: rgba(30, 58, 138, .3); }
 .chip--family-petro { background: #faf3e3; color: var(--f-petro); border-color: rgba(161, 98, 7, .3); }
 .chip--family-raval { background: #fdecec; color: var(--f-raval); border-color: rgba(185, 28, 28, .3); }
+
+/* ============ Hero ============ */
+.hero {
+  position: relative;
+  padding-block: calc(var(--header-h) + clamp(3rem, 2rem + 4vw, 6rem)) clamp(3.5rem, 2.5rem + 4vw, 6.5rem);
+  background:
+    radial-gradient(52rem 34rem at 88% -12%, rgba(255, 200, 0, .2), transparent 62%),
+    radial-gradient(40rem 30rem at -10% 30%, rgba(255, 214, 82, .16), transparent 60%),
+    radial-gradient(36rem 26rem at 60% 118%, rgba(22, 38, 92, .08), transparent 65%),
+    var(--bg);
+  overflow: clip;
+}
+.hero__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr);
+  gap: var(--sp-6);
+  align-items: center;
+}
+.hero h1 { margin-block: var(--sp-3) var(--sp-4); }
+.hero h1 .gold-metal-text { display: inline-block; }
+.hero .lead { max-width: 52ch; margin-block-end: var(--sp-5); }
+.hero__ctas { display: flex; flex-wrap: wrap; gap: var(--sp-3); }
+
+/* Floating bottle stage */
+.hero__stage { position: relative; display: grid; place-items: center; min-block-size: clamp(20rem, 40vw, 30rem); }
+.hero__stage::before {
+  content: "";
+  position: absolute;
+  inset: 8% 6%;
+  border-radius: var(--r-drop);
+  background: linear-gradient(150deg, rgba(255, 200, 0, .3), rgba(255, 226, 122, .12) 55%, rgba(22, 38, 92, .1));
+  filter: blur(2px);
+}
+.hero__stage::after {
+  content: "";
+  position: absolute;
+  inset-block-end: 6%;
+  inline-size: 55%;
+  block-size: 1.4rem;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(18, 20, 23, .28), transparent);
+}
+.hero__stage img {
+  position: relative;
+  z-index: 1;
+  block-size: clamp(19rem, 38vw, 29rem);
+  inline-size: auto;
+  filter: drop-shadow(0 30px 34px rgba(18, 20, 23, .3));
+  animation: heroFloat 7s ease-in-out infinite;
+}
+@keyframes heroFloat {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  50% { transform: translateY(-14px) rotate(-1.2deg); }
+}
+
+/* Orbiting spec chips around the bottle */
+.hero__chip {
+  position: absolute;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  padding: .55rem 1.05rem;
+  background: rgba(255, 255, 255, .88);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  font-family: var(--font-latin);
+  font-weight: 700;
+  font-size: var(--fs-200);
+  color: var(--blue);
+  box-shadow: var(--shadow-md);
+  animation: chipFloat 6s ease-in-out infinite;
+}
+.hero__chip svg { inline-size: 1rem; block-size: 1rem; color: var(--gold-600); }
+.hero__chip--1 { inset-block-start: 12%; inset-inline-start: 2%; }
+.hero__chip--2 { inset-block-end: 20%; inset-inline-end: 0; animation-delay: 1.6s; }
+.hero__chip--3 { inset-block-start: 55%; inset-inline-start: -2%; animation-delay: 3.1s; }
+@keyframes chipFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-9px); }
+}
+
+/* Page hero (inner pages) */
+.page-hero {
+  position: relative;
+  padding-block: calc(var(--header-h) + clamp(2.6rem, 2rem + 3vw, 4.5rem)) clamp(2.6rem, 2rem + 3vw, 4.5rem);
+  background:
+    radial-gradient(44rem 26rem at 90% -20%, rgba(255, 200, 0, .17), transparent 62%),
+    radial-gradient(34rem 22rem at -6% 110%, rgba(22, 38, 92, .07), transparent 60%),
+    var(--bg-warm);
+  overflow: clip;
+}
+.page-hero .lead { margin-block-start: var(--sp-3); }
+.breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem;
+  font-size: var(--fs-300);
+  color: var(--muted);
+  margin-block-end: var(--sp-3);
+}
+.breadcrumbs a:hover { color: var(--gold-700); }
+.breadcrumbs svg { inline-size: .8rem; block-size: .8rem; opacity: .6; }
+html[dir="ltr"] .breadcrumbs svg { transform: scaleX(-1); }
+
+@media (max-width: 56em) {
+  .hero__grid { grid-template-columns: 1fr; }
+  .hero__stage { order: -1; min-block-size: clamp(17rem, 60vw, 24rem); }
+  .hero__stage img { block-size: clamp(15rem, 52vw, 22rem); }
+  .hero__ctas .btn { flex: 1 1 12rem; }
+}
