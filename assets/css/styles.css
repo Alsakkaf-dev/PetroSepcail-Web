@@ -207,3 +207,59 @@ p { max-width: 68ch; }
 .section-head--center { margin-inline: auto; text-align: center; }
 .section-head--center .eyebrow { flex-direction: row; }
 .section-head--center p { margin-inline: auto; }
+
+/* ============ Layout & designed backgrounds ============ */
+.container { inline-size: var(--container); margin-inline: auto; }
+.container--wide { inline-size: var(--container-wide); }
+
+.section { padding-block: var(--section-pad); position: relative; }
+.section > .container { position: relative; z-index: 1; }
+
+/* Background variants — every section intentional, never a flat void */
+.bg-warm { background: var(--bg-warm); }
+.bg-tint { background: linear-gradient(180deg, var(--bg-tint), var(--bg-warm) 130%); }
+
+/* Gold aurora mesh — layered radial washes on warm white */
+.bg-mesh {
+  background:
+    radial-gradient(46rem 30rem at 85% -8%, rgba(255, 200, 0, .16), transparent 60%),
+    radial-gradient(38rem 26rem at -6% 22%, rgba(255, 214, 82, .13), transparent 62%),
+    radial-gradient(30rem 22rem at 55% 115%, rgba(22, 38, 92, .07), transparent 65%),
+    var(--bg);
+}
+.bg-mesh--soft {
+  background:
+    radial-gradient(42rem 26rem at 108% 12%, rgba(255, 200, 0, .10), transparent 62%),
+    radial-gradient(34rem 22rem at -8% 88%, rgba(255, 214, 82, .09), transparent 60%),
+    var(--bg);
+}
+
+/* Viscosity lines — flowing oil-pour contours (signature motif) */
+.viscosity {
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 640' preserveAspectRatio='none'%3E%3Cg fill='none' stroke='%23e0b100' stroke-width='1.4'%3E%3Cpath stroke-opacity='.16' d='M-40 520C240 430 420 610 720 500s470-180 780-90'/%3E%3Cpath stroke-opacity='.12' d='M-40 560C260 480 460 640 760 540s450-150 720-70'/%3E%3Cpath stroke-opacity='.09' d='M-40 600C280 530 500 670 800 580s420-120 680-50'/%3E%3Cpath stroke-opacity='.07' d='M-40 120C300 40 520 190 820 100s400-90 660-30'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 100% 100%;
+}
+
+/* Faint topographic contours for quiet sections */
+.contours {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: .5;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 600'%3E%3Cg fill='none' stroke='%23d8cfae' stroke-opacity='.35'%3E%3Cellipse cx='300' cy='300' rx='260' ry='215'/%3E%3Cellipse cx='300' cy='300' rx='205' ry='165'/%3E%3Cellipse cx='300' cy='300' rx='150' ry='118'/%3E%3Cellipse cx='300' cy='300' rx='96' ry='72'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 42rem 42rem;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* Grid helpers */
+.grid { display: grid; gap: var(--sp-4); }
+.grid--2 { grid-template-columns: repeat(auto-fit, minmax(min(21rem, 100%), 1fr)); }
+.grid--3 { grid-template-columns: repeat(auto-fit, minmax(min(17rem, 100%), 1fr)); }
+.grid--4 { grid-template-columns: repeat(auto-fit, minmax(min(13rem, 100%), 1fr)); }
+
+.flow > * + * { margin-block-start: var(--sp-3); }
