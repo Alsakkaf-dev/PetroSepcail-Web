@@ -183,3 +183,47 @@ PS.dict = {
     }
   });
 })();
+
+
+/* ============ Reveal-on-scroll, stagger & counters ============ */
+(() => {
+  document.addEventListener("DOMContentLoaded", () => {
+    /* Auto-stagger children of [data-stagger] containers */
+    PS.qsa("[data-stagger]").forEach(group => {
+      const step = parseFloat(group.dataset.stagger) || 0.1;
+      PS.qsa(".reveal", group).forEach((el, i) =>
+        el.style.setProperty("--delay", (i * step).toFixed(2) + "s"));
+    });
+
+    const animateCount = el => {
+      const target = parseFloat(el.dataset.count);
+      if (PS.reducedMotion) { el.textContent = String(target); return; }
+      const dur = 1600;
+      const t0 = performance.now();
+      const tick = now => {
+        const p = Math.min((now - t0) / dur, 1);
+        el.textContent = String(Math.round(target * (1 - Math.pow(1 - p, 3))));
+        if (p < 1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    };
+
+    if (!("IntersectionObserver" in window) || PS.reducedMotion) {
+      PS.qsa(".reveal").forEach(el => el.classList.add("is-inview"));
+      PS.qsa("[data-count]").forEach(animateCount);
+      return;
+    }
+
+    const io = new IntersectionObserver((entries, obs) => {
+      entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add("is-inview");
+        PS.qsa("[data-count]", entry.target).forEach(animateCount);
+        if (entry.target.dataset.count !== undefined) animateCount(entry.target);
+        obs.unobserve(entry.target);
+      });
+    }, { threshold: 0.18, rootMargin: "0px 0px -8% 0px" });
+
+    PS.qsa(".reveal").forEach(el => io.observe(el));
+  });
+})();
