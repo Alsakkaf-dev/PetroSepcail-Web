@@ -83,3 +83,75 @@ PS.dict = {
   "lang.switchTo": "عربي",
   "lang.label": "Switch language"
 };
+
+
+/* ============ i18n engine — full AR ⇄ EN switch ============ */
+(() => {
+  const html = document.documentElement;
+  const arText = new Map();      // element -> original Arabic text
+  const arAttr = new Map();      // element -> { attr: original Arabic value }
+  let arTitle = "";
+  let arMetaDesc = "";
+
+  const metaDesc = () => PS.qs('meta[name="description"]');
+
+  function mergePageDict() {
+    const block = PS.qs("#page-i18n");
+    if (!block) return;
+    try { Object.assign(PS.dict, JSON.parse(block.textContent)); }
+    catch (err) { console.error("page-i18n parse failed", err); }
+  }
+
+  function cacheArabic() {
+    PS.qsa("[data-i18n]").forEach(el => arText.set(el, el.textContent));
+    PS.qsa("[data-i18n-attr]").forEach(el => {
+      const saved = {};
+      el.dataset.i18nAttr.split(";").forEach(pair => {
+        const attr = pair.split(":")[0].trim();
+        if (attr) saved[attr] = el.getAttribute(attr) || "";
+      });
+      arAttr.set(el, saved);
+    });
+    arTitle = document.title;
+    arMetaDesc = metaDesc() ? metaDesc().content : "";
+  }
+
+  function apply(lang) {
+    const en = lang === "en";
+    html.setAttribute("lang", en ? "en" : "ar");
+    html.setAttribute("dir", en ? "ltr" : "rtl");
+
+    PS.qsa("[data-i18n]").forEach(el => {
+      const key = el.dataset.i18n;
+      el.textContent = en ? (PS.dict[key] ?? arText.get(el)) : arText.get(el);
+    });
+
+    PS.qsa("[data-i18n-attr]").forEach(el => {
+      el.dataset.i18nAttr.split(";").forEach(pair => {
+        const [attr, key] = pair.split(":").map(s => s && s.trim());
+        if (!attr || !key) return;
+        const val = en ? (PS.dict[key] ?? arAttr.get(el)[attr]) : arAttr.get(el)[attr];
+        el.setAttribute(attr, val);
+      });
+    });
+
+    document.title = en ? (PS.dict["meta.title"] ?? arTitle) : arTitle;
+    if (metaDesc()) metaDesc().content = en ? (PS.dict["meta.desc"] ?? arMetaDesc) : arMetaDesc;
+
+    PS.qsa(".lang-toggle .lang-toggle__label").forEach(s => { s.textContent = en ? "عربي" : "EN"; });
+    PS.store.set("ps-lang", en ? "en" : "ar");
+    PS.lang = en ? "en" : "ar";
+    document.dispatchEvent(new CustomEvent("ps:lang", { detail: { lang: PS.lang } }));
+  }
+
+  PS.applyLang = apply;
+
+  document.addEventListener("DOMContentLoaded", () => {
+    mergePageDict();
+    cacheArabic();
+    if (PS.store.get("ps-lang") === "en") apply("en"); else PS.lang = "ar";
+    PS.qsa(".lang-toggle").forEach(btn =>
+      btn.addEventListener("click", () => apply(PS.lang === "en" ? "ar" : "en"))
+    );
+  });
+})();
