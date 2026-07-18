@@ -673,3 +673,46 @@ html[dir="ltr"] .breadcrumbs svg { transform: scaleX(-1); }
   .hero__stage img { block-size: clamp(15rem, 52vw, 22rem); }
   .hero__ctas .btn { flex: 1 1 12rem; }
 }
+
+/* ============ Stats band & CTA band ============ */
+.stats {
+  background:
+    radial-gradient(40rem 22rem at 12% -30%, rgba(255, 200, 0, .28), transparent 60%),
+    radial-gradient(36rem 20rem at 95% 130%, rgba(255, 200, 0, .18), transparent 60%),
+    linear-gradient(180deg, var(--bg-tint), #fdf3cd);
+  border-block: 1px solid rgba(224, 177, 0, .25);
+}
+.stats__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(10.5rem, 100%), 1fr));
+  gap: var(--sp-4);
+  text-align: center;
+}
+.stat__value {
+  font-family: var(--font-latin);
+  font-weight: 800;
+  font-size: var(--fs-800);
+  color: var(--blue);
+  line-height: 1.1;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+.stat__value .plus { color: var(--gold-600); }
+.stat__label { color: var(--gold-700); font-weight: 700; font-size: var(--fs-300); margin-block-start: .4rem; }
+
+/* Contact CTA band — gold gradient moment */
+.cta-band {
+  position: relative;
+  overflow: clip;
+  background:
+    radial-gradient(46rem 26rem at 80% -40%, rgba(255, 255, 255, .5), transparent 55%),
+    var(--gold-metal);
+  border-radius: var(--r-lg);
+  padding: clamp(2.5rem, 2rem + 3vw, 4.5rem);
+  text-align: center;
+  box-shadow: var(--shadow-gold);
+}
+.cta-band h2 { color: var(--ink); margin-block-end: var(--sp-2); }
+.cta-band p { margin-inline: auto; color: rgba(18, 20, 23, .75); font-weight: 500; margin-block-end: var(--sp-4); }
+.cta-band .btn--dark:hover { background: var(--blue); }
+.cta-band__actions { display: flex; flex-wrap: wrap; gap: var(--sp-3); justify-content: center; }
