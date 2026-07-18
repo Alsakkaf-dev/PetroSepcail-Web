@@ -398,3 +398,12 @@ PS.dict = {
     PS.qsa(".bottle-ph").forEach(el => { el.innerHTML = PS.bottleSVG(el.dataset); });
   });
 })();
+
+
+/* ============ Message-system config (self-owned backend) ============
+   The key below is the PUBLIC anon key: database rules (RLS) allow it
+   to INSERT a contact message only — it can never read or change data. */
+PS.CONTACT = {
+  url: "https://zomiysojilmlbwyxrazj.supabase.co",
+  key: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvbWl5c29qaWxtbGJ3eXhyYXpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzNzgyNzcsImV4cCI6MjA5OTk1NDI3N30.H_93bZv7gVPmwI-x1LF_5fV9KP6OnSRLLaaF4J53Yk0"
+};
