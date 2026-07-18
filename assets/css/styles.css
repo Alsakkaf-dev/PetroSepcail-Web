@@ -1152,3 +1152,13 @@ html[dir="ltr"] .breadcrumbs svg { transform: scaleX(-1); }
 @media (min-width: 160em) {
   :root { --container: 1360px; --container-wide: 1520px; }
 }
+
+/* Bottle placeholder host — graceful even before JS renders the SVG */
+.bottle-ph { display: grid; place-items: center; inline-size: 100%; }
+.bottle-ph:empty {
+  min-block-size: 8.5rem;
+  inline-size: 60%;
+  border-radius: var(--r-md);
+  background: linear-gradient(160deg, var(--bg-warm), var(--line-soft));
+}
+.bottle-ph svg.bottle { block-size: 100%; }
