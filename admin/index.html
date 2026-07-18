@@ -38,3 +38,93 @@
           </div>
         </form>
       </div>
+
+      <!-- Inbox -->
+      <div id="inbox" style="display: none;">
+        <p class="small text-muted" style="margin-block-end: var(--sp-3);"><span id="msg-count">0</span> رسالة — غير المقروءة مظللة بالذهبي</p>
+        <div class="table-scroll">
+          <table class="admin-table">
+            <thead>
+              <tr><th>التاريخ</th><th>الاسم</th><th>التواصل</th><th>الرسالة</th><th>الحالة</th></tr>
+            </thead>
+            <tbody id="msg-rows"></tbody>
+          </table>
+        </div>
+        <p class="small text-muted" id="inbox-empty" style="display: none; margin-block-start: var(--sp-3);">لا توجد رسائل بعد — عندما يرسل الزوار رسائل عبر نموذج التواصل ستظهر هنا.</p>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    /* Admin inbox — talks to our own message backend directly (no libraries). */
+    (() => {
+      "use strict";
+      const URL_BASE = "https://zomiysojilmlbwyxrazj.supabase.co";
+      const KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvbWl5c29qaWxtbGJ3eXhyYXpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzNzgyNzcsImV4cCI6MjA5OTk1NDI3N30.H_93bZv7gVPmwI-x1LF_5fV9KP6OnSRLLaaF4J53Yk0";
+      const $ = s => document.querySelector(s);
+      const token = () => sessionStorage.getItem("ps-admin-token");
+
+      const show = authed => {
+        $("#login-card").style.display = authed ? "none" : "";
+        $("#inbox").style.display = authed ? "" : "none";
+        $("#btn-logout").style.display = authed ? "" : "none";
+      };
+
+      const esc = s => s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+      async function load() {
+        const res = await fetch(`${URL_BASE}/rest/v1/contact_messages?select=*&order=created_at.desc`, {
+          headers: { apikey: KEY, Authorization: `Bearer ${token()}` }
+        });
+        if (res.status === 401) { sessionStorage.removeItem("ps-admin-token"); show(false); return; }
+        const rows = await res.json();
+        $("#msg-count").textContent = rows.length;
+        $("#inbox-empty").style.display = rows.length ? "none" : "";
+        $("#msg-rows").innerHTML = rows.map(r => `
+          <tr class="${r.status === "new" ? "is-unread" : ""}" data-id="${r.id}">
+            <td class="ltr nowrap">${new Date(r.created_at).toLocaleString("en-GB", { dateStyle: "short", timeStyle: "short" })}</td>
+            <td>${esc(r.name)}</td>
+            <td><a class="ltr" href="mailto:${esc(r.email)}">${esc(r.email)}</a><br><a class="ltr nowrap" href="tel:${esc(r.phone)}">${esc(r.phone)}</a></td>
+            <td class="msg-cell">${esc(r.message)}</td>
+            <td>${r.status === "new"
+              ? '<button class="btn btn--sm btn--gold" data-read>تحديد كمقروءة</button>'
+              : '<span class="small text-muted">مقروءة</span>'}</td>
+          </tr>`).join("");
+      }
+
+      document.addEventListener("click", async e => {
+        const btn = e.target.closest("[data-read]");
+        if (!btn) return;
+        const id = btn.closest("tr").dataset.id;
+        await fetch(`${URL_BASE}/rest/v1/contact_messages?id=eq.${id}`, {
+          method: "PATCH",
+          headers: { apikey: KEY, Authorization: `Bearer ${token()}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "read" })
+        });
+        load();
+      });
+
+      $("#login-form").addEventListener("submit", async e => {
+        e.preventDefault();
+        $("#login-err").style.display = "none";
+        const res = await fetch(`${URL_BASE}/auth/v1/token?grant_type=password`, {
+          method: "POST",
+          headers: { apikey: KEY, "Content-Type": "application/json" },
+          body: JSON.stringify({ email: $("#ad-email").value.trim(), password: $("#ad-pass").value })
+        });
+        if (!res.ok) { $("#login-err").style.display = ""; return; }
+        const data = await res.json();
+        sessionStorage.setItem("ps-admin-token", data.access_token);
+        show(true); load();
+      });
+
+      $("#btn-logout").addEventListener("click", () => {
+        sessionStorage.removeItem("ps-admin-token");
+        show(false);
+      });
+
+      if (token()) { show(true); load(); } else { show(false); }
+    })();
+  </script>
+</body>
+</html>
