@@ -331,7 +331,7 @@ p { max-width: 68ch; }
 html[dir="rtl"] .link-more { background-position: 100% 100%; }
 .link-more:hover { color: var(--gold-700); background-size: 100% 2px; }
 .link-more svg { inline-size: 1em; block-size: 1em; }
-html[dir="rtl"] .link-more svg, html[dir="rtl"] .btn svg.arrow { transform: scaleX(-1); }
+html[dir="ltr"] .link-more svg, html[dir="ltr"] .btn svg.arrow { transform: scaleX(-1); }
 
 /* ============ Header & navigation ============ */
 .header {
