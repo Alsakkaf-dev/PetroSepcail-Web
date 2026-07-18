@@ -1072,3 +1072,83 @@ html[dir="ltr"] .breadcrumbs svg { transform: scaleX(-1); }
 }
 .error-page h1 { font-size: var(--fs-700); margin-block: var(--sp-3); }
 .error-page .actions { display: flex; gap: var(--sp-3); justify-content: center; flex-wrap: wrap; margin-block-start: var(--sp-5); }
+
+/* ============ Motion & reveal system ============ */
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity var(--dur) var(--ease-out), transform var(--dur) var(--ease-out);
+  transition-delay: var(--delay, 0s);
+  will-change: opacity, transform;
+}
+.reveal.is-inview { opacity: 1; transform: none; }
+.reveal--left { transform: translateX(-32px); }
+.reveal--right { transform: translateX(32px); }
+.reveal--left.is-inview, .reveal--right.is-inview { transform: none; }
+.reveal--scale { transform: scale(.92); }
+.reveal--scale.is-inview { transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal, .reveal--left, .reveal--right, .reveal--scale { opacity: 1; transform: none; }
+  .hero__stage img, .hero__chip { animation: none; }
+}
+
+/* Utility */
+.visually-hidden {
+  position: absolute;
+  inline-size: 1px; block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.nowrap { white-space: nowrap; }
+
+/* Map (distribution) */
+.map-wrap {
+  position: relative;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--line);
+  background:
+    radial-gradient(30rem 20rem at 70% 20%, rgba(255, 200, 0, .12), transparent 60%),
+    linear-gradient(180deg, var(--surface), var(--bg-warm));
+  box-shadow: var(--shadow-md);
+  padding: var(--sp-4);
+  overflow: hidden;
+}
+.map-wrap svg { inline-size: 100%; block-size: auto; }
+.map-city { cursor: default; }
+.map-city circle { fill: var(--gold); stroke: #fff; stroke-width: 2; }
+.map-city .pulse {
+  fill: none;
+  stroke: var(--gold-600);
+  stroke-width: 2;
+  opacity: 0;
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: cityPulse 2.6s ease-out infinite;
+}
+.map-city text { font-family: var(--font-body); font-weight: 700; font-size: 15px; fill: var(--blue); }
+@keyframes cityPulse {
+  0% { transform: scale(.4); opacity: .8; }
+  100% { transform: scale(2.1); opacity: 0; }
+}
+
+/* Quality certificate cards */
+.cert-card { text-align: center; }
+.cert-card .pillar__icon { margin-inline: auto; }
+.cert-card .chip { margin-inline: auto; margin-block-start: var(--sp-2); }
+
+/* Admin inbox */
+.admin-table { inline-size: 100%; border-collapse: collapse; background: var(--surface); border-radius: var(--r-md); overflow: hidden; box-shadow: var(--shadow-sm); }
+.admin-table th { background: var(--ink); color: var(--gold); padding: .8rem 1rem; text-align: start; font-size: var(--fs-300); }
+.admin-table td { padding: .8rem 1rem; border-block-end: 1px solid var(--line-soft); font-size: var(--fs-300); vertical-align: top; }
+.admin-table tr.is-unread td { background: var(--bg-tint); font-weight: 600; }
+.msg-cell { max-inline-size: 34rem; white-space: pre-wrap; }
+
+/* Table overflow guard — wide content scrolls inside, page never does */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* 4K comfort: cap ultra-wide type bloat, keep rhythm */
+@media (min-width: 160em) {
+  :root { --container: 1360px; --container-wide: 1520px; }
+}
