@@ -1162,3 +1162,8 @@ html[dir="ltr"] .breadcrumbs svg { transform: scaleX(-1); }
   background: linear-gradient(160deg, var(--bg-warm), var(--line-soft));
 }
 .bottle-ph svg.bottle { block-size: 100%; }
+
+/* Contextual bottle sizing — placeholders match photo proportions exactly */
+.sku-card__media .bottle-ph svg.bottle { block-size: 8.5rem; inline-size: auto; }
+.product-card__media .bottle-ph svg.bottle { block-size: clamp(13rem, 24vw, 17rem); inline-size: auto; }
+.pd-gallery__main .bottle-ph svg.bottle { block-size: clamp(17rem, 30vw, 24rem); inline-size: auto; }
