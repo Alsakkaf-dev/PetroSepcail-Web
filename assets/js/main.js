@@ -155,3 +155,31 @@ PS.dict = {
     );
   });
 })();
+
+
+/* ============ Header: glass on scroll + mobile drawer ============ */
+(() => {
+  document.addEventListener("DOMContentLoaded", () => {
+    const header = PS.qs(".header");
+    const burger = PS.qs(".burger");
+    const nav = PS.qs(".nav");
+    if (!header) return;
+
+    const onScroll = () => header.classList.toggle("header--scrolled", window.scrollY > 24);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+
+    if (burger && nav) {
+      const setOpen = open => {
+        burger.setAttribute("aria-expanded", String(open));
+        nav.classList.toggle("is-open", open);
+        document.body.style.overflow = open ? "hidden" : "";
+      };
+      burger.addEventListener("click", () =>
+        setOpen(burger.getAttribute("aria-expanded") !== "true"));
+      nav.addEventListener("click", e => { if (e.target.closest("a")) setOpen(false); });
+      document.addEventListener("keydown", e => { if (e.key === "Escape") setOpen(false); });
+      window.matchMedia("(min-width: 61em)").addEventListener("change", () => setOpen(false));
+    }
+  });
+})();
