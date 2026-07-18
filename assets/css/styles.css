@@ -441,3 +441,121 @@ html[dir="rtl"] .link-more svg, html[dir="rtl"] .btn svg.arrow { transform: scal
   .nav a { padding: .9rem 1.1rem; font-size: var(--fs-400); }
   .nav .lang-toggle { margin-block-start: .6rem; justify-content: center; }
 }
+
+/* ============ Cards, badges & trust ============ */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: var(--sp-5);
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+  transition: transform .45s var(--ease-out), box-shadow .45s var(--ease-out), border-color .3s;
+}
+.card:hover { transform: translateY(-8px); box-shadow: var(--shadow-md); border-color: rgba(255, 200, 0, .55); }
+
+/* Pillar card — icon in an oil-drop chip */
+.pillar__icon {
+  inline-size: 4.2rem;
+  block-size: 4.2rem;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-drop);
+  background: linear-gradient(140deg, var(--bg-tint), #ffedad);
+  color: var(--gold-700);
+  margin-block-end: var(--sp-4);
+  transition: transform .45s var(--ease-out);
+}
+.pillar__icon svg { inline-size: 1.9rem; block-size: 1.9rem; }
+.card:hover .pillar__icon { transform: rotate(-6deg) scale(1.08); }
+.pillar h3 { margin-block-end: var(--sp-2); }
+.pillar p { color: var(--muted); font-size: var(--fs-300); }
+
+/* Value card variant — blue drop */
+.pillar--blue .pillar__icon { background: linear-gradient(140deg, #e8edfb, #d5ddf6); color: var(--blue-600); }
+
+/* Trust strip — certification badges */
+.trust {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-2) var(--sp-3);
+}
+.trust__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .55rem;
+  padding: .6rem 1.2rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  font-family: var(--font-latin);
+  font-weight: 700;
+  font-size: var(--fs-300);
+  color: var(--blue);
+  box-shadow: var(--shadow-sm);
+  transition: transform .35s var(--ease-out), border-color .3s, box-shadow .35s;
+}
+.trust__badge svg { inline-size: 1.2rem; block-size: 1.2rem; color: var(--gold-600); }
+.trust__badge:hover { transform: translateY(-3px); border-color: var(--gold); box-shadow: var(--shadow-gold); }
+.trust__badge--saudi { border-color: #0f7a3d; color: #0f7a3d; }
+.trust__badge--saudi svg { color: #0f7a3d; }
+
+/* Partner logos — grayscale to color */
+.partners__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(10rem, 100%), 1fr));
+  gap: var(--sp-4);
+  align-items: center;
+}
+.partners__grid img {
+  margin-inline: auto;
+  max-block-size: 3.4rem;
+  inline-size: auto;
+  filter: grayscale(1) opacity(.55);
+  transition: filter .45s var(--ease-out), transform .45s var(--ease-out);
+}
+.partners__grid a:hover img, .partners__grid .is-inview img { filter: none; transform: scale(1.05); }
+
+/* Feature product card */
+.product-card { padding: 0; display: flex; flex-direction: column; }
+.product-card__media {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: var(--sp-5) var(--sp-4);
+  background:
+    radial-gradient(18rem 13rem at 50% 88%, rgba(255, 200, 0, .22), transparent 70%),
+    linear-gradient(180deg, var(--bg-warm), var(--bg-tint));
+}
+.product-card__media img, .product-card__media svg.bottle {
+  block-size: clamp(13rem, 24vw, 17rem);
+  inline-size: auto;
+  filter: drop-shadow(0 22px 24px rgba(18, 20, 23, .22));
+  transition: transform .5s var(--ease-out);
+}
+.product-card:hover .product-card__media img,
+.product-card:hover .product-card__media svg.bottle { transform: translateY(-8px) rotate(-1.5deg); }
+.product-card__body { padding: var(--sp-4) var(--sp-5) var(--sp-5); display: flex; flex-direction: column; gap: .5rem; flex: 1; }
+.product-card__body h3 { font-size: var(--fs-500); }
+.product-card__body .link-more { margin-block-start: auto; }
+
+/* Grade chip (SAE) + family tag */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: .25rem .8rem;
+  border-radius: var(--r-pill);
+  font-family: var(--font-latin);
+  font-weight: 700;
+  font-size: var(--fs-200);
+  background: var(--bg-tint);
+  color: var(--gold-700);
+  border: 1px solid rgba(224, 177, 0, .35);
+  inline-size: fit-content;
+}
+.chip--blue { background: #e8edfb; color: var(--blue-600); border-color: rgba(30, 58, 138, .25); }
+.chip--family-special { background: #e8edfb; color: var(--f-special); border-color: rgba(30, 58, 138, .3); }
+.chip--family-petro { background: #faf3e3; color: var(--f-petro); border-color: rgba(161, 98, 7, .3); }
+.chip--family-raval { background: #fdecec; color: var(--f-raval); border-color: rgba(185, 28, 28, .3); }
