@@ -227,3 +227,37 @@ PS.dict = {
     PS.qsa(".reveal").forEach(el => io.observe(el));
   });
 })();
+
+
+/* ============ Catalog tabs, accordions & product gallery ============ */
+(() => {
+  document.addEventListener("DOMContentLoaded", () => {
+    /* Brand tabs */
+    const tabs = PS.qsa(".brand-tab");
+    tabs.forEach(tab => tab.addEventListener("click", () => {
+      tabs.forEach(t => {
+        t.setAttribute("aria-selected", String(t === tab));
+        const panel = document.getElementById(t.getAttribute("aria-controls"));
+        if (panel) panel.hidden = t !== tab;
+      });
+    }));
+
+    /* Category accordions */
+    PS.qsa(".cat__head").forEach(head => head.addEventListener("click", () => {
+      const open = head.getAttribute("aria-expanded") === "true";
+      head.setAttribute("aria-expanded", String(!open));
+      const body = document.getElementById(head.getAttribute("aria-controls"));
+      if (body) body.hidden = open;
+    }));
+
+    /* Product gallery thumbnails */
+    const main = PS.qs(".pd-gallery__main img");
+    PS.qsa(".pd-gallery__thumbs button").forEach(btn => btn.addEventListener("click", () => {
+      if (!main) return;
+      const thumb = PS.qs("img", btn);
+      main.src = btn.dataset.full || (thumb ? thumb.src : main.src);
+      PS.qsa(".pd-gallery__thumbs button").forEach(b =>
+        b.setAttribute("aria-current", String(b === btn)));
+    }));
+  });
+})();
