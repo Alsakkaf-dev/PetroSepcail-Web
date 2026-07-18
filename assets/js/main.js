@@ -353,3 +353,48 @@ PS.dict = {
     });
   });
 })();
+
+
+/* ============ Designed SVG bottle placeholders ============
+   For the 20 SKUs without photography: a systematic bottle
+   rendered per brand family — never a broken image. */
+(() => {
+  const FAMILIES = {
+    special: { body: "#1e3a8a", body2: "#16265c", cap: "#c62828", band: "#1e3a8a", word: "SPECIAL" },
+    petro:   { body: "#8a5a0b", body2: "#6b4409", cap: "#3b2c0e", band: "#a16207", word: "PETROTORYON" },
+    raval:   { body: "#a51d1d", body2: "#7f1616", cap: "#22252b", band: "#b91c1c", word: "RAVAL" }
+  };
+
+  PS.bottleSVG = data => {
+    const f = FAMILIES[data.family] || FAMILIES.special;
+    const grade = data.grade || "";
+    const name = data.name || "";
+    const size = data.size || "1L";
+    return `
+<svg class="bottle" viewBox="0 0 200 300" role="img" aria-label="${name} ${grade}">
+  <defs>
+    <linearGradient id="bd-${data.family}" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="${f.body2}"/><stop offset=".35" stop-color="${f.body}"/>
+      <stop offset=".65" stop-color="${f.body}"/><stop offset="1" stop-color="${f.body2}"/>
+    </linearGradient>
+  </defs>
+  <rect x="76" y="8" width="48" height="30" rx="6" fill="${f.cap}"/>
+  <path d="M76 14h48" stroke="rgba(255,255,255,.25)" stroke-width="3" stroke-dasharray="4 3"/>
+  <path d="M82 38h36l4 14c20 8 32 14 34 30l6 118c2 40-14 66-32 74a90 90 0 0 1-60 0c-18-8-34-34-32-74l6-118c2-16 14-22 34-30z" fill="url(#bd-${data.family})"/>
+  <path d="M60 92h12v96h-12zM128 92h12v96h-12z" fill="rgba(255,255,255,.07)"/>
+  <path d="M64 70c-2 10-3 16-3 24" stroke="rgba(255,255,255,.35)" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <rect x="52" y="110" width="96" height="132" rx="10" fill="#f8f7f2"/>
+  <rect x="52" y="110" width="96" height="26" rx="10" fill="${f.band}"/>
+  <text x="100" y="128" text-anchor="middle" font-family="Montserrat, sans-serif" font-weight="800" font-size="11" fill="#fff" letter-spacing=".5">${f.word}</text>
+  <text x="100" y="162" text-anchor="middle" font-family="Montserrat, sans-serif" font-weight="700" font-size="12" fill="#121417">${name}</text>
+  <rect x="64" y="176" width="72" height="30" rx="6" fill="#121417"/>
+  <text x="100" y="197" text-anchor="middle" font-family="Montserrat, sans-serif" font-weight="800" font-size="15" fill="#ffc800">${grade}</text>
+  <text x="100" y="228" text-anchor="middle" font-family="Montserrat, sans-serif" font-weight="600" font-size="10" fill="#6b7280">SAUDI MADE · ${size}</text>
+  <ellipse cx="100" cy="292" rx="54" ry="6" fill="rgba(18,20,23,.12)"/>
+</svg>`;
+  };
+
+  document.addEventListener("DOMContentLoaded", () => {
+    PS.qsa(".bottle-ph").forEach(el => { el.innerHTML = PS.bottleSVG(el.dataset); });
+  });
+})();
