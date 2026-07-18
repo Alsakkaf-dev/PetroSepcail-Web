@@ -26,3 +26,26 @@
 </head>
 <body>
   <a class="skip-link" href="#main" data-i18n="common.skip">تجاوز إلى المحتوى الرئيسي</a>
+
+  <header class="header">
+    <div class="header__inner">
+      <a class="brand" href="/" aria-label="بتروسبيشل — الرئيسية" data-i18n-attr="aria-label:brand.name">
+        <img src="/assets/img/logos/main-logo.png" alt="شعار بتروسبيشل" data-i18n-attr="alt:brand.name" width="204" height="68">
+      </a>
+      <button class="burger" aria-expanded="false" aria-controls="site-nav" aria-label="القائمة" data-i18n-attr="aria-label:nav.menu">
+        <span></span><span></span><span></span>
+      </button>
+      <nav class="nav" id="site-nav" aria-label="التنقل الرئيسي" data-i18n-attr="aria-label:nav.aria">
+        <a href="/" data-i18n="nav.home">الرئيسية</a>
+        <a href="/products/" aria-current="page" data-i18n="nav.products">المنتجات</a>
+        <a href="/about/" data-i18n="nav.about">عن الشركة</a>
+        <a href="/quality/" data-i18n="nav.quality">الجودة</a>
+        <a href="/distribution/" data-i18n="nav.distribution">التوزيع</a>
+        <a href="/contact/" data-i18n="nav.contact">تواصل معنا</a>
+        <button class="lang-toggle" aria-label="تبديل اللغة" data-i18n-attr="aria-label:lang.label">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3.6 9h16.8M3.6 15h16.8M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>
+          <span class="lang-toggle__label">EN</span>
+        </button>
+      </nav>
+    </div>
+  </header>
