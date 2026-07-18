@@ -1,0 +1,19 @@
+name: Keep message backend alive
+
+# Free-tier Supabase pauses projects after prolonged inactivity.
+# A tiny weekly request keeps the PetroSpecial contact inbox always ready.
+on:
+  schedule:
+    - cron: "0 3 * * 1"   # every Monday 03:00 UTC
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping backend REST endpoint
+        run: |
+          curl -sf -o /dev/null \
+            -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvbWl5c29qaWxtbGJ3eXhyYXpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzNzgyNzcsImV4cCI6MjA5OTk1NDI3N30.H_93bZv7gVPmwI-x1LF_5fV9KP6OnSRLLaaF4J53Yk0" \
+            "https://zomiysojilmlbwyxrazj.supabase.co/rest/v1/contact_messages?select=id&limit=1" \
+            && echo "Backend awake."
