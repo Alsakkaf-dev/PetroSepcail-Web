@@ -1,0 +1,14 @@
+# OS artifacts
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Editors / IDEs
+.idea/
+.vscode/
+*.iml
+
+# Local scratch
+*.log
+*.tmp
+node_modules/
