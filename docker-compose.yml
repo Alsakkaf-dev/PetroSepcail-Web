@@ -77,17 +77,19 @@ services:
     ports:
       - "${MAILPIT_WEB_PORT}:8025"
 
-  # Placeholders — S11 (DL-02/03/07, ADR-09) replaces the entrypoint with the
-  # real Nominatim import / OSRM pre-processing over a bundled sample extract.
-  # Present here so `docker compose up` already brings up every container M0
-  # promises, without a multi-tens-of-MB geo-data download at bootstrap time.
+  # Placeholders — S11 (DL-02/03/07, ADR-09) swaps these for the real
+  # mediagis/nominatim + osrm/osrm-backend images (each multi-hundred-MB to
+  # multi-GB) plus the real import/pre-processing over a bundled sample
+  # extract. A tiny alpine image is enough here: nothing at M0 exercises
+  # Nominatim/OSRM functionality (entrypoint is just an idle placeholder), so
+  # there is no reason to pay for the heavy pull until S11 actually needs it.
   nominatim:
-    image: mediagis/nominatim:4.4
+    image: alpine:3.20
     restart: unless-stopped
     entrypoint: ["tail", "-f", "/dev/null"]
 
   osrm:
-    image: osrm/osrm-backend:latest
+    image: alpine:3.20
     restart: unless-stopped
     entrypoint: ["tail", "-f", "/dev/null"]
 
