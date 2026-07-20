@@ -1,0 +1,37 @@
+{
+  "name": "petrospecial-platform",
+  "private": true,
+  "version": "0.0.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "services/*",
+    "workers"
+  ],
+  "scripts": {
+    "verify": "npm run typecheck && npm run lint && npm run test:unit && npm run test:contract && npm run test:migration",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "eslint . --ext .ts,.tsx --max-warnings=0",
+    "test:unit": "vitest run",
+    "test:contract": "node scripts/check-contracts.mjs",
+    "test:migration": "node scripts/test-migration.mjs",
+    "db:migrate:up": "node-pg-migrate -m db/migrations --migration-file-language sql up",
+    "db:migrate:down": "node-pg-migrate -m db/migrations --migration-file-language sql down",
+    "parity-grep": "node scripts/parity-grep.mjs",
+    "prepare": "node scripts/git-hooks/install.mjs"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "eslint": "^8.57.0",
+    "eslint-plugin-react": "^7.35.0",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "node-pg-migrate": "^9.0.0",
+    "pg": "^8.12.0",
+    "typescript": "^5.5.4",
+    "vitest": "^2.0.5"
+  }
+}
