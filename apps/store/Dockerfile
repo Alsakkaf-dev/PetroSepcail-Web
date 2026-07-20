@@ -12,7 +12,7 @@ COPY services/api/package.json services/api/package.json
 COPY services/realtime/package.json services/realtime/package.json
 COPY services/zatca-sim/package.json services/zatca-sim/package.json
 COPY workers/package.json workers/package.json
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 FROM node:20-alpine AS build
 WORKDIR /workspace
@@ -21,8 +21,14 @@ COPY . .
 RUN npm run build -w @petrospecial/store
 
 FROM node:20-alpine AS runner
+RUN apk update && apk upgrade --no-cache
 WORKDIR /app
 ENV NODE_ENV=production
+# Docker sets HOSTNAME to the container ID; Next's standalone server binds to
+# that instead of 0.0.0.0 when set, which breaks loopback (healthchecks).
+ENV HOSTNAME=0.0.0.0
+# The standalone server only reads the generic PORT var, not STORE_PORT.
+ENV PORT=3000
 COPY --from=build /workspace/apps/store/.next/standalone ./
 COPY --from=build /workspace/apps/store/.next/static ./apps/store/.next/static
 COPY --from=build /workspace/apps/store/public ./apps/store/public
