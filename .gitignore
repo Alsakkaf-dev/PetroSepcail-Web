@@ -15,3 +15,13 @@ node_modules/
 
 # Local planning docs (not for the website repo)
 platform-docs/
+
+# Platform build artifacts (D-12: generated locally, never committed)
+dist/
+.next/
+coverage/
+*.tsbuildinfo
+
+# Platform runtime secrets (generated on first boot by scripts/init, never committed)
+secrets/
+.env
