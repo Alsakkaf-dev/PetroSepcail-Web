@@ -1,0 +1,268 @@
+name: petrospecial-platform
+
+x-node-healthcheck: &node-healthcheck
+  interval: 10s
+  timeout: 5s
+  retries: 5
+  start_period: 10s
+
+volumes:
+  postgres_data:
+  minio_data:
+  caddy_data:
+  caddy_config:
+
+services:
+  # ---- Reverse proxy / automatic TLS (ADR-12) -----------------------------
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "${HTTP_PORT}:80"
+      - "${HTTPS_PORT}:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      store:
+        condition: service_started
+      admin:
+        condition: service_started
+      driver:
+        condition: service_started
+      api:
+        condition: service_started
+      realtime:
+        condition: service_started
+
+  # ---- Data plane (ADR-01/06) ---------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    env_file: .env
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "${MINIO_API_PORT}:9000"
+      - "${MINIO_CONSOLE_PORT}:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "${MAILPIT_WEB_PORT}:8025"
+
+  # Placeholders — S11 (DL-02/03/07, ADR-09) replaces the entrypoint with the
+  # real Nominatim import / OSRM pre-processing over a bundled sample extract.
+  # Present here so `docker compose up` already brings up every container M0
+  # promises, without a multi-tens-of-MB geo-data download at bootstrap time.
+  nominatim:
+    image: mediagis/nominatim:4.4
+    restart: unless-stopped
+    entrypoint: ["tail", "-f", "/dev/null"]
+
+  osrm:
+    image: osrm/osrm-backend:latest
+    restart: unless-stopped
+    entrypoint: ["tail", "-f", "/dev/null"]
+
+  # ---- First-boot init (M0-2): JWT/ZATCA keys + MinIO buckets, idempotent --
+  init:
+    build:
+      context: ./scripts/init
+    env_file: .env
+    environment:
+      SECRETS_DIR: /run/secrets
+    volumes:
+      - ./secrets:/run/secrets
+    depends_on:
+      minio:
+        condition: service_healthy
+    restart: "no"
+
+  # ---- Migrations (plain SQL via node-pg-migrate) -------------------------
+  migrate:
+    build:
+      context: ./db
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  # ---- Application services -----------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./secrets:/run/secrets:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      init:
+        condition: service_completed_successfully
+    healthcheck:
+      <<: *node-healthcheck
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        ]
+
+  realtime:
+    build:
+      context: .
+      dockerfile: services/realtime/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./secrets:/run/secrets:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      <<: *node-healthcheck
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:4001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        ]
+
+  zatca-sim:
+    build:
+      context: .
+      dockerfile: services/zatca-sim/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./secrets:/run/secrets:ro
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    healthcheck:
+      <<: *node-healthcheck
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:4010/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        ]
+
+  workers:
+    build:
+      context: .
+      dockerfile: workers/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./secrets:/run/secrets:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      init:
+        condition: service_completed_successfully
+    healthcheck:
+      <<: *node-healthcheck
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:4020/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        ]
+
+  store:
+    build:
+      context: .
+      dockerfile: apps/store/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      api:
+        condition: service_started
+    healthcheck:
+      <<: *node-healthcheck
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        ]
+
+  admin:
+    build:
+      context: .
+      dockerfile: apps/admin/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      api:
+        condition: service_started
+    healthcheck:
+      <<: *node-healthcheck
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3001/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        ]
+
+  driver:
+    build:
+      context: .
+      dockerfile: apps/driver/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      api:
+        condition: service_started
+    healthcheck:
+      <<: *node-healthcheck
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3002/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        ]
