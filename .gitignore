@@ -12,3 +12,6 @@ Desktop.ini
 *.log
 *.tmp
 node_modules/
+
+# Local planning docs (not for the website repo)
+platform-docs/
