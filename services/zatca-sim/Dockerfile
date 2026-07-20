@@ -12,7 +12,7 @@ COPY services/api/package.json services/api/package.json
 COPY services/realtime/package.json services/realtime/package.json
 COPY services/zatca-sim/package.json services/zatca-sim/package.json
 COPY workers/package.json workers/package.json
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 FROM node:20-alpine AS build
 WORKDIR /workspace
@@ -21,6 +21,7 @@ COPY . .
 RUN npm run build -w @petrospecial/zatca-sim
 
 FROM node:20-alpine AS runner
+RUN apk update && apk upgrade --no-cache
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=build /workspace/node_modules ./node_modules
