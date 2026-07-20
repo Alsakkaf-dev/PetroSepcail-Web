@@ -80,7 +80,12 @@ async function main() {
         "up"
       ],
       {
+        // All arguments above are static string literals (no interpolated
+        // input), so shell:true carries no injection risk here — it's
+        // required on Windows, where .cmd shims (npx.cmd) cannot be
+        // spawned directly without going through a shell.
         stdio: "inherit",
+        shell: true,
         env: {
           ...process.env,
           DATABASE_URL: `postgres://postgres:test@127.0.0.1:${port}/test`
