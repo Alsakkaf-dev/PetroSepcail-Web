@@ -22,6 +22,19 @@ describe("channelAuth", () => {
     expect(authorizeChannel("totally-made-up-channel", actor("super_admin"))).toBe(false);
   });
 
+  it("allows only the owning identity on its own identity:{sub}:notifications channel", () => {
+    expect(authorizeChannel("identity:00000000-0000-0000-0000-000000000001:notifications", actor("customer"))).toBe(
+      true
+    );
+    expect(
+      authorizeChannel(
+        "identity:00000000-0000-0000-0000-000000000001:notifications",
+        actor("customer", "00000000-0000-0000-0000-000000000002")
+      )
+    ).toBe(false);
+    expect(authorizeChannel("identity:00000000-0000-0000-0000-000000000001:notifications", null)).toBe(false);
+  });
+
   it("extracts path parameters from a registered pattern and passes them to the authorizer", () => {
     let seenParams: Record<string, string> | undefined;
     registerChannel("test:{entity_id}:demo", (_actor, params) => {
