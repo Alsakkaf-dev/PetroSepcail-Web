@@ -213,6 +213,27 @@ export async function revokeAuthTokenFamily(client: PoolClient, familyId: string
   );
 }
 
+// FR-PC01-007: "on reset, all sessions of that identity are revoked."
+export async function revokeAllAuthTokensForIdentity(client: PoolClient, identityId: string): Promise<void> {
+  await client.query(
+    "update core.auth_tokens set revoked_at = now() where identity_id = $1 and revoked_at is null",
+    [identityId]
+  );
+}
+
+export async function findActiveFamilyIdsForIdentityRole(
+  client: PoolClient,
+  identityId: string,
+  role: UserRole
+): Promise<string[]> {
+  const res = await client.query<{ family_id: string }>(
+    `select distinct family_id from core.auth_tokens
+     where identity_id = $1 and role = $2 and revoked_at is null and expires_at > now()`,
+    [identityId, role]
+  );
+  return res.rows.map((r) => r.family_id);
+}
+
 // -- mfa_secrets ---------------------------------------------------------------
 
 export interface MfaSecretRow {
