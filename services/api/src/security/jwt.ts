@@ -40,9 +40,11 @@ export async function signAccessToken(
   ttlSeconds: number
 ): Promise<string> {
   const key = await getPrivateKey();
+  // No .setIssuedAt(): 04-roles §2/FR-PC02-001 AC1 requires the JWT to carry
+  // *exactly* {sub, role, supplier_id?, driver_id?, locale, exp} — jose's
+  // setIssuedAt() would add an extra `iat` claim beyond that frozen shape.
   return new SignJWT({ ...claims })
     .setProtectedHeader({ alg: "RS256" })
-    .setIssuedAt()
     .setExpirationTime(Math.floor(Date.now() / 1000) + ttlSeconds)
     .sign(key);
 }
