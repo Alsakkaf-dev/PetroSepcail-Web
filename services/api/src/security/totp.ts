@@ -42,6 +42,13 @@ export function buildOtpauthUri(secretBase32: string, accountLabel: string, issu
   return `otpauth://totp/${label}?${params.toString()}`;
 }
 
+// Generates the current 6-digit code for a secret — used by authenticator
+// apps (and this codebase's own E2E test) to actually produce a code, as
+// opposed to verifyTotp which only checks one.
+export function currentTotp(secretBase32: string, nowSeconds = Date.now() / 1000): string {
+  return totpAt(secretBase32, nowSeconds);
+}
+
 export function maskSecret(secretBase32: string): string {
   return `${secretBase32.slice(0, 4)}${"*".repeat(Math.max(0, secretBase32.length - 8))}${secretBase32.slice(-4)}`;
 }
