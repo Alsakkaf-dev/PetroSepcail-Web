@@ -1,11 +1,20 @@
 import { errorEnvelope } from "@petrospecial/contracts";
 
 // D-09 / FR-PC04-004: single error-code registry, envelope
-// {error:{code,message,details}}. Each code also carries the core.i18n_strings
+// {error:{code,message,details}}, authoritative source
+// 05-api-specification.md §8. Each code also carries the core.i18n_strings
 // key holding its AR/EN user-facing message (seeded by db/migrations/0009,
 // S02) — the full locale-resolution pipeline (EP-PC-030, Accept-Language,
 // etc.) is PC-07's job in S05; `message` here is the EN default so the
 // envelope is useful before that lands.
+//
+// CORRECTION (S03): S02 wrote this registry before §8 was in scope
+// (Delta-Reading — S02's Read line didn't include it) and invented
+// `INTERNAL_ERROR`; the authoritative code is `INTERNAL`. Fixed here, plus
+// the three codes S02 had no reason to need yet: RATE_LIMITED (PC-GW-2,
+// this session), PAYLOAD_TOO_LARGE / CONFLICT (no endpoint uses them yet —
+// registered now so the registry is complete per FR-PC04-004, wired by
+// whichever future session needs them).
 export const ERROR_REGISTRY = {
   VALIDATION_ERROR: { status: 422, messageKey: "error.validation_error", message: "Validation failed." },
   IDENTITY_EXISTS: {
@@ -34,7 +43,10 @@ export const ERROR_REGISTRY = {
   },
   FORBIDDEN: { status: 403, messageKey: "error.forbidden", message: "You do not have permission to do this." },
   NOT_FOUND: { status: 404, messageKey: "error.not_found", message: "Not found." },
-  INTERNAL_ERROR: { status: 500, messageKey: "error.internal_error", message: "An unexpected error occurred." }
+  RATE_LIMITED: { status: 429, messageKey: "error.rate_limited", message: "Too many requests. Please slow down." },
+  PAYLOAD_TOO_LARGE: { status: 413, messageKey: "error.payload_too_large", message: "The upload exceeds the size limit." },
+  CONFLICT: { status: 409, messageKey: "error.conflict", message: "This conflicts with the current state." },
+  INTERNAL: { status: 500, messageKey: "error.internal", message: "An unexpected error occurred." }
 } as const;
 
 export type ErrorCode = keyof typeof ERROR_REGISTRY;
