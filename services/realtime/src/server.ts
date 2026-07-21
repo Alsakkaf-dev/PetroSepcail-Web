@@ -29,11 +29,13 @@ interface Connection {
   channels: Set<string>;
 }
 
+export type BroadcastToChannelFn = (channel: string, payload: unknown) => void;
+
 export interface RealtimeServer {
   server: http.Server;
   wss: WebSocketServer;
   broadcast: (event: EventEnvelope) => void;
-  broadcastToChannel: (channel: string, payload: unknown) => void;
+  broadcastToChannel: BroadcastToChannelFn;
 }
 
 // PC-EV-3 / TC-PC05-004: connect with `?token=` (browsers can't set custom
