@@ -1,5 +1,6 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import { ZodError } from "zod";
+import { errorEnvelope } from "@petrospecial/contracts";
 import { ApiError } from "./errors.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 
@@ -19,9 +20,11 @@ export function buildServer(): FastifyInstance {
       return reply.code(err.status).send(err.toEnvelope());
     }
     if (err instanceof ZodError) {
-      return reply.code(422).send({
-        error: { code: "VALIDATION_ERROR", message: "Validation failed.", details: err.issues }
-      });
+      return reply.code(422).send(
+        errorEnvelope.parse({
+          error: { code: "VALIDATION_ERROR", message: "Validation failed.", details: err.issues }
+        })
+      );
     }
     app.log.error(err);
     return reply.code(500).send(new ApiError("INTERNAL_ERROR").toEnvelope());
