@@ -78,7 +78,7 @@ export async function drainOutbox(broadcast: BroadcastFn): Promise<number> {
   return dispatchedCount;
 }
 
-export function startDispatcher(listenerClient: Client, broadcast: BroadcastFn): { stop: () => void } {
+export function startDispatcher(listenerClient: Client, broadcast: BroadcastFn): { stop: () => Promise<void> } {
   const drain = () => {
     drainOutbox(broadcast).catch((err) => console.error("[dispatcher] drain failed", err));
   };
@@ -92,6 +92,9 @@ export function startDispatcher(listenerClient: Client, broadcast: BroadcastFn):
   drain(); // catch up on anything queued before startup
 
   return {
-    stop: () => clearInterval(interval)
+    stop: async () => {
+      clearInterval(interval);
+      await listenerClient.end();
+    }
   };
 }
