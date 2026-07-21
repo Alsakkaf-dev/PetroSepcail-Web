@@ -3,13 +3,19 @@ import type { FastifyInstance } from "fastify";
 import {
   accountDeleteResponse,
   loginRequest,
+  loginRoleSelectionResponse,
+  loginSuccessResponse,
   mfaConfirmRequest,
+  mfaConfirmResponse,
   mfaEnrollResponse,
   passwordResetConfirmRequest,
   passwordResetRequestRequest,
   refreshRequest,
+  refreshResponse,
   registerRequest,
-  verifyEmailRequest
+  registerResponse,
+  verifyEmailRequest,
+  verifyEmailResponse
 } from "@petrospecial/contracts";
 import { withServiceRoleTransaction } from "../db.js";
 import { ApiError } from "../errors.js";
@@ -76,11 +82,13 @@ export function registerAuthRoutes(app: FastifyInstance): void {
         ? `${process.env.PUBLIC_BASE_URL ?? ""}/verify-email?token=${result.rawToken}`
         : undefined;
 
-    return reply.code(201).send({
-      identityId: result.identityId,
-      status: "pending_verification",
-      ...(verifyLink ? { verifyLink } : {})
-    });
+    return reply.code(201).send(
+      registerResponse.parse({
+        identityId: result.identityId,
+        status: "pending_verification",
+        ...(verifyLink ? { verifyLink } : {})
+      })
+    );
   });
 
   // EP-PC-002 · POST /auth/verify-email
@@ -92,7 +100,7 @@ export function registerAuthRoutes(app: FastifyInstance): void {
       await repo.activateIdentity(client, token.identity_id);
       await repo.consumeVerificationToken(client, token.id);
     });
-    return reply.code(200).send({ status: "active" });
+    return reply.code(200).send(verifyEmailResponse.parse({ status: "active" }));
   });
 
   // EP-PC-003 · POST /auth/login
@@ -179,14 +187,18 @@ export function registerAuthRoutes(app: FastifyInstance): void {
     });
 
     if (outcome.kind === "role_selection_required") {
-      return reply.code(200).send({ status: "role_selection_required", roles: outcome.roles });
+      return reply
+        .code(200)
+        .send(loginRoleSelectionResponse.parse({ status: "role_selection_required", roles: outcome.roles }));
     }
-    return reply.code(200).send({
-      accessToken: outcome.accessToken,
-      refreshToken: outcome.refreshToken,
-      expiresIn: outcome.expiresIn,
-      role: outcome.role
-    });
+    return reply.code(200).send(
+      loginSuccessResponse.parse({
+        accessToken: outcome.accessToken,
+        refreshToken: outcome.refreshToken,
+        expiresIn: outcome.expiresIn,
+        role: outcome.role
+      })
+    );
   });
 
   // EP-PC-004 · POST /auth/refresh
@@ -240,7 +252,7 @@ export function registerAuthRoutes(app: FastifyInstance): void {
       return { accessToken, refreshToken: refreshTokenRaw, expiresIn: accessTtlSeconds() };
     });
 
-    return reply.code(200).send(result);
+    return reply.code(200).send(refreshResponse.parse(result));
   });
 
   // EP-PC-005 · POST /auth/logout · auth
@@ -329,7 +341,7 @@ export function registerAuthRoutes(app: FastifyInstance): void {
       await repo.confirmMfaSecret(client, actor.sub);
     });
 
-    return reply.code(200).send({ enabled: true });
+    return reply.code(200).send(mfaConfirmResponse.parse({ enabled: true }));
   });
 
   // EP-PC-010 · POST /auth/account/delete · auth
