@@ -3,7 +3,13 @@
 // (.env*, docker-compose.yml, Caddyfile) are exempt: that's where the
 // per-tier value is *supposed* to live. Docker service-name hosts
 // (e.g. "postgres:5432") are internal DNS names, stable across every tier,
-// and are not a parity violation.
+// and are not a parity violation. *.test.ts files are also exempt: an
+// integration test that spins up its own ephemeral local Docker container
+// (e.g. services/api/src/routes/auth.e2e.test.ts) always talks to
+// 127.0.0.1/localhost by construction, regardless of tier — that's test
+// harness config, not application behavior (same reasoning as
+// scripts/test-migration.mjs / scripts/test-rls.mjs living outside the
+// scanned roots entirely).
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 
@@ -30,7 +36,7 @@ function walk(dir, files = []) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       walk(full, files);
-    } else if (SOURCE_EXT.has(path.extname(entry.name))) {
+    } else if (SOURCE_EXT.has(path.extname(entry.name)) && !entry.name.endsWith(".test.ts")) {
       files.push(full);
     }
   }

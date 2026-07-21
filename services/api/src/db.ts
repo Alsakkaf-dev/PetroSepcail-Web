@@ -1,4 +1,5 @@
 import { Pool, type PoolClient } from "pg";
+import { ApiError } from "./errors.js";
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -9,7 +10,17 @@ function requireEnv(name: string): string {
 let pool: Pool | undefined;
 
 function getPool(): Pool {
-  pool ??= new Pool({ connectionString: requireEnv("DATABASE_URL") });
+  if (!pool) {
+    pool = new Pool({ connectionString: requireEnv("DATABASE_URL") });
+    // node-postgres: "the pool will emit an error on behalf of any idle
+    // clients it contains if they encounter network-related errors ...
+    // your application should always register an 'error' handler on the
+    // pool" — without one, a dropped idle connection throws an unhandled
+    // 'error' event and crashes the process.
+    pool.on("error", (err) => {
+      console.error("[db] idle client error", err);
+    });
+  }
   return pool;
 }
 
@@ -33,6 +44,14 @@ export async function withServiceRoleTransaction<T>(fn: (client: PoolClient) => 
     await client.query("commit");
     return result;
   } catch (err) {
+    if (err instanceof ApiError) {
+      // A controlled business-logic outcome (wrong password, invalid/reused
+      // token, ...) is not a DB failure — side effects recorded before it
+      // (failed-login counters, refresh-family revocation on reuse, etc.)
+      // are intentional and must still be committed, not undone.
+      await client.query("commit").catch(() => {});
+      throw err;
+    }
     await client.query("rollback").catch(() => {});
     throw err;
   } finally {
