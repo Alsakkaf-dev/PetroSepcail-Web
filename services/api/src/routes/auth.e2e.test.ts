@@ -82,7 +82,7 @@ describe.runIf(dockerAvailable())("PC-01/02 auth E2E (real Postgres)", () => {
     process.env.PUBLIC_BASE_URL = "https://localhost";
 
     const { buildServer } = await import("../server.js");
-    app = buildServer();
+    app = await buildServer();
 
     dbClient = new Client({ connectionString: dbUrl });
     await dbClient.connect();
