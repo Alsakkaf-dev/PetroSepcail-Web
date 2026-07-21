@@ -86,3 +86,13 @@ export async function closePool(): Promise<void> {
   await pool?.end();
   pool = undefined;
 }
+
+// EP-PC-061 /ready (FR-PC04-005): a real DB round-trip, not just "pool exists".
+export async function pingDb(): Promise<boolean> {
+  try {
+    await getPool().query("select 1");
+    return true;
+  } catch {
+    return false;
+  }
+}
