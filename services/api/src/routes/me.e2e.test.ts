@@ -45,6 +45,9 @@ describe.runIf(dockerAvailable())("GET /api/v1/me — RLS enforced through the A
   let app: any;
   let customerToken: string;
   let supplierToken: string;
+  let adminToken: string;
+  let superAdminToken: string;
+  let dbClient: Client;
 
   beforeAll(async () => {
     spawnSync("docker", ["rm", "-f", CONTAINER], { stdio: "ignore" });
@@ -96,12 +99,30 @@ describe.runIf(dockerAvailable())("GET /api/v1/me — RLS enforced through the A
       payload: { email: "supplier.seed@petrospecial.internal", password: DEV_PASSWORD }
     });
     supplierToken = supplierLogin.json().accessToken;
+
+    const adminLogin = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: { email: "admin.seed@petrospecial.internal", password: DEV_PASSWORD }
+    });
+    adminToken = adminLogin.json().accessToken;
+
+    const superAdminLogin = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: { email: "superadmin.seed@petrospecial.internal", password: DEV_PASSWORD }
+    });
+    superAdminToken = superAdminLogin.json().accessToken;
+
+    dbClient = new Client({ connectionString: dbUrl });
+    await dbClient.connect();
   }, 60_000);
 
   afterAll(async () => {
     const { closePool } = await import("../db.js");
     await app?.close();
     await closePool();
+    await dbClient?.end();
     rmSync(dir, { recursive: true, force: true });
     stopContainer();
   });
@@ -170,5 +191,85 @@ describe.runIf(dockerAvailable())("GET /api/v1/me — RLS enforced through the A
     const res = await app.inject({ method: "GET", url: "/api/v1/i18n/fr" });
     expect(res.statusCode).toBe(422);
     expect(res.json().error.code).toBe("VALIDATION_ERROR");
+  });
+
+  // EP-PC-040..043 (PC-12, S05) — same server/DB, appended for the same
+  // reason as the i18n tests above.
+  it("GET /api/v1/admin/settings is readable by admin and lists the S01 seed", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/v1/admin/settings",
+      headers: { authorization: `Bearer ${adminToken}` }
+    });
+    expect(res.statusCode).toBe(200);
+    const vatRate = res.json().find((s: { key: string }) => s.key === "vat_rate");
+    expect(vatRate.value).toBe(0.15);
+  });
+
+  it("GET /api/v1/admin/settings is forbidden for a customer", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/v1/admin/settings",
+      headers: { authorization: `Bearer ${customerToken}` }
+    });
+    expect(res.statusCode).toBe(403);
+    expect(res.json().error.code).toBe("FORBIDDEN");
+  });
+
+  it("PUT /api/v1/admin/settings/:key is forbidden for admin (super_admin-only, see route comment)", async () => {
+    const res = await app.inject({
+      method: "PUT",
+      url: "/api/v1/admin/settings/vat_rate",
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { value: 0.16 }
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it("PUT /api/v1/admin/settings/:key by super_admin updates the value, audits it, and emits EV-PC-050", async () => {
+    const res = await app.inject({
+      method: "PUT",
+      url: "/api/v1/admin/settings/vat_rate",
+      headers: { authorization: `Bearer ${superAdminToken}` },
+      payload: { value: 0.16 }
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().value).toBe(0.16);
+
+    const audit = await dbClient.query(
+      "select action, resource, resource_id, before, after from audit.audit_log where resource = 'core.settings' and resource_id = 'vat_rate'"
+    );
+    expect(audit.rowCount).toBe(1);
+    expect(audit.rows[0].before).toBe(0.15);
+    expect(audit.rows[0].after).toBe(0.16);
+
+    const event = await dbClient.query("select payload from core.outbox where name = 'platform.config.changed'");
+    expect(event.rowCount).toBe(1);
+    expect(event.rows[0].payload).toEqual({ key: "vat_rate", old: 0.15, new: 0.16 });
+
+    // Restore, so this test is independent of later ones in the same file.
+    await dbClient.query("update core.settings set value = '0.15' where key = 'vat_rate'");
+  });
+
+  it("PUT /api/v1/admin/feature-flags/:key by super_admin updates a flag", async () => {
+    const res = await app.inject({
+      method: "PUT",
+      url: "/api/v1/admin/feature-flags/sms.enabled",
+      headers: { authorization: `Bearer ${superAdminToken}` },
+      payload: { value: true }
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().value).toBe(true);
+  });
+
+  it("PUT on a non-existent settings key returns NOT_FOUND", async () => {
+    const res = await app.inject({
+      method: "PUT",
+      url: "/api/v1/admin/settings/does_not_exist",
+      headers: { authorization: `Bearer ${superAdminToken}` },
+      payload: { value: 1 }
+    });
+    expect(res.statusCode).toBe(404);
+    expect(res.json().error.code).toBe("NOT_FOUND");
   });
 });
