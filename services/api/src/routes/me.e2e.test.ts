@@ -272,4 +272,106 @@ describe.runIf(dockerAvailable())("GET /api/v1/me — RLS enforced through the A
     expect(res.statusCode).toBe(404);
     expect(res.json().error.code).toBe("NOT_FOUND");
   });
+
+  // EP-PC-020..022 (PC-06, S05) — same server/DB, appended for the same
+  // reason as the i18n/config tests above.
+  it("in-app notifications: list, unread filter, mark one read, mark all read, RLS isolation", async () => {
+    const customerId = "00000000-0000-0000-0000-000000000001";
+    const supplierId = "00000000-0000-0000-0000-000000000002";
+    await dbClient.query(
+      `insert into core.notifications (identity_id, type, params) values
+         ($1, 'test.one', '{}'::jsonb), ($1, 'test.two', '{}'::jsonb), ($2, 'test.other', '{}'::jsonb)`,
+      [customerId, supplierId]
+    );
+
+    const listRes = await app.inject({
+      method: "GET",
+      url: "/api/v1/notifications",
+      headers: { authorization: `Bearer ${customerToken}` }
+    });
+    expect(listRes.statusCode).toBe(200);
+    const list = listRes.json();
+    expect(list.items).toHaveLength(2); // RLS: never sees the supplier's row
+    expect(list.items.every((n: { type: string }) => n.type.startsWith("test."))).toBe(true);
+
+    const unreadRes = await app.inject({
+      method: "GET",
+      url: "/api/v1/notifications?unread=true",
+      headers: { authorization: `Bearer ${customerToken}` }
+    });
+    expect(unreadRes.json().items).toHaveLength(2);
+
+    const toMarkRead = list.items[0].id;
+    const markOneRes = await app.inject({
+      method: "POST",
+      url: `/api/v1/notifications/${toMarkRead}/read`,
+      headers: { authorization: `Bearer ${customerToken}` }
+    });
+    expect(markOneRes.statusCode).toBe(204);
+
+    const afterOneRead = await app.inject({
+      method: "GET",
+      url: "/api/v1/notifications?unread=true",
+      headers: { authorization: `Bearer ${customerToken}` }
+    });
+    expect(afterOneRead.json().items).toHaveLength(1);
+
+    const readAllRes = await app.inject({
+      method: "POST",
+      url: "/api/v1/notifications/read-all",
+      headers: { authorization: `Bearer ${customerToken}` }
+    });
+    expect(readAllRes.statusCode).toBe(204);
+
+    const afterReadAll = await app.inject({
+      method: "GET",
+      url: "/api/v1/notifications?unread=true",
+      headers: { authorization: `Bearer ${customerToken}` }
+    });
+    expect(afterReadAll.json().items).toHaveLength(0);
+
+    // A customer marking the supplier's own notification "read" affects
+    // nothing (RLS `notif_own_update` scopes the WHERE regardless of id).
+    const supplierNotif = await dbClient.query("select id from core.notifications where identity_id = $1", [supplierId]);
+    await app.inject({
+      method: "POST",
+      url: `/api/v1/notifications/${supplierNotif.rows[0].id}/read`,
+      headers: { authorization: `Bearer ${customerToken}` }
+    });
+    const stillUnread = await dbClient.query("select read_at from core.notifications where id = $1", [
+      supplierNotif.rows[0].id
+    ]);
+    expect(stillUnread.rows[0].read_at).toBeNull();
+  });
+
+  it("cursor pagination on GET /api/v1/notifications returns a working nextCursor", async () => {
+    const customerId = "00000000-0000-0000-0000-000000000001";
+    await dbClient.query("delete from core.notifications where identity_id = $1", [customerId]);
+    for (let i = 0; i < 3; i++) {
+      await dbClient.query("insert into core.notifications (identity_id, type, params) values ($1, $2, '{}'::jsonb)", [
+        customerId,
+        `page.${i}`
+      ]);
+    }
+
+    const firstPage = await app.inject({
+      method: "GET",
+      url: "/api/v1/notifications?limit=2",
+      headers: { authorization: `Bearer ${customerToken}` }
+    });
+    expect(firstPage.json().items).toHaveLength(2);
+    expect(firstPage.json().nextCursor).not.toBeNull();
+
+    const secondPage = await app.inject({
+      method: "GET",
+      url: `/api/v1/notifications?limit=2&cursor=${encodeURIComponent(firstPage.json().nextCursor)}`,
+      headers: { authorization: `Bearer ${customerToken}` }
+    });
+    expect(secondPage.json().items).toHaveLength(1);
+    expect(secondPage.json().nextCursor).toBeNull();
+
+    const firstIds = firstPage.json().items.map((n: { id: string }) => n.id);
+    const secondIds = secondPage.json().items.map((n: { id: string }) => n.id);
+    expect(firstIds.filter((id: string) => secondIds.includes(id))).toHaveLength(0); // no overlap
+  });
 });
