@@ -149,4 +149,26 @@ describe.runIf(dockerAvailable())("GET /api/v1/me — RLS enforced through the A
     });
     expect(count).toBe(1);
   });
+
+  // EP-PC-030 (PC-07, S05) — same server/DB as the /me tests above, no
+  // reason to pay for a second docker spin-up in its own suite.
+  it("GET /api/v1/i18n/ar returns the AR bundle for guests, no auth required", async () => {
+    const res = await app.inject({ method: "GET", url: "/api/v1/i18n/ar" });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.locale).toBe("ar");
+    expect(body.strings["nav.home"]).toBe("الرئيسية");
+  });
+
+  it("GET /api/v1/i18n/en returns the EN bundle", async () => {
+    const res = await app.inject({ method: "GET", url: "/api/v1/i18n/en" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().strings["nav.home"]).toBe("Home");
+  });
+
+  it("GET /api/v1/i18n/fr rejects an unsupported locale", async () => {
+    const res = await app.inject({ method: "GET", url: "/api/v1/i18n/fr" });
+    expect(res.statusCode).toBe(422);
+    expect(res.json().error.code).toBe("VALIDATION_ERROR");
+  });
 });
