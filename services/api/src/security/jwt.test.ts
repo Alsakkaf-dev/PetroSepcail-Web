@@ -43,6 +43,16 @@ describe("jwt", () => {
     expect(typeof claims.exp).toBe("number");
   });
 
+  it("contains exactly the frozen claim set — no iat, no extras (FR-PC02-001 AC1)", async () => {
+    const token = await signAccessToken(
+      { sub: "00000000-0000-0000-0000-000000000001", role: "customer", locale: "ar" },
+      3600
+    );
+    const payloadB64 = token.split(".")[1]!;
+    const payload = JSON.parse(Buffer.from(payloadB64, "base64url").toString("utf8"));
+    expect(Object.keys(payload).sort()).toEqual(["exp", "locale", "role", "sub"]);
+  });
+
   it("carries supplier_id for a supplier-role token", async () => {
     const token = await signAccessToken(
       {
