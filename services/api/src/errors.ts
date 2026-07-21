@@ -1,3 +1,5 @@
+import { errorEnvelope } from "@petrospecial/contracts";
+
 // D-09 / FR-PC04-004: single error-code registry, envelope
 // {error:{code,message,details}}. Each code also carries the core.i18n_strings
 // key holding its AR/EN user-facing message (seeded by db/migrations/0009,
@@ -52,12 +54,12 @@ export class ApiError extends Error {
   }
 
   toEnvelope() {
-    return {
+    return errorEnvelope.parse({
       error: {
         code: this.code,
         message: ERROR_REGISTRY[this.code].message,
         ...(this.details !== undefined ? { details: this.details } : {})
       }
-    };
+    });
   }
 }
