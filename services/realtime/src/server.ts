@@ -33,6 +33,7 @@ export interface RealtimeServer {
   server: http.Server;
   wss: WebSocketServer;
   broadcast: (event: EventEnvelope) => void;
+  broadcastToChannel: (channel: string, payload: unknown) => void;
 }
 
 // PC-EV-3 / TC-PC05-004: connect with `?token=` (browsers can't set custom
@@ -96,15 +97,21 @@ export function buildServer(): RealtimeServer {
     })();
   });
 
-  function broadcast(event: EventEnvelope): void {
-    const channel = `events:${event.name}`;
-    const payload = JSON.stringify({ type: "event", channel, event });
+  // Generic: any consumer (e.g. the welcome-notification consumer pushing to
+  // identity:{sub}:notifications) can push arbitrary payloads to a channel
+  // without the WS layer knowing anything about notifications specifically.
+  function broadcastToChannel(channel: string, payload: unknown): void {
+    const message = JSON.stringify({ type: "event", channel, event: payload });
     for (const connection of connections) {
       if (connection.channels.has(channel)) {
-        connection.socket.send(payload);
+        connection.socket.send(message);
       }
     }
   }
 
-  return { server, wss, broadcast };
+  function broadcast(event: EventEnvelope): void {
+    broadcastToChannel(`events:${event.name}`, event);
+  }
+
+  return { server, wss, broadcast, broadcastToChannel };
 }
