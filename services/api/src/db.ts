@@ -72,13 +72,21 @@ export async function withServiceRoleTransaction<T>(fn: (client: PoolClient) => 
 // auth.jwt() (db/migrations/0001, S01) — this is the literal mechanism
 // 03-sdd.md §10 names: "JWT claims passed to Postgres via `set local
 // request.jwt.claims`".
+// `actor` may be null for public/guest-reachable endpoints (e.g. EP-PC-030
+// GET /i18n/{locale}) that still want the RLS-bound path rather than
+// service_role — core.i18n_strings' `i18n_public_read` policy is `using
+// (true)` regardless of claims, so app_user with no claims set still reads
+// it fine; auth.jwt() simply returns null, and any claim-based predicate
+// correctly evaluates to false/no-match for a guest.
 export async function withRlsTransaction<T>(
-  actor: AccessTokenClaims,
+  actor: AccessTokenClaims | null,
   fn: (client: PoolClient) => Promise<T>
 ): Promise<T> {
   return runInTransaction(async (client) => {
     await client.query("set local role app_user");
-    await client.query("select set_config('request.jwt.claims', $1, true)", [JSON.stringify(actor)]);
+    if (actor) {
+      await client.query("select set_config('request.jwt.claims', $1, true)", [JSON.stringify(actor)]);
+    }
   }, fn);
 }
 
