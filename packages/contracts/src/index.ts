@@ -3,4 +3,5 @@
 export * from "./pc-auth.js";
 export * from "./pc-config.js";
 export * from "./pc-i18n.js";
+export * from "./pc-notifications.js";
 export * from "./pc-profile.js";
