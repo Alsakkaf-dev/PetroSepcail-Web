@@ -20,6 +20,7 @@ import {
 import { withServiceRoleTransaction } from "../db.js";
 import { ApiError } from "../errors.js";
 import { publishEvent } from "../events/publishEvent.js";
+import { deliverEmail } from "../notifications/deliverEmail.js";
 import * as repo from "../repositories/authRepository.js";
 import { requireAuth } from "../requireAuth.js";
 import { buildOtpauthUri, generateTotpSecret, maskSecret, verifyTotp } from "../security/totp.js";
@@ -84,21 +85,26 @@ export function registerAuthRoutes(app: FastifyInstance): void {
         payload: { user_id: identityId, role: "customer", locale: body.locale ?? "ar" }
       });
 
-      return { identityId, rawToken };
-    });
+      // FR-PC01-001 AC3: the link is either emailed (catcher/smtp) or
+      // returned in the response (onscreen) — never both. deliverEmail()
+      // itself no-ops in onscreen mode.
+      const verifyLink = `${process.env.PUBLIC_BASE_URL ?? ""}/verify-email?token=${rawToken}`;
+      await deliverEmail({
+        client,
+        to: body.email,
+        locale: body.locale ?? "ar",
+        type: "email_verify",
+        params: { verifyLink }
+      });
 
-    // FR-PC01-001 AC3: link only ever returned in onscreen mode (delivery via
-    // PC-06's real mailer is wired in S05 — see Handover Brief).
-    const verifyLink =
-      process.env.EMAIL_MODE === "onscreen"
-        ? `${process.env.PUBLIC_BASE_URL ?? ""}/verify-email?token=${result.rawToken}`
-        : undefined;
+      return { identityId, verifyLink };
+    });
 
     return reply.code(201).send(
       registerResponse.parse({
         identityId: result.identityId,
         status: "pending_verification",
-        ...(verifyLink ? { verifyLink } : {})
+        ...(process.env.EMAIL_MODE === "onscreen" ? { verifyLink: result.verifyLink } : {})
       })
     );
   });
@@ -303,8 +309,20 @@ export function registerAuthRoutes(app: FastifyInstance): void {
         tokenHash: sha256Hex(rawToken),
         ttlMinutes: PASSWORD_RESET_TTL_MINUTES
       });
-      // Delivery via PC-06 lands in S05 (same as register's verify link) —
-      // token is stored and reachable via service-role access until then.
+      // Unlike register, this endpoint never returns the link even in
+      // onscreen mode (spec-explicit: "always 202, no user enumeration" —
+      // a conditionally-present link would itself leak whether the email
+      // exists). deliverEmail() no-ops in onscreen mode same as elsewhere;
+      // T1 dev/E2E testing of the confirm step reads the token via direct
+      // DB access instead (see routes/auth.e2e.test.ts).
+      const resetLink = `${process.env.PUBLIC_BASE_URL ?? ""}/reset-password?token=${rawToken}`;
+      await deliverEmail({
+        client,
+        to: body.email,
+        locale: identity.locale,
+        type: "password_reset",
+        params: { resetLink }
+      });
     });
     return reply.code(202).send();
   });
