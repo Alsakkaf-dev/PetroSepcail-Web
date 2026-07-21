@@ -27,7 +27,7 @@ export function buildServer(): FastifyInstance {
       );
     }
     app.log.error(err);
-    return reply.code(500).send(new ApiError("INTERNAL_ERROR").toEnvelope());
+    return reply.code(500).send(new ApiError("INTERNAL").toEnvelope());
   });
 
   return app;
