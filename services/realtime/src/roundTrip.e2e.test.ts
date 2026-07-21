@@ -48,6 +48,7 @@ describe.runIf(dockerAvailable())("event bus round trip (PC-05): publish -> outb
   let dbClient: Client;
   let dispatcherHandle: { stop: () => Promise<void> };
   let httpServer: import("node:http").Server;
+  let broadcastToChannelFn: (channel: string, payload: unknown) => void;
   let wsPort: number;
   let adminToken: string;
   let customerToken: string;
@@ -96,8 +97,9 @@ describe.runIf(dockerAvailable())("event bus round trip (PC-05): publish -> outb
     await dbClient.connect();
 
     const { buildServer } = await import("./server.js");
-    const { server, broadcast } = buildServer();
+    const { server, broadcast, broadcastToChannel } = buildServer();
     httpServer = server;
+    broadcastToChannelFn = broadcastToChannel;
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     const address = server.address();
     wsPort = typeof address === "object" && address ? address.port : 0;
@@ -214,4 +216,43 @@ describe.runIf(dockerAvailable())("event bus round trip (PC-05): publish -> outb
 
     ws.close();
   });
+
+  it("welcome-notification consumer: EV-PC-001 creates an in-app notification and pushes it live (PC-06)", async () => {
+    const { clearConsumers } = await import("./consumers/framework.js");
+    const { registerWelcomeNotificationConsumer } = await import("./consumers/welcomeNotification.js");
+    clearConsumers();
+    registerWelcomeNotificationConsumer(broadcastToChannelFn);
+
+    const customerId = "00000000-0000-0000-0000-000000000001"; // seeded customer (db/migrations/0008)
+    const ws = new WebSocket(`ws://127.0.0.1:${wsPort}/realtime?token=${customerToken}`);
+    const wsMessages: Record<string, unknown>[] = [];
+    ws.addEventListener("message", (ev) => wsMessages.push(JSON.parse(ev.data as string)));
+    await new Promise<void>((resolve) => ws.addEventListener("open", () => resolve()));
+    await waitFor(() => wsMessages.some((m) => m.type === "welcome"));
+
+    ws.send(JSON.stringify({ type: "subscribe", channel: `identity:${customerId}:notifications` }));
+    await waitFor(() => wsMessages.some((m) => m.type === "subscribed"));
+
+    await dbClient.query(
+      `insert into core.outbox (name, version, actor_sub, actor_role, payload)
+       values ('identity.user.registered', 1, $1, 'customer', $2::jsonb)`,
+      [customerId, JSON.stringify({ user_id: customerId, role: "customer", locale: "ar" })]
+    );
+
+    await waitFor(() => wsMessages.some((m) => m.type === "event"));
+    const pushed = wsMessages.find((m) => m.type === "event") as { event: { type: string; id: string } };
+    expect(pushed.event.type).toBe("identity_welcome");
+
+    const row = await dbClient.query("select type, identity_id from core.notifications where id = $1", [pushed.event.id]);
+    expect(row.rows[0].type).toBe("identity_welcome");
+    expect(row.rows[0].identity_id).toBe(customerId);
+
+    const log = await dbClient.query(
+      "select status from core.notification_log where notification_id = $1 and channel = 'in_app'",
+      [pushed.event.id]
+    );
+    expect(log.rows[0].status).toBe("sent");
+
+    ws.close();
+  }, 15_000);
 });
