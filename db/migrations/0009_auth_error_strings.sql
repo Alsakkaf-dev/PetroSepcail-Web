@@ -17,7 +17,8 @@ insert into core.i18n_strings (key, ar, en, context) values
   ('error.mfa_invalid', 'رمز التحقق غير صحيح.', 'The verification code is invalid.', 'error'),
   ('error.token_reuse_detected', 'انتهت صلاحية هذه الجلسة. يرجى تسجيل الدخول مرة أخرى.', 'This session is no longer valid. Please sign in again.', 'error'),
   ('error.forbidden', 'لا تملك صلاحية القيام بهذا الإجراء.', 'You do not have permission to do this.', 'error'),
-  ('error.not_found', 'غير موجود.', 'Not found.', 'error');
+  ('error.not_found', 'غير موجود.', 'Not found.', 'error'),
+  ('error.internal_error', 'حدث خطأ غير متوقع.', 'An unexpected error occurred.', 'error');
 
 -- Down Migration
 
