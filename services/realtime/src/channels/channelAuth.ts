@@ -50,3 +50,12 @@ export function authorizeChannel(channel: string, actor: AccessTokenClaims | nul
 // `addr_driver_active` RLS policy. Those sessions register their own
 // authorizer here; this file's matching logic doesn't need to change.
 registerChannel("admin:alerts", (actor) => actor !== null && (actor.role === "admin" || actor.role === "super_admin"));
+
+// events:{name} — the generic internal fan-out the dispatcher (dispatcher.ts)
+// broadcasts every dispatched event onto, keyed by event name (e.g.
+// "events:identity.user.registered"). Not one of the 4 named business
+// channels above — this is S04's own infrastructure-level mechanism for
+// proving the outbox -> dispatch -> WS round trip. Any authenticated actor
+// may subscribe; a real per-event-name policy is a later session's call
+// once real subscribers exist.
+registerChannel("events:{name}", (actor) => actor !== null);
