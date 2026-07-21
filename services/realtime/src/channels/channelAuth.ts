@@ -59,3 +59,9 @@ registerChannel("admin:alerts", (actor) => actor !== null && (actor.role === "ad
 // may subscribe; a real per-event-name policy is a later session's call
 // once real subscribers exist.
 registerChannel("events:{name}", (actor) => actor !== null);
+
+// identity:{sub}:notifications — 05-api-specification.md §3: "Live delivery
+// is over the PC-05 WebSocket channel identity:{sub}:notifications, not
+// polled." No business-table dependency (unlike the 3 deferred channels
+// above) — the subscriber must simply BE the identity in question.
+registerChannel("identity:{sub}:notifications", (actor, params) => actor !== null && actor.sub === params.sub);
