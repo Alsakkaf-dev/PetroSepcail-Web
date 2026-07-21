@@ -13,6 +13,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 // not by unit-testing pieces in isolation. Mirrors the docker-orchestration
 // pattern of scripts/test-migration.mjs / scripts/test-rls.mjs.
 const CONTAINER = "ps-auth-e2e-test";
+const MAILPIT_CONTAINER = "ps-auth-e2e-mailpit";
 const DEV_PASSWORD = "DevSeed#12345"; // db/migrations/0010
 
 function dockerAvailable(): boolean {
@@ -21,6 +22,30 @@ function dockerAvailable(): boolean {
 
 function stopContainer() {
   spawnSync("docker", ["stop", CONTAINER], { stdio: "ignore" });
+  spawnSync("docker", ["stop", MAILPIT_CONTAINER], { stdio: "ignore" });
+}
+
+async function waitForHttp(url: string, timeoutMs = 15_000): Promise<void> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const res = await fetch(url);
+      if (res.ok) return;
+    } catch {
+      // not up yet
+    }
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  throw new Error(`${url} did not become ready within ${timeoutMs}ms`);
+}
+
+async function waitFor(predicate: () => Promise<boolean>, timeoutMs = 10_000): Promise<void> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if (await predicate()) return;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  throw new Error("condition not met within timeout");
 }
 
 async function waitForPostgres(port: number, timeoutMs = 30_000): Promise<void> {
@@ -44,6 +69,8 @@ describe.runIf(dockerAvailable())("PC-01/02 auth E2E (real Postgres)", () => {
   let dbClient: Client; // raw superuser connection for direct test setup (no HTTP shortcut exists)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let app: any;
+  let mailpitSmtpPort: number;
+  let mailpitHttpPort: number;
 
   beforeAll(async () => {
     spawnSync("docker", ["rm", "-f", CONTAINER], { stdio: "ignore" });
@@ -55,6 +82,15 @@ describe.runIf(dockerAvailable())("PC-01/02 auth E2E (real Postgres)", () => {
     const port = Number(execFileSync("docker", ["port", CONTAINER, "5432"]).toString().trim().split(":").pop());
     await waitForPostgres(port);
     dbUrl = `postgres://postgres:test@127.0.0.1:${port}/test`;
+
+    // FR-PC06-004: real SMTP delivery test target (catcher mode's actual
+    // T1 backend), proving deliverEmail() genuinely sends mail rather than
+    // just asserting the onscreen fallback works.
+    spawnSync("docker", ["rm", "-f", MAILPIT_CONTAINER], { stdio: "ignore" });
+    execFileSync("docker", ["run", "--rm", "-d", "--name", MAILPIT_CONTAINER, "-p", "0:1025", "-p", "0:8025", "axllent/mailpit:latest"]);
+    mailpitSmtpPort = Number(execFileSync("docker", ["port", MAILPIT_CONTAINER, "1025"]).toString().trim().split(":").pop());
+    mailpitHttpPort = Number(execFileSync("docker", ["port", MAILPIT_CONTAINER, "8025"]).toString().trim().split(":").pop());
+    await waitForHttp(`http://127.0.0.1:${mailpitHttpPort}/api/v1/messages`);
 
     execFileSync("npx", ["node-pg-migrate", "-m", "db/migrations", "--migration-file-language", "sql", "up"], {
       stdio: "inherit",
@@ -80,6 +116,9 @@ describe.runIf(dockerAvailable())("PC-01/02 auth E2E (real Postgres)", () => {
     process.env.JWT_REFRESH_TTL_SECONDS = "2592000";
     process.env.EMAIL_MODE = "onscreen"; // so register returns a verifyLink for real E2E
     process.env.PUBLIC_BASE_URL = "https://localhost";
+    process.env.SMTP_HOST = "127.0.0.1";
+    process.env.SMTP_PORT = String(mailpitSmtpPort);
+    process.env.SMTP_FROM = "no-reply@petrospecial.internal";
 
     const { buildServer } = await import("../server.js");
     app = await buildServer();
@@ -90,6 +129,8 @@ describe.runIf(dockerAvailable())("PC-01/02 auth E2E (real Postgres)", () => {
 
   afterAll(async () => {
     const { closePool } = await import("../db.js");
+    const { closeEmailTransport } = await import("../notifications/emailAdapter.js");
+    closeEmailTransport();
     await dbClient?.end();
     await app?.close();
     await closePool(); // must close before the container stops, or idle
@@ -440,4 +481,46 @@ describe.runIf(dockerAvailable())("PC-01/02 auth E2E (real Postgres)", () => {
     });
     expect(loginAfterDelete.json().error.code).toBe("ACCOUNT_LOCKED");
   });
+
+  it("delivers a real verification email via SMTP when EMAIL_MODE is not onscreen (FR-PC06-004)", async () => {
+    const realEmailMode = process.env.EMAIL_MODE;
+    process.env.EMAIL_MODE = "catcher";
+    try {
+      const registerRes = await app.inject({
+        method: "POST",
+        url: "/api/v1/auth/register",
+        payload: {
+          fullName: "Mailpit Test",
+          email: "mailpit.test@petrospecial.internal",
+          phone: "+966501111199",
+          password: "Freshly-Baked-99",
+          locale: "en" // explicit, to also prove locale selects the template (FR-PC06-002)
+        }
+      });
+      expect(registerRes.statusCode).toBe(201);
+      expect(registerRes.json().verifyLink).toBeUndefined(); // not onscreen — no link in the response
+
+      type MailpitMessage = { ID: string; To: { Address: string }[] };
+      let messages: MailpitMessage[] = [];
+      await waitFor(async () => {
+        const res = await fetch(`http://127.0.0.1:${mailpitHttpPort}/api/v1/messages`);
+        messages = ((await res.json()) as { messages: MailpitMessage[] }).messages;
+        return messages.some((m) => m.To.some((to) => to.Address === "mailpit.test@petrospecial.internal"));
+      });
+      const mail = messages.find((m) => m.To.some((to) => to.Address === "mailpit.test@petrospecial.internal"))!;
+
+      const detailRes = await fetch(`http://127.0.0.1:${mailpitHttpPort}/api/v1/message/${mail.ID}`);
+      const detail = (await detailRes.json()) as { Subject: string; Text: string };
+      expect(detail.Subject).toBe("Verify your PetroSpecial account");
+      expect(detail.Text).toContain("/verify-email?token=");
+
+      // Delivery was logged (FR-PC06-005).
+      const log = await dbClient.query(
+        "select status from core.notification_log where channel = 'email' order by at desc limit 1"
+      );
+      expect(log.rows[0].status).toBe("sent");
+    } finally {
+      process.env.EMAIL_MODE = realEmailMode;
+    }
+  }, 15_000);
 });
