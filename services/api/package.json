@@ -16,10 +16,12 @@
     "@petrospecial/contracts": "*",
     "fastify": "^5.10.0",
     "jose": "^5.9.6",
+    "nodemailer": "^9.0.3",
     "pg": "^8.12.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.11",
+    "@types/nodemailer": "^8.0.1",
     "@types/pg": "^8.11.6",
     "tsx": "^4.16.2",
     "typescript": "^5.5.4"
