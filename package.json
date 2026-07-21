@@ -16,7 +16,7 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint . --ext .ts,.tsx --max-warnings=0",
     "test:unit": "vitest run",
-    "test:contract": "node scripts/check-contracts.mjs",
+    "test:contract": "tsx scripts/check-contracts.mts",
     "test:migration": "node scripts/test-migration.mjs",
     "test:rls": "node scripts/test-rls.mjs",
     "db:migrate:up": "node-pg-migrate -m db/migrations --migration-file-language sql up",
@@ -32,7 +32,9 @@
     "eslint-plugin-react-hooks": "^4.6.2",
     "node-pg-migrate": "^9.0.0",
     "pg": "^8.12.0",
+    "tsx": "^4.16.2",
     "typescript": "^5.5.4",
-    "vitest": "^2.0.5"
+    "vitest": "^2.0.5",
+    "zod": "^3.23.8"
   }
 }
