@@ -19,6 +19,7 @@ import {
 } from "@petrospecial/contracts";
 import { withServiceRoleTransaction } from "../db.js";
 import { ApiError } from "../errors.js";
+import { publishEvent } from "../events/publishEvent.js";
 import * as repo from "../repositories/authRepository.js";
 import { requireAuth } from "../requireAuth.js";
 import { buildOtpauthUri, generateTotpSecret, maskSecret, verifyTotp } from "../security/totp.js";
@@ -70,6 +71,17 @@ export function registerAuthRoutes(app: FastifyInstance): void {
         purpose: "email_verify",
         tokenHash: sha256Hex(rawToken),
         ttlMinutes: EMAIL_VERIFY_TTL_MINUTES
+      });
+
+      // EV-PC-001 identity.user.registered (06-integration-contracts §2),
+      // same transaction as the state change (FR-PC05-001). Consumers per
+      // the catalog: PC-06 (welcome notification, S05), LE-04 (S19) — this
+      // session (S04) only builds the bus; those sessions register consumers.
+      await publishEvent(client, {
+        name: "identity.user.registered",
+        actorSub: identityId,
+        actorRole: "customer",
+        payload: { user_id: identityId, role: "customer", locale: body.locale ?? "ar" }
       });
 
       return { identityId, rawToken };
