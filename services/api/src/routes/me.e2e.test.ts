@@ -13,6 +13,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 // pattern as auth.e2e.test.ts (kept self-contained rather than sharing a test
 // helper yet — worth extracting once a third E2E suite needs it, S04+).
 const CONTAINER = "ps-me-e2e-test";
+const MINIO_CONTAINER = "ps-me-e2e-minio";
 const DEV_PASSWORD = "DevSeed#12345"; // db/migrations/0010
 
 function dockerAvailable(): boolean {
@@ -21,6 +22,7 @@ function dockerAvailable(): boolean {
 
 function stopContainer() {
   spawnSync("docker", ["stop", CONTAINER], { stdio: "ignore" });
+  spawnSync("docker", ["stop", MINIO_CONTAINER], { stdio: "ignore" });
 }
 
 async function waitForPostgres(port: number, timeoutMs = 30_000): Promise<void> {
@@ -36,6 +38,20 @@ async function waitForPostgres(port: number, timeoutMs = 30_000): Promise<void> 
     }
   }
   throw new Error(`Postgres did not become ready within ${timeoutMs}ms`);
+}
+
+async function waitForHttp(url: string, timeoutMs = 15_000): Promise<void> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const res = await fetch(url);
+      if (res.status < 500) return;
+    } catch {
+      // not up yet
+    }
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  throw new Error(`${url} did not become ready within ${timeoutMs}ms`);
 }
 
 describe.runIf(dockerAvailable())("GET /api/v1/me — RLS enforced through the API path (PC-GW-3)", () => {
@@ -65,6 +81,36 @@ describe.runIf(dockerAvailable())("GET /api/v1/me — RLS enforced through the A
       shell: true,
       env: { ...process.env, DATABASE_URL: dbUrl }
     });
+
+    // PC-09: real MinIO for the media upload/download tests.
+    spawnSync("docker", ["rm", "-f", MINIO_CONTAINER], { stdio: "ignore" });
+    execFileSync("docker", [
+      "run", "--rm", "-d", "--name", MINIO_CONTAINER,
+      "-e", "MINIO_ROOT_USER=petrospecial", "-e", "MINIO_ROOT_PASSWORD=petrospecial_dev_password",
+      "-p", "0:9000", "minio/minio:latest", "server", "/data"
+    ]);
+    const minioPort = Number(execFileSync("docker", ["port", MINIO_CONTAINER, "9000"]).toString().trim().split(":").pop());
+    await waitForHttp(`http://127.0.0.1:${minioPort}/minio/health/live`);
+
+    process.env.MINIO_ENDPOINT = "127.0.0.1";
+    process.env.MINIO_API_PORT = String(minioPort);
+    process.env.MINIO_USE_SSL = "false";
+    process.env.MINIO_ROOT_USER = "petrospecial";
+    process.env.MINIO_ROOT_PASSWORD = "petrospecial_dev_password";
+    process.env.MINIO_BUCKET_MEDIA = "ps-media";
+    process.env.MINIO_BUCKET_INVOICES = "ps-invoices";
+    process.env.MINIO_BUCKET_POD = "ps-pod";
+    const { Client: MinioClient } = await import("minio");
+    const minioAdmin = new MinioClient({
+      endPoint: "127.0.0.1",
+      port: minioPort,
+      useSSL: false,
+      accessKey: "petrospecial",
+      secretKey: "petrospecial_dev_password"
+    });
+    for (const bucket of ["ps-media", "ps-invoices", "ps-pod"]) {
+      await minioAdmin.makeBucket(bucket);
+    }
 
     dir = mkdtempSync(path.join(tmpdir(), "ps-me-e2e-"));
     const { privateKey, publicKey } = generateKeyPairSync("rsa", {
@@ -373,5 +419,79 @@ describe.runIf(dockerAvailable())("GET /api/v1/me — RLS enforced through the A
     const firstIds = firstPage.json().items.map((n: { id: string }) => n.id);
     const secondIds = secondPage.json().items.map((n: { id: string }) => n.id);
     expect(firstIds.filter((id: string) => secondIds.includes(id))).toHaveLength(0); // no overlap
+  });
+
+  // EP-PC-050/051 (PC-09, S05) — real MinIO, same server/DB as the tests above.
+  it("full round trip: presigned PUT actually uploads, presigned GET downloads the same bytes", async () => {
+    const uploadUrlRes = await app.inject({
+      method: "POST",
+      url: "/api/v1/media/upload-url",
+      headers: { authorization: `Bearer ${customerToken}` },
+      payload: { purpose: "product_image", contentType: "image/png", sizeBytes: 4 }
+    });
+    expect(uploadUrlRes.statusCode).toBe(200);
+    const { uploadUrl, objectKey } = uploadUrlRes.json();
+
+    const bytes = Buffer.from([0x89, 0x50, 0x4e, 0x47]); // PNG magic bytes, as a stand-in payload
+    const putRes = await fetch(uploadUrl, { method: "PUT", body: bytes });
+    expect(putRes.ok).toBe(true);
+
+    const downloadUrlRes = await app.inject({
+      method: "GET",
+      url: `/api/v1/media/${objectKey}/url`,
+      headers: { authorization: `Bearer ${customerToken}` }
+    });
+    expect(downloadUrlRes.statusCode).toBe(200);
+    const { url, expiresIn } = downloadUrlRes.json();
+    expect(expiresIn).toBe(3600);
+
+    const downloaded = await fetch(url);
+    expect(Buffer.from(await downloaded.arrayBuffer())).toEqual(bytes);
+  });
+
+  it("rejects an upload request with a disallowed content type", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v1/media/upload-url",
+      headers: { authorization: `Bearer ${customerToken}` },
+      payload: { purpose: "product_image", contentType: "application/exe", sizeBytes: 100 }
+    });
+    expect(res.statusCode).toBe(422);
+    expect(res.json().error.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("rejects an oversized upload request", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v1/media/upload-url",
+      headers: { authorization: `Bearer ${customerToken}` },
+      payload: { purpose: "pod_photo", contentType: "image/jpeg", sizeBytes: 999_999_999 }
+    });
+    expect(res.statusCode).toBe(422);
+    expect(res.json().error.details.field).toBe("sizeBytes");
+  });
+
+  it("a different (non-owner, non-admin) user cannot get a download URL for someone else's object (RLS)", async () => {
+    const uploadRes = await app.inject({
+      method: "POST",
+      url: "/api/v1/media/upload-url",
+      headers: { authorization: `Bearer ${customerToken}` },
+      payload: { purpose: "product_image", contentType: "image/png", sizeBytes: 4 }
+    });
+    const { objectKey } = uploadRes.json();
+
+    const asSupplier = await app.inject({
+      method: "GET",
+      url: `/api/v1/media/${objectKey}/url`,
+      headers: { authorization: `Bearer ${supplierToken}` }
+    });
+    expect(asSupplier.statusCode).toBe(404); // RLS-invisible, not FORBIDDEN — no ownership leakage
+
+    const asAdmin = await app.inject({
+      method: "GET",
+      url: `/api/v1/media/${objectKey}/url`,
+      headers: { authorization: `Bearer ${adminToken}` }
+    });
+    expect(asAdmin.statusCode).toBe(200); // migration 0014: admin/super_admin can read any object
   });
 });
