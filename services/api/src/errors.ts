@@ -31,7 +31,8 @@ export const ERROR_REGISTRY = {
     message: "This session is no longer valid. Please sign in again."
   },
   FORBIDDEN: { status: 403, messageKey: "error.forbidden", message: "You do not have permission to do this." },
-  NOT_FOUND: { status: 404, messageKey: "error.not_found", message: "Not found." }
+  NOT_FOUND: { status: 404, messageKey: "error.not_found", message: "Not found." },
+  INTERNAL_ERROR: { status: 500, messageKey: "error.internal_error", message: "An unexpected error occurred." }
 } as const;
 
 export type ErrorCode = keyof typeof ERROR_REGISTRY;
