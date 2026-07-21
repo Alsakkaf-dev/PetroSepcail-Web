@@ -6,6 +6,7 @@ import { checkReadiness } from "./gateway/readiness.js";
 import { registerRateLimit } from "./gateway/rateLimit.js";
 import { registerRequestContext } from "./gateway/requestContext.js";
 import { registerAuthRoutes } from "./routes/auth.js";
+import { registerMeRoutes } from "./routes/me.js";
 
 export async function buildServer(): Promise<FastifyInstance> {
   const app = Fastify({ logger: true });
@@ -28,6 +29,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   });
 
   registerAuthRoutes(app);
+  registerMeRoutes(app);
 
   // D-09 error envelope {error:{code,message,details}} — the single
   // translation point from thrown errors to the wire format every EP-PC
