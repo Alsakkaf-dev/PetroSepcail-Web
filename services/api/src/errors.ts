@@ -46,7 +46,30 @@ export const ERROR_REGISTRY = {
   RATE_LIMITED: { status: 429, messageKey: "error.rate_limited", message: "Too many requests. Please slow down." },
   PAYLOAD_TOO_LARGE: { status: 413, messageKey: "error.payload_too_large", message: "The upload exceeds the size limit." },
   CONFLICT: { status: 409, messageKey: "error.conflict", message: "This conflicts with the current state." },
-  INTERNAL: { status: 500, messageKey: "error.internal", message: "An unexpected error occurred." }
+  INTERNAL: { status: 500, messageKey: "error.internal", message: "An unexpected error occurred." },
+  // 10-customer-storefront/05-api-specification.md §10 (SF error registry, S08).
+  CART_EMPTY: { status: 422, messageKey: "error.cart_empty", message: "Checkout attempted on an empty cart." },
+  CART_LINE_UNAVAILABLE: {
+    status: 409,
+    messageKey: "error.cart_line_unavailable",
+    message: "This item is out of stock."
+  },
+  PRICE_CHANGED: { status: 409, messageKey: "error.price_changed", message: "A price changed since you added this item." },
+  OUT_OF_DELIVERY_RADIUS: {
+    status: 422,
+    messageKey: "error.out_of_delivery_radius",
+    message: "This address is outside our delivery area."
+  },
+  COD_LIMIT_EXCEEDED: {
+    status: 422,
+    messageKey: "error.cod_limit_exceeded",
+    message: "This order total exceeds the cash-on-delivery limit. Please use bank transfer."
+  },
+  PAYMENT_WINDOW_EXPIRED: {
+    status: 410,
+    messageKey: "error.payment_window_expired",
+    message: "The payment window for this order has expired."
+  }
 } as const;
 
 export type ErrorCode = keyof typeof ERROR_REGISTRY;
