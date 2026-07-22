@@ -106,14 +106,18 @@ services:
     entrypoint: ["tail", "-f", "/dev/null"]
 
   # ---- First-boot init (M0-2): JWT/ZATCA keys + MinIO buckets, idempotent --
+  # SF-01 (S07) added catalog product-image upload, read-only mounted from
+  # the repo's own legacy-site assets (source of the seed's real photos).
   init:
     build:
       context: ./scripts/init
     env_file: .env
     environment:
       SECRETS_DIR: /run/secrets
+      CATALOG_IMAGE_ROOT: /product-images
     volumes:
       - ./secrets:/run/secrets
+      - ./assets/img/products:/product-images:ro
     depends_on:
       minio:
         condition: service_healthy
