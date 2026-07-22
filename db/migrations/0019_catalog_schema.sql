@@ -130,6 +130,16 @@ join catalog.inventory i on i.pack_size_id = p.id
 where p.is_active;
 comment on view catalog.v_sku_availability is 'SF-01 FR-SF01-005 — boolean availability; no quantity leak';
 
+-- 2.8 sku_media (references PC-09 objects) --------------------------------------
+create table catalog.sku_media (
+  id       uuid primary key default gen_random_uuid(),
+  sku_id   uuid not null references catalog.skus(id) on delete cascade,
+  media_id uuid not null references core.media_objects(id),  -- signed-URL access (PC-09)
+  alt_ar   text, alt_en text,
+  sort     int not null default 0
+);
+comment on table catalog.sku_media is 'SF-01 FR-SF01-007 — product gallery; images are private MinIO objects';
+
 -- Down Migration
 
 drop schema if exists catalog cascade;
