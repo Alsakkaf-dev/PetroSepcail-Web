@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { apiGet } from "../../../lib/api";
 import { dirFor, otherLocale, parseLocale, t } from "../../../lib/locale";
+import { AddToCartButton } from "../../../components/AddToCartButton";
 
 export const dynamic = "force-dynamic";
 
@@ -70,6 +71,7 @@ export default async function ProductDetailPage({ params, searchParams }: PagePr
               <span style={{ color: p.inStock ? "#1a7f37" : "#b91c1c" }}>
                 {p.inStock ? t(locale, "inStock") : t(locale, "outOfStock")}
               </span>
+              {p.inStock && <AddToCartButton packSizeId={p.packSizeId} locale={locale} />}
             </div>
           ))}
         </section>
