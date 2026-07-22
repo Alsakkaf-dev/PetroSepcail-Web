@@ -1,0 +1,31 @@
+.ps-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--sp-2);
+  padding: var(--sp-6) var(--sp-4);
+  color: var(--muted);
+}
+
+.ps-empty-state__illustration {
+  inline-size: 6rem;
+  block-size: 6rem;
+  color: var(--line);
+}
+
+.ps-empty-state__title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--fs-500);
+  color: var(--ink);
+}
+
+.ps-empty-state__description {
+  font-size: var(--fs-300);
+  max-width: 32ch;
+}
+
+.ps-empty-state__action {
+  margin-block-start: var(--sp-2);
+}
