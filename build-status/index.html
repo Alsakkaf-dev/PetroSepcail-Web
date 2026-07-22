@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>حالة بناء المنصة | بتروسبيشل</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/svg+xml" href="/assets/img/icons/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@700;800&family=Tajawal:wght@400;500;700&display=swap">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+  <style>
+    .status-dot { display: inline-block; inline-size: 0.7em; block-size: 0.7em; border-radius: 50%; margin-inline-end: 0.5em; }
+    .status-dot.live { background: #2eb872; box-shadow: 0 0 0 4px rgba(46,184,114,.2); }
+    .status-dot.offline { background: #9aa0a6; }
+    .progress-row { display: flex; align-items: baseline; gap: var(--sp-3); padding-block: var(--sp-2); border-block-end: 1px solid var(--border, #e5e5e5); }
+    .badge-state { font-size: var(--fs-200); padding: 0.15em 0.7em; border-radius: 999px; font-weight: 700; }
+    .badge-done { background: #e6f7ee; color: #1a7f4e; }
+    .badge-progress { background: #fff4e0; color: #a35b00; }
+    .badge-pending { background: #f1f1f1; color: #777; }
+  </style>
+</head>
+<body>
+  <main id="main" class="section bg-mesh" style="min-block-size: 100svh; padding-block-start: var(--sp-7);">
+    <div class="container" style="max-inline-size: 760px;">
+      <div style="display: flex; align-items: center; gap: var(--sp-3); margin-block-end: var(--sp-5); flex-wrap: wrap;">
+        <a href="/" class="brand"><img src="/assets/img/logos/main-logo.png" alt="بتروسبيشل" width="204" height="68" style="block-size: 2.6rem; inline-size: auto;"></a>
+        <h1 style="font-size: var(--fs-700);">حالة بناء المنصة الجديدة</h1>
+      </div>
+
+      <p style="color: var(--muted, #666); margin-block-end: var(--sp-5);">
+        هذه الصفحة رابط ثابت ودائم. الرابط أدناه — عند ظهوره كـ"شغّال الآن" — يوصلك مباشرة
+        للسيرفر الحقيقي اللي فيه المنصة قيد البناء، نفسه بدون أي نسخ أو تجهيز مسبق للعرض.
+        لما يكون الفريق مو شغّال على الجهاز، الرابط ما يكون متاح — بس الصفحة نفسها تبقى هنا دايم.
+      </p>
+
+      <div id="live-box" style="border: 1px solid var(--border, #e5e5e5); border-radius: var(--radius-lg, 12px); padding: var(--sp-4); margin-block-end: var(--sp-6); background: var(--surface);">
+        <p><span class="status-dot offline" id="dot"></span><strong id="state-text">جارٍ التحقق من الحالة…</strong></p>
+        <p id="updated-text" style="color: var(--muted, #666); font-size: var(--fs-200);"></p>
+        <a id="live-link" href="#" style="display: none;" class="btn btn--primary btn--sm" target="_blank" rel="noopener">افتح المعاينة الحية →</a>
+      </div>
+
+      <h2 style="font-size: var(--fs-500); margin-block-end: var(--sp-3);">وش تم بناؤه فعلياً لين الآن</h2>
+      <div style="margin-block-end: var(--sp-6);">
+        <div class="progress-row"><span class="badge-state badge-done">مكتمل</span><span>S00 — البنية التحتية الأساسية (Docker، الخوادم، النشر)</span></div>
+        <div class="progress-row"><span class="badge-state badge-done">مكتمل</span><span>S01 — قاعدة البيانات الأساسية وصلاحيات الوصول</span></div>
+        <div class="progress-row"><span class="badge-state badge-done">مكتمل</span><span>S02 — نظام تسجيل الدخول والحسابات</span></div>
+        <div class="progress-row"><span class="badge-state badge-done">مكتمل</span><span>S03 — بوابة الـ API الموحدة</span></div>
+        <div class="progress-row"><span class="badge-state badge-done">مكتمل</span><span>S04 — نظام الأحداث والتحديث اللحظي</span></div>
+        <div class="progress-row"><span class="badge-state badge-done">مكتمل</span><span>S05 — الإشعارات والترجمة وتخزين الملفات</span></div>
+        <div class="progress-row"><span class="badge-state badge-progress">قيد التنفيذ</span><span>S06 — مكتبة التصميم، المراقبة، النسخ الاحتياطي</span></div>
+        <div class="progress-row"><span class="badge-state badge-pending">قادم</span><span>S07 — أول صفحات تصفح حقيقية للمنتجات + لوحة تحكم الأدمن</span></div>
+        <div class="progress-row"><span class="badge-state badge-pending">قادم</span><span>S08–S22 — السلة، الدفع، التوصيل، البوابة التجارية، الولاء…</span></div>
+      </div>
+
+      <p style="color: var(--muted, #666); font-size: var(--fs-200);">
+        آخر تحديث لهذه القائمة: يدوي بعد كل جلسة عمل — مو تلقائي، عشان القائمة تعكس فقط
+        الشغل المنجز والمثبّت فعلياً بالكود، مو تخمين.
+      </p>
+    </div>
+  </main>
+
+  <script>
+    fetch('/build-status/live-url.json', { cache: 'no-store' })
+      .then(r => r.json())
+      .then(data => {
+        const dot = document.getElementById('dot');
+        const stateText = document.getElementById('state-text');
+        const updatedText = document.getElementById('updated-text');
+        const link = document.getElementById('live-link');
+        const updated = new Date(data.updatedAt);
+        const ageMinutes = (Date.now() - updated.getTime()) / 60000;
+        const isLive = data.status === 'live' && ageMinutes < 240; // stale after 4h with no refresh
+        if (isLive && data.url) {
+          dot.classList.add('live');
+          stateText.textContent = 'شغّال الآن — هذا هو السيرفر الحقيقي';
+          link.href = data.url;
+          link.style.display = 'inline-block';
+        } else {
+          dot.classList.add('offline');
+          stateText.textContent = 'غير متاح حالياً — الفريق مو شغّال على الجهاز هذي اللحظة';
+        }
+        updatedText.textContent = 'آخر تحديث للحالة: ' + updated.toLocaleString('ar-SA');
+      })
+      .catch(() => {
+        document.getElementById('state-text').textContent = 'تعذّر التحقق من الحالة الآن';
+      });
+  </script>
+</body>
+</html>
