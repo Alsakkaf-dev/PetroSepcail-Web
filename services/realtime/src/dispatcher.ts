@@ -3,6 +3,7 @@ import { runConsumers } from "./consumers/framework.js";
 import { withServiceRoleTransaction } from "./db.js";
 import type { EventEnvelope } from "./events.js";
 import { logger } from "./logger.js";
+import { metrics } from "./metrics.js";
 
 // PC-EV-2 / FR-PC05-002: "A dispatcher drains core.outbox (every 10 s + on
 // NOTIFY) ... a row is marked dispatched_at only after successful hand-off;
@@ -58,6 +59,9 @@ async function dispatchOne(): Promise<EventEnvelope | null> {
     const envelope = toEnvelope(row);
     await runConsumers(client, envelope);
     await client.query("update core.outbox set dispatched_at = now() where event_id = $1", [row.event_id]);
+    // TC-PC10-004: event-dispatch lag = time between the event occurring
+    // (occurred_at, set at outbox-insert time) and this dispatch completing.
+    metrics.eventDispatchLag.observe((Date.now() - row.occurred_at.getTime()) / 1000);
     return envelope;
   });
 }
