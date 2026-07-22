@@ -1,4 +1,9 @@
-import { bankTransferProofRequest, checkoutQuoteRequest, placeOrderRequest } from "@petrospecial/contracts";
+import {
+  bankTransferProofRequest,
+  bankTransferProofResponse,
+  checkoutQuoteRequest,
+  placeOrderRequest
+} from "@petrospecial/contracts";
 import type { FastifyInstance } from "fastify";
 import { getVatRate, money } from "../catalog/pricing.js";
 import { quoteDelivery } from "../checkout/deliveryQuote.js";
@@ -208,6 +213,6 @@ export function registerCheckoutRoutes(app: FastifyInstance): void {
       });
     });
 
-    return reply.code(202).send({ status: "pending_verification" });
+    return reply.code(202).send(bankTransferProofResponse.parse({ status: "pending_verification" }));
   });
 }
