@@ -103,3 +103,20 @@ export async function buildServer(): Promise<FastifyInstance> {
 
   return app;
 }
+
+// Vercel Serverless (S09 Docker->managed migration): Vercel's Node.js
+// runtime auto-detects a `server` entrypoint (src/server.{js,ts,...}) that
+// calls .listen() during module startup and captures it as a Vercel
+// Function -- the port passed here is never actually bound publicly on
+// Vercel, only used for local `vercel dev`. Docker's entrypoint (index.ts)
+// and the test suites both import buildServer() directly without ever
+// loading this file as the module entrypoint, so this block never runs for
+// them -- process.env.VERCEL is only set by Vercel's own build/runtime.
+if (process.env.VERCEL) {
+  buildServer()
+    .then((app) => app.listen({ port: Number(process.env.PORT ?? 3000), host: "0.0.0.0" }))
+    .catch((err) => {
+      console.error(err);
+      process.exit(1);
+    });
+}
