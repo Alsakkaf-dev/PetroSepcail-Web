@@ -25,3 +25,6 @@ coverage/
 # Platform runtime secrets (generated on first boot by scripts/init, never committed)
 secrets/
 .env
+
+# Platform backups (PC-11: DB dumps/WAL segments contain real data, never committed)
+backups/
