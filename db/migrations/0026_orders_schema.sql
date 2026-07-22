@@ -85,6 +85,22 @@ create table orders.order_lines (
 );
 comment on table orders.order_lines is 'SF-04 — immutable priced snapshot; driver sees address+lines but NOT price (04-roles §3)';
 
+-- 3.3 payments (order-level; retail = COD collection + bank-transfer proof) --
+create table orders.payments (
+  id          uuid primary key default gen_random_uuid(),
+  order_id    uuid not null references orders.orders(id) on delete cascade,
+  method      payment_method not null,
+  amount      numeric(12,2) not null,
+  status      text not null check (status in ('pending','verified','collected','failed')),
+  bank_ref    text,                                      -- customer-entered transfer reference (bank_transfer)
+  proof_media_id uuid references core.media_objects(id), -- receipt image, EP-X-006
+  verified_by uuid references core.identities(id),       -- admin identity (AC-08) on EV-PC-018
+  verified_at timestamptz,
+  collected_at timestamptz,                              -- COD cash collected at delivery (DL-05)
+  created_at  timestamptz not null default now()
+);
+comment on table orders.payments is 'SF-04 — NO PSP. bank_transfer: proof->admin verify; cod: collected at delivery';
+
 -- Down Migration
 
 drop schema if exists orders cascade;
