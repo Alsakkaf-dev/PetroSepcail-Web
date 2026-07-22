@@ -20,7 +20,7 @@ FROM node:20-alpine AS build
 WORKDIR /workspace
 COPY --from=deps /workspace/node_modules ./node_modules
 COPY . .
-RUN npm run build -w @petrospecial/realtime
+RUN npm run build -w @petrospecial/auth-shared -w @petrospecial/observability -w @petrospecial/realtime
 
 FROM node:20-alpine AS runner
 RUN apk update && apk upgrade --no-cache
@@ -29,5 +29,10 @@ ENV NODE_ENV=production
 COPY --from=build /workspace/node_modules ./node_modules
 COPY --from=build /workspace/services/realtime/package.json ./package.json
 COPY --from=build /workspace/services/realtime/dist ./dist
+COPY --from=build /workspace/packages/auth-shared/package.json ./packages/auth-shared/package.json
+COPY --from=build /workspace/packages/auth-shared/dist ./packages/auth-shared/dist
+COPY --from=build /workspace/packages/observability/package.json ./packages/observability/package.json
+COPY --from=build /workspace/packages/observability/dist ./packages/observability/dist
+RUN sed -i 's#"src/index.ts"#"dist/index.js"#' packages/auth-shared/package.json packages/observability/package.json
 EXPOSE 4001
 CMD ["node", "dist/index.js"]
