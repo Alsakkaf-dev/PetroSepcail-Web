@@ -36,7 +36,24 @@ create table catalog.stock_movements (
 create index on catalog.stock_movements (pack_size_id);
 comment on table catalog.stock_movements is 'D-14a — hub<->van stock-movement ledger; emits EV-PC-006';
 
+-- RLS: internal ops data (D-14a "authored in AC-02/catalog + DL"), no
+-- end-user policy — same defense-in-depth-with-zero-policy pattern as
+-- core.auth_tokens (0006_rls_policies.sql). Admin routes read/write these via
+-- service_role (withServiceRoleTransaction), matching config.ts's precedent.
+alter table catalog.stock_locations enable row level security;
+alter table catalog.stock_locations force row level security;
+
+alter table catalog.stock_movements enable row level security;
+alter table catalog.stock_movements force row level security;
+
+grant all privileges on catalog.stock_locations, catalog.stock_movements to service_role;
+
 -- Down Migration
+
+revoke all privileges on catalog.stock_locations, catalog.stock_movements from service_role;
+
+alter table catalog.stock_movements disable row level security;
+alter table catalog.stock_locations disable row level security;
 
 drop table if exists catalog.stock_movements;
 drop table if exists catalog.stock_locations;
