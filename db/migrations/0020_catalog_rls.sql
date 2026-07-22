@@ -49,7 +49,19 @@ alter table catalog.pack_sizes force row level security;
 create policy pack_sizes_public_read on catalog.pack_sizes for select using (true);
 grant select on catalog.pack_sizes to app_user;
 
+-- ---------------------------------------------------------------------------
+-- catalog.prices
+-- ---------------------------------------------------------------------------
+alter table catalog.prices enable row level security;
+alter table catalog.prices force row level security;
+create policy prices_public_read on catalog.prices for select using (true);
+grant select on catalog.prices to app_user;
+
 -- Down Migration
+
+revoke select on catalog.prices from app_user;
+drop policy if exists prices_public_read on catalog.prices;
+alter table catalog.prices disable row level security;
 
 revoke select on catalog.pack_sizes from app_user;
 drop policy if exists pack_sizes_public_read on catalog.pack_sizes;
