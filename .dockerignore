@@ -1,0 +1,16 @@
+# Every service Dockerfile does `COPY . .` in its build stage after already
+# copying a correctly npm-ci'd node_modules from the deps stage. Without this
+# file, that `COPY . .` also ships the HOST's own node_modules — on Windows,
+# any workspace package (e.g. @petrospecial/auth-shared) that was ever
+# `npm install`'d directly on the host gets a symlink pointing at an absolute
+# Windows path (C:\Users\...), which clobbers the deps stage's correct
+# relative symlink and breaks module resolution inside the Linux build stage
+# (surfaced as spurious "Cannot find module '@petrospecial/*'" tsc errors).
+node_modules
+**/node_modules
+**/dist
+**/.next
+**/coverage
+.git
+platform-docs
+secrets
