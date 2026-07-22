@@ -25,6 +25,25 @@ export function getMinioClient(): Client {
   return client;
 }
 
+// Real bug caught by S07 live verification (docker compose up): a presigned
+// GET URL is signed against MINIO_ENDPOINT (`minio`, the container-internal
+// hostname) — resolvable inside the Docker network, but not by a real
+// browser. S06's m1-acceptance-demo.mjs hit the exact same wall and worked
+// around it with a Node-only custom DNS `lookup` — no equivalent exists for
+// an actual customer's browser rendering an <img>. Caddyfile now proxies
+// `/media/*` -> `minio:9000` (path-style, matching MinIO's own bucket/object
+// layout) on the same origin as the storefront/admin console; Caddy's
+// reverse_proxy sets the upstream Host header to the proxied target by
+// default, so MinIO still sees the exact Host (`minio:9000`) the signature
+// was computed against — only the scheme+host in the URL string need
+// rewriting, the query-string signature itself is untouched.
+export function toPublicMediaUrl(internalPresignedUrl: string): string {
+  const base = process.env.PUBLIC_BASE_URL;
+  if (!base) throw new Error("missing required env var PUBLIC_BASE_URL");
+  const url = new URL(internalPresignedUrl);
+  return `${base}/media${url.pathname}${url.search}`;
+}
+
 export type MediaPurpose = "product_image" | "pod_photo" | "invoice" | "transfer_proof";
 
 // core.media_objects.purpose comment (04-database-design §3.10):
