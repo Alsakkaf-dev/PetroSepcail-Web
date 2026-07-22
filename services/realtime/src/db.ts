@@ -1,4 +1,5 @@
 import { Client, Pool, type PoolClient } from "pg";
+import { logger } from "./logger.js";
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -12,7 +13,7 @@ function getPool(): Pool {
   if (!pool) {
     pool = new Pool({ connectionString: requireEnv("DATABASE_URL") });
     pool.on("error", (err) => {
-      console.error("[realtime/db] idle client error", err);
+      logger.error({ err }, "realtime/db: idle client error");
     });
   }
   return pool;
