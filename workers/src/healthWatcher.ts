@@ -63,7 +63,7 @@ export function createHealthWatcher(targets: HealthTarget[]): HealthWatcher {
             const id = await openIncident(client, {
               severity: "S1",
               service: target.service,
-              message: `${target.url} failed ${nextFailures} consecutive health checks`
+              message: `${target.url} failed ${nextFailures} consecutive health checks — see ops/dr-runbook.md`
             });
             logger.error({ service: target.service, incidentId: id }, "health-watcher: S1 incident opened");
           }
