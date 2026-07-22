@@ -2,6 +2,7 @@ import {
   addCartLineRequest,
   applyCouponRequest,
   applyCouponResponse,
+  cartLineMutationResponse,
   cartResponse,
   cartTotalsResponse,
   updateCartLineRequest
@@ -161,19 +162,21 @@ export function registerCartRoutes(app: FastifyInstance): void {
       return { line, totals: data.totals };
     });
 
-    return reply.code(201).send({
-      line: {
-        lineId: result.line.line_id,
-        packSizeId: result.line.pack_size_id,
-        slug: result.line.slug,
-        nameAr: result.line.name_ar,
-        nameEn: result.line.name_en,
-        qty: result.line.qty,
-        unitPrice: money(Number(result.line.unit_price)),
-        inStock: result.line.in_stock ?? false
-      },
-      totals: result.totals
-    });
+    return reply.code(201).send(
+      cartLineMutationResponse.parse({
+        line: {
+          lineId: result.line.line_id,
+          packSizeId: result.line.pack_size_id,
+          slug: result.line.slug,
+          nameAr: result.line.name_ar,
+          nameEn: result.line.name_en,
+          qty: result.line.qty,
+          unitPrice: money(Number(result.line.unit_price)),
+          inStock: result.line.in_stock ?? false
+        },
+        totals: result.totals
+      })
+    );
   });
 
   // EP-SF-012 · PATCH /cart/lines/{lineId} · auth
@@ -194,19 +197,21 @@ export function registerCartRoutes(app: FastifyInstance): void {
       return { line, totals: data.totals };
     });
 
-    return reply.code(200).send({
-      line: {
-        lineId: result.line.line_id,
-        packSizeId: result.line.pack_size_id,
-        slug: result.line.slug,
-        nameAr: result.line.name_ar,
-        nameEn: result.line.name_en,
-        qty: result.line.qty,
-        unitPrice: money(Number(result.line.unit_price)),
-        inStock: result.line.in_stock ?? false
-      },
-      totals: result.totals
-    });
+    return reply.code(200).send(
+      cartLineMutationResponse.parse({
+        line: {
+          lineId: result.line.line_id,
+          packSizeId: result.line.pack_size_id,
+          slug: result.line.slug,
+          nameAr: result.line.name_ar,
+          nameEn: result.line.name_en,
+          qty: result.line.qty,
+          unitPrice: money(Number(result.line.unit_price)),
+          inStock: result.line.in_stock ?? false
+        },
+        totals: result.totals
+      })
+    );
   });
 
   // EP-SF-013 · DELETE /cart/lines/{lineId} · auth
