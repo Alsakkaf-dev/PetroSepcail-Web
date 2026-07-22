@@ -41,7 +41,19 @@ alter table catalog.certifications force row level security;
 create policy certifications_public_read on catalog.certifications for select using (true);
 grant select on catalog.certifications to app_user;
 
+-- ---------------------------------------------------------------------------
+-- catalog.pack_sizes
+-- ---------------------------------------------------------------------------
+alter table catalog.pack_sizes enable row level security;
+alter table catalog.pack_sizes force row level security;
+create policy pack_sizes_public_read on catalog.pack_sizes for select using (true);
+grant select on catalog.pack_sizes to app_user;
+
 -- Down Migration
+
+revoke select on catalog.pack_sizes from app_user;
+drop policy if exists pack_sizes_public_read on catalog.pack_sizes;
+alter table catalog.pack_sizes disable row level security;
 
 revoke select on catalog.certifications from app_user;
 drop policy if exists certifications_public_read on catalog.certifications;
