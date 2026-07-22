@@ -85,6 +85,19 @@ create table catalog.certifications (
 );
 comment on table catalog.certifications is 'SF-01 FR-SF01-006 — structured trust marks';
 
+-- 2.5 pack_sizes -----------------------------------------------------------------
+create table catalog.pack_sizes (
+  id         uuid primary key default gen_random_uuid(),
+  sku_id     uuid not null references catalog.skus(id) on delete cascade,
+  size_label text not null,                              -- '1L','4L','5L','20L','209L' [BUSINESS-CONFIRM]
+  size_liters numeric(7,2) not null,
+  barcode    text unique,
+  is_active  boolean not null default true,
+  created_at timestamptz not null default now(),
+  unique (sku_id, size_label)
+);
+comment on table catalog.pack_sizes is 'SF-01 FR-SF01-004 — one buyable variant per row';
+
 -- Down Migration
 
 drop schema if exists catalog cascade;
