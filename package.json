@@ -23,6 +23,9 @@
     "db:migrate:down": "node-pg-migrate -m db/migrations --migration-file-language sql down",
     "parity-grep": "node scripts/parity-grep.mjs",
     "verify-audit-chain": "node scripts/verify-audit-chain.mjs",
+    "backup:dump": "node scripts/backup/pg-dump-backup.mjs",
+    "backup:verify-wal": "node scripts/backup/verify-wal-archiving.mjs",
+    "backup:restore-drill": "node scripts/backup/pg-restore-drill.mjs",
     "prepare": "node scripts/git-hooks/install.mjs"
   },
   "devDependencies": {
