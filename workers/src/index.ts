@@ -1,3 +1,4 @@
+import { startBankTransferSweeper } from "./bankTransferSweeper.js";
 import { buildHealthServer } from "./health.js";
 import { createHealthWatcher } from "./healthWatcher.js";
 import { logger } from "./logger.js";
@@ -23,6 +24,10 @@ const healthWatcher = createHealthWatcher([
   { service: "realtime", url: `${requireEnv("REALTIME_URL")}/health` }
 ]);
 healthWatcher.start();
+
+// FR-SF04-010 AC3 (S08): cancels bank-transfer orders with no proof/
+// verification within the payment window and releases their reserved stock.
+startBankTransferSweeper();
 
 setInterval(() => {
   logger.info("heartbeat");
