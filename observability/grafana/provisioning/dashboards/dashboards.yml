@@ -1,0 +1,10 @@
+apiVersion: 1
+
+providers:
+  - name: petrospecial
+    orgId: 1
+    folder: PetroSpecial
+    type: file
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/dashboards
