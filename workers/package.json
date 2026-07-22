@@ -9,6 +9,9 @@
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "@petrospecial/observability": "*"
+  },
   "devDependencies": {
     "@types/node": "^20.14.11",
     "tsx": "^4.16.2",
