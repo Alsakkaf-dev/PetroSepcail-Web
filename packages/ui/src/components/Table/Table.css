@@ -1,0 +1,38 @@
+.ps-table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ps-table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-300);
+}
+
+.ps-table__caption {
+  text-align: start;
+  font-weight: 700;
+  padding-block-end: var(--sp-2);
+  color: var(--ink);
+}
+
+.ps-table th {
+  text-align: start;
+  padding-block: 0.75rem;
+  padding-inline: 1rem;
+  border-block-end: 2px solid var(--line);
+  color: var(--muted);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.ps-table td {
+  padding-block: 0.75rem;
+  padding-inline: 1rem;
+  border-block-end: 1px solid var(--line-soft);
+  color: var(--ink);
+}
+
+.ps-table tbody tr:hover {
+  background: var(--bg-warm);
+}
