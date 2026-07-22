@@ -43,7 +43,7 @@
 
 .ps-btn--dark {
   background: var(--ink);
-  color: #fff;
+  color: var(--surface);
 }
 .ps-btn--dark:not(:disabled):hover {
   background: var(--blue);
