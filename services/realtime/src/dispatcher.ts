@@ -2,6 +2,7 @@ import type { Client } from "pg";
 import { runConsumers } from "./consumers/framework.js";
 import { withServiceRoleTransaction } from "./db.js";
 import type { EventEnvelope } from "./events.js";
+import { logger } from "./logger.js";
 
 // PC-EV-2 / FR-PC05-002: "A dispatcher drains core.outbox (every 10 s + on
 // NOTIFY) ... a row is marked dispatched_at only after successful hand-off;
@@ -68,7 +69,7 @@ export async function drainOutbox(broadcast: BroadcastFn): Promise<number> {
     try {
       envelope = await dispatchOne();
     } catch (err) {
-      console.error("[dispatcher] error processing next outbox row; stopping this drain, will retry on next poll/NOTIFY", err);
+      logger.error({ err }, "dispatcher: error processing next outbox row; stopping this drain, will retry on next poll/NOTIFY");
       break;
     }
     if (!envelope) break;
@@ -80,13 +81,13 @@ export async function drainOutbox(broadcast: BroadcastFn): Promise<number> {
 
 export function startDispatcher(listenerClient: Client, broadcast: BroadcastFn): { stop: () => Promise<void> } {
   const drain = () => {
-    drainOutbox(broadcast).catch((err) => console.error("[dispatcher] drain failed", err));
+    drainOutbox(broadcast).catch((err) => logger.error({ err }, "dispatcher: drain failed"));
   };
 
   listenerClient.on("notification", (msg) => {
     if (msg.channel === "outbox") drain();
   });
-  listenerClient.query("listen outbox").catch((err) => console.error("[dispatcher] LISTEN outbox failed", err));
+  listenerClient.query("listen outbox").catch((err) => logger.error({ err }, "dispatcher: LISTEN outbox failed"));
 
   const interval = setInterval(drain, POLL_INTERVAL_MS);
   drain(); // catch up on anything queued before startup
