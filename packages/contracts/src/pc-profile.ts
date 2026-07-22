@@ -18,3 +18,43 @@ export const meResponse = z.object({
   roles: z.array(userRole)
 });
 export type MeResponse = z.infer<typeof meResponse>;
+
+// EP-PC-013/014/015 (S08: SF-04 checkout needs a saved-address selector —
+// flagged unbuilt since S02, picked up here as the genuine prerequisite it
+// turned out to be).
+export const addressRow = z.object({
+  id: z.string().uuid(),
+  label: z.string().nullable(),
+  recipientName: z.string(),
+  phone: z.string(),
+  line1: z.string(),
+  line2: z.string().nullable(),
+  district: z.string().nullable(),
+  city: z.string(),
+  lat: z.string().nullable(),
+  lng: z.string().nullable(),
+  isDefault: z.boolean()
+});
+export type AddressRow = z.infer<typeof addressRow>;
+
+// EP-PC-013 · GET /me/addresses · auth
+export const addressListResponse = z.object({ items: z.array(addressRow) });
+
+// EP-PC-014 · POST /me/addresses · auth
+export const addressCreateRequest = z.object({
+  label: z.string().nullable().optional(),
+  recipientName: z.string().min(1),
+  phone: z.string().min(1),
+  line1: z.string().min(1),
+  line2: z.string().nullable().optional(),
+  district: z.string().nullable().optional(),
+  city: z.string().min(1).default("Jeddah"),
+  lat: z.number().nullable().optional(),
+  lng: z.number().nullable().optional(),
+  isDefault: z.boolean().optional()
+});
+export type AddressCreateRequest = z.infer<typeof addressCreateRequest>;
+
+// EP-PC-015 · PATCH /me/addresses/{id} · auth
+export const addressUpdateRequest = addressCreateRequest.partial();
+export type AddressUpdateRequest = z.infer<typeof addressUpdateRequest>;
