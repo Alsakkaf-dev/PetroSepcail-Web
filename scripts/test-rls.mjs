@@ -4,6 +4,7 @@
 // isolation genuinely works rather than just that the DDL compiles.
 import { execFileSync, spawnSync } from "node:child_process";
 import { Client } from "pg";
+import { verifyAuditChain } from "./verify-audit-chain.mjs";
 
 const CONTAINER = "ps-rls-test";
 let failures = 0;
@@ -222,6 +223,47 @@ async function main() {
       const asAdmin = await admin.query("select core.get_setting('vat_rate') as v");
       ok("admin gets the real vat_rate value from get_setting", Number(asAdmin.rows[0].v) === 0.15);
       await admin.query("reset role");
+    }
+
+    console.log("[test:rls] audit.audit_log — immutability + hash-chain tamper detection (TC-PC10-002)");
+    {
+      await admin.query(
+        `insert into audit.audit_log(actor_id, actor_role, action, resource, resource_id, reason, at)
+         values (null, 'service_role', 'chain_test', 'chain_resource', '1', null, now())`
+      );
+
+      const before = await verifyAuditChain(admin);
+      ok("chain verifies intact after a genuine insert", before.violations.length === 0 && before.totalRows >= 1);
+
+      await asRole(admin, "service_role");
+      let updateDenied = false;
+      try {
+        await admin.query("update audit.audit_log set action = 'tampered' where action = 'chain_test'");
+      } catch (err) {
+        updateDenied = err.code === "42501";
+      }
+      ok("service_role UPDATE on audit_log is permission-denied (immutability)", updateDenied);
+
+      let deleteDenied = false;
+      try {
+        await admin.query("delete from audit.audit_log where action = 'chain_test'");
+      } catch (err) {
+        deleteDenied = err.code === "42501";
+      }
+      ok("service_role DELETE on audit_log is permission-denied (immutability)", deleteDenied);
+      await admin.query("reset role");
+
+      // The table owner (superuser bootstrap role, not service_role) can
+      // still write directly — proving the *chain verifier* catches tamper
+      // that gets past the grant layer some other way (e.g. a raw restore).
+      await admin.query("update audit.audit_log set action = 'tampered' where action = 'chain_test'");
+      const after = await verifyAuditChain(admin);
+      ok(
+        "chain verifier detects a tampered row_hash after direct owner tampering",
+        after.violations.length === 1 && after.violations[0].row_hash_ok === false
+      );
+
+      await admin.query("delete from audit.audit_log where action = 'tampered'");
     }
 
     await admin.end();
