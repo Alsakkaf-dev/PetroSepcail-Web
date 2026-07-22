@@ -42,10 +42,22 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     env_file: .env
+    # PC-11/FR-PC11-001: continuous WAL archiving to a local folder — the
+    # PITR mechanism itself (09-deployment-and-infrastructure.md §6 scopes
+    # off-site replication + the timed RPO drill to T2+ ops, not T1 build).
+    command:
+      - postgres
+      - -c
+      - archive_mode=on
+      - -c
+      - wal_level=replica
+      - -c
+      - archive_command=test ! -f /wal-archive/%f && cp %p /wal-archive/%f
     ports:
       - "${POSTGRES_PORT}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./backups/wal-archive:/wal-archive
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 5s
