@@ -1,2 +1,21 @@
-// Design-system tokens + components land in S06 (PC-08), generated from styles.css.
-export {};
+// PC-08 — the single component source every system's 06-ui-ux references
+// (TC-PC08-004). See README.md for the documented AR-RTL/EN-LTR usage of
+// each component.
+
+export * from "./tokens";
+export * from "./utils/cx";
+export * from "./utils/locale";
+export * from "./a11y/contrast";
+
+export * from "./components/Badge/Badge";
+export * from "./components/Button/Button";
+export * from "./components/Card/Card";
+export * from "./components/TextField/TextField";
+export * from "./components/Dialog/Dialog";
+export * from "./components/Table/Table";
+export * from "./components/Toast";
+export * from "./components/Header/Header";
+export * from "./components/LanguageToggle/LanguageToggle";
+export * from "./components/EmptyState/EmptyState";
+export * from "./components/LoadingState/LoadingState";
+export * from "./components/ErrorState/ErrorState";
