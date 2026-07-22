@@ -14,6 +14,7 @@ import { registerCartRoutes } from "./routes/cart.js";
 import { registerCatalogRoutes } from "./routes/catalog.js";
 import { registerCheckoutRoutes } from "./routes/checkout.js";
 import { registerConfigRoutes } from "./routes/config.js";
+import { registerOrderRoutes } from "./routes/orders.js";
 import { registerI18nRoutes } from "./routes/i18n.js";
 import { registerMeRoutes } from "./routes/me.js";
 import { registerMediaRoutes } from "./routes/media.js";
@@ -77,6 +78,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   registerAddressRoutes(app);
   registerCartRoutes(app);
   registerCheckoutRoutes(app);
+  registerOrderRoutes(app);
 
   // D-09 error envelope {error:{code,message,details}} — the single
   // translation point from thrown errors to the wire format every EP-PC
