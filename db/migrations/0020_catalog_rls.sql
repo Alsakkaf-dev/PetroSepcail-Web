@@ -33,7 +33,19 @@ alter table catalog.sku_content force row level security;
 create policy sku_content_public_read on catalog.sku_content for select using (true);
 grant select on catalog.sku_content to app_user;
 
+-- ---------------------------------------------------------------------------
+-- catalog.certifications
+-- ---------------------------------------------------------------------------
+alter table catalog.certifications enable row level security;
+alter table catalog.certifications force row level security;
+create policy certifications_public_read on catalog.certifications for select using (true);
+grant select on catalog.certifications to app_user;
+
 -- Down Migration
+
+revoke select on catalog.certifications from app_user;
+drop policy if exists certifications_public_read on catalog.certifications;
+alter table catalog.certifications disable row level security;
 
 revoke select on catalog.sku_content from app_user;
 drop policy if exists sku_content_public_read on catalog.sku_content;
