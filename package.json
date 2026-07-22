@@ -27,6 +27,7 @@
     "backup:verify-wal": "node scripts/backup/verify-wal-archiving.mjs",
     "backup:restore-drill": "node scripts/backup/pg-restore-drill.mjs",
     "backup:minio": "node scripts/backup/minio-mirror-backup.mjs",
+    "m1-acceptance-demo": "node scripts/m1-acceptance-demo.mjs",
     "prepare": "node scripts/git-hooks/install.mjs"
   },
   "devDependencies": {
