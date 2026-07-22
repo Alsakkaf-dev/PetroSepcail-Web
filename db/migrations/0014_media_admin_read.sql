@@ -7,7 +7,7 @@
 -- together, so this doesn't touch `media_self_read` at all).
 
 create policy media_admin_read on core.media_objects
-  for select using (auth.jwt()->>'role' in ('admin', 'super_admin'));
+  for select using (app_auth.jwt()->>'role' in ('admin', 'super_admin'));
 
 -- Down Migration
 

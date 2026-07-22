@@ -12,7 +12,7 @@
 -- Least-surprising reading of the legacy payload: `id`/`created_at` become
 -- the real PK/timestamp, `phone` stays optional (the legacy form doesn't
 -- mark it required — see the validate() logic above the payload build),
--- `locale` mirrors D-01's ar/en split. service_role-only (no end-user RLS
+-- `locale` mirrors D-01's ar/en split. app_service_role-only (no end-user RLS
 -- policy exists yet, same precedent as core.outbox/ops.incidents) since
 -- there is no authenticated "owner" of an anonymous contact message.
 
@@ -32,17 +32,17 @@ create table core.contact_messages (
 comment on table core.contact_messages is
   'PC-11 SPEC-GAP — no 04-database-design definition exists; shape reverse-'
   'engineered from the legacy site''s contact-form payload for a one-time '
-  'import (TC-PC11-002). service_role-only, not a live submission endpoint.';
+  'import (TC-PC11-002). app_service_role-only, not a live submission endpoint.';
 
 alter table core.contact_messages enable row level security;
 alter table core.contact_messages force row level security;
 
-grant usage on schema core to service_role;
-grant select, insert on core.contact_messages to service_role;
+grant usage on schema core to app_service_role;
+grant select, insert on core.contact_messages to app_service_role;
 
 -- Down Migration
 
-revoke select, insert on core.contact_messages from service_role;
+revoke select, insert on core.contact_messages from app_service_role;
 
 alter table core.contact_messages disable row level security;
 drop table core.contact_messages;

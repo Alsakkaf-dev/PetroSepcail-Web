@@ -23,8 +23,8 @@ begin
 end $$;
 comment on function catalog.release_stock(uuid, int) is 'SF-04/SF-05 — releases a reservation (cancel, timeout sweep)';
 
-grant execute on function catalog.reserve_stock(uuid, int) to app_user, service_role;
-grant execute on function catalog.release_stock(uuid, int) to app_user, service_role;
+grant execute on function catalog.reserve_stock(uuid, int) to app_user, app_service_role;
+grant execute on function catalog.release_stock(uuid, int) to app_user, app_service_role;
 
 -- orders.place_order: recompute totals, reserve stock per line, insert
 -- order+lines+outbox atomically (FR-SF04-008/009/010, TC-SF04-023/024).
@@ -151,14 +151,14 @@ end $$;
 comment on function orders.place_order(uuid, uuid, payment_method, jsonb, text, text, text, uuid, numeric, numeric) is
   'SF-04 FR-SF04-008/009/010 — atomic, idempotent order placement';
 
-grant execute on function orders.place_order(uuid, uuid, payment_method, jsonb, text, text, text, uuid, numeric, numeric) to service_role;
+grant execute on function orders.place_order(uuid, uuid, payment_method, jsonb, text, text, text, uuid, numeric, numeric) to app_service_role;
 
 -- Down Migration
 
-revoke execute on function orders.place_order(uuid, uuid, payment_method, jsonb, text, text, text, uuid, numeric, numeric) from service_role;
+revoke execute on function orders.place_order(uuid, uuid, payment_method, jsonb, text, text, text, uuid, numeric, numeric) from app_service_role;
 drop function if exists orders.place_order(uuid, uuid, payment_method, jsonb, text, text, text, uuid, numeric, numeric);
 
-revoke execute on function catalog.release_stock(uuid, int) from app_user, service_role;
-revoke execute on function catalog.reserve_stock(uuid, int) from app_user, service_role;
+revoke execute on function catalog.release_stock(uuid, int) from app_user, app_service_role;
+revoke execute on function catalog.reserve_stock(uuid, int) from app_user, app_service_role;
 drop function if exists catalog.release_stock(uuid, int);
 drop function if exists catalog.reserve_stock(uuid, int);

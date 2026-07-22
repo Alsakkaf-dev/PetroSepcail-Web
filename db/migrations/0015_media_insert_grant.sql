@@ -7,7 +7,7 @@
 -- past the missing GRANT would still need one) — add both.
 
 create policy media_self_insert on core.media_objects
-  for insert with check (uploaded_by = (auth.jwt()->>'sub')::uuid);
+  for insert with check (uploaded_by = (app_auth.jwt()->>'sub')::uuid);
 
 grant insert on core.media_objects to app_user;
 

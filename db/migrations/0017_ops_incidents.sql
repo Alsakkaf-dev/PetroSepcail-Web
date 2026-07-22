@@ -3,7 +3,7 @@
 -- incident record here so an alert is provably raised (not just logged and
 -- forgotten), and so an S1/S2 event that touches customer data has a fixed
 -- `pdpl_assessment_due_at` (opened_at + 72h) to measure the PDPL breach-
--- assessment window against. service_role only (the health watcher runs as
+-- assessment window against. app_service_role only (the health watcher runs as
 -- a background worker) — same no-end-user-policy pattern as core.outbox.
 
 create schema ops;
@@ -25,15 +25,15 @@ comment on table ops.incidents is
 alter table ops.incidents enable row level security;
 alter table ops.incidents force row level security;
 
-grant usage on schema ops to service_role;
-grant select, insert, update on ops.incidents to service_role;
-grant usage, select on ops.incidents_id_seq to service_role;
+grant usage on schema ops to app_service_role;
+grant select, insert, update on ops.incidents to app_service_role;
+grant usage, select on ops.incidents_id_seq to app_service_role;
 
 -- Down Migration
 
-revoke usage, select on ops.incidents_id_seq from service_role;
-revoke select, insert, update on ops.incidents from service_role;
-revoke usage on schema ops from service_role;
+revoke usage, select on ops.incidents_id_seq from app_service_role;
+revoke select, insert, update on ops.incidents from app_service_role;
+revoke usage on schema ops from app_service_role;
 
 alter table ops.incidents disable row level security;
 drop table ops.incidents;

@@ -29,13 +29,13 @@ comment on table core.processed_events is 'PC-05 — per-consumer idempotency le
 
 alter table core.processed_events enable row level security;
 alter table core.processed_events force row level security;
--- No end-user policies: internal dispatcher/consumer bookkeeping, service_role only.
+-- No end-user policies: internal dispatcher/consumer bookkeeping, app_service_role only.
 
-grant select, insert on core.processed_events to service_role;
+grant select, insert on core.processed_events to app_service_role;
 
 -- Down Migration
 
-revoke select, insert on core.processed_events from service_role;
+revoke select, insert on core.processed_events from app_service_role;
 drop table if exists core.processed_events;
 drop trigger if exists outbox_notify on core.outbox;
 drop function if exists core.notify_outbox();

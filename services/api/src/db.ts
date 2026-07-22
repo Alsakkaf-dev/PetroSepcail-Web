@@ -52,7 +52,7 @@ async function runInTransaction<T>(setup: (client: PoolClient) => Promise<void>,
 }
 
 // PC-01/02 auth module: registration/login/refresh/MFA/reset all write
-// tables that are either service_role-only by design (core.auth_tokens,
+// tables that are either app_service_role-only by design (core.auth_tokens,
 // core.mfa_secrets, core.verification_tokens — see db/migrations/0006,
 // S01) or need to bypass the self-row RLS check at creation time
 // (core.identities INSERT at registration has no JWT yet). `SET LOCAL ROLE`
@@ -60,7 +60,7 @@ async function runInTransaction<T>(setup: (client: PoolClient) => Promise<void>,
 // elevated role onto a pooled connection that a later, unrelated request
 // might reuse — it resets automatically at COMMIT/ROLLBACK.
 export async function withServiceRoleTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
-  return runInTransaction((client) => client.query("set local role service_role").then(() => {}), fn);
+  return runInTransaction((client) => client.query("set local role app_service_role").then(() => {}), fn);
 }
 
 // PC-GW-3 (S03): the general per-request path for every *other* (non-auth)
@@ -69,14 +69,14 @@ export async function withServiceRoleTransaction<T>(fn: (client: PoolClient) => 
 // ..., true)` — the `true` (is_local) makes it equivalent to `SET LOCAL`, so
 // it resets at COMMIT/ROLLBACK and never leaks onto a pooled connection a
 // later, unrelated request might reuse. RLS policies read it back through
-// auth.jwt() (db/migrations/0001, S01) — this is the literal mechanism
+// app_auth.jwt() (db/migrations/0001, S01) — this is the literal mechanism
 // 03-sdd.md §10 names: "JWT claims passed to Postgres via `set local
 // request.jwt.claims`".
 // `actor` may be null for public/guest-reachable endpoints (e.g. EP-PC-030
 // GET /i18n/{locale}) that still want the RLS-bound path rather than
-// service_role — core.i18n_strings' `i18n_public_read` policy is `using
+// app_service_role — core.i18n_strings' `i18n_public_read` policy is `using
 // (true)` regardless of claims, so app_user with no claims set still reads
-// it fine; auth.jwt() simply returns null, and any claim-based predicate
+// it fine; app_auth.jwt() simply returns null, and any claim-based predicate
 // correctly evaluates to false/no-match for a guest.
 export async function withRlsTransaction<T>(
   actor: AccessTokenClaims | null,

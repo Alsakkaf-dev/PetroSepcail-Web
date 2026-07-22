@@ -9,8 +9,8 @@
 -- row to the same owner, so the identity_id can't be changed either way.
 
 create policy notif_own_update on core.notifications
-  for update using (identity_id = (auth.jwt()->>'sub')::uuid)
-             with check (identity_id = (auth.jwt()->>'sub')::uuid);
+  for update using (identity_id = (app_auth.jwt()->>'sub')::uuid)
+             with check (identity_id = (app_auth.jwt()->>'sub')::uuid);
 
 grant update on core.notifications to app_user;
 

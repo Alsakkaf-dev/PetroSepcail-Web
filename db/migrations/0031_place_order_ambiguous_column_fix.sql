@@ -128,7 +128,7 @@ end $$;
 comment on function orders.place_order(uuid, uuid, payment_method, jsonb, text, text, text, uuid, numeric, numeric) is
   'SF-04 FR-SF04-008/009/010 — atomic, idempotent order placement';
 
-grant execute on function orders.place_order(uuid, uuid, payment_method, jsonb, text, text, text, uuid, numeric, numeric) to service_role;
+grant execute on function orders.place_order(uuid, uuid, payment_method, jsonb, text, text, text, uuid, numeric, numeric) to app_service_role;
 
 -- Down Migration
 -- Reverts to 0028's original (ambiguous-column) body, matching that
@@ -218,4 +218,4 @@ begin
   end if;
   return query select v_order_id, v_status, v_total, (case when p_method = 'cod' then v_total else null end), false;
 end $$;
-grant execute on function orders.place_order(uuid, uuid, payment_method, jsonb, text, text, text, uuid, numeric, numeric) to service_role;
+grant execute on function orders.place_order(uuid, uuid, payment_method, jsonb, text, text, text, uuid, numeric, numeric) to app_service_role;

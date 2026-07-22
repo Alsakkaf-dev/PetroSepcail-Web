@@ -39,14 +39,14 @@ comment on table catalog.stock_movements is 'D-14a — hub<->van stock-movement 
 -- RLS: internal ops data (D-14a "authored in AC-02/catalog + DL"), no
 -- end-user policy — same defense-in-depth-with-zero-policy pattern as
 -- core.auth_tokens (0006_rls_policies.sql). Admin routes read/write these via
--- service_role (withServiceRoleTransaction), matching config.ts's precedent.
+-- app_service_role (withServiceRoleTransaction), matching config.ts's precedent.
 alter table catalog.stock_locations enable row level security;
 alter table catalog.stock_locations force row level security;
 
 alter table catalog.stock_movements enable row level security;
 alter table catalog.stock_movements force row level security;
 
-grant all privileges on catalog.stock_locations, catalog.stock_movements to service_role;
+grant all privileges on catalog.stock_locations, catalog.stock_movements to app_service_role;
 
 -- Single hub location (D-14a: "the Jeddah hub is the single source of
 -- truth"). Van/office locations are created later as drivers onboard
@@ -61,7 +61,7 @@ values ('hub', 'المستودع الرئيسي — جدة', 'Jeddah Hub');
 -- single source of truth, D-14a); a van/office-only leg (not used until
 -- DL-07+) does not. SECURITY DEFINER so a future driver-side (app_user+RLS)
 -- caller can invoke it despite catalog.inventory/core.outbox being
--- service_role-only tables — same pattern as catalog.reserve_stock/
+-- app_service_role-only tables — same pattern as catalog.reserve_stock/
 -- release_stock (04-database-design §5).
 create function catalog.record_stock_movement(
   p_pack uuid, p_qty int, p_from uuid, p_to uuid, p_kind text,
@@ -93,14 +93,14 @@ end $$;
 comment on function catalog.record_stock_movement(uuid, int, uuid, uuid, text, uuid, uuid) is
   'D-14a — hub<->van stock-movement ledger write; adjusts the hub inventory row and emits EV-PC-006';
 
-grant execute on function catalog.record_stock_movement(uuid, int, uuid, uuid, text, uuid, uuid) to app_user, service_role;
+grant execute on function catalog.record_stock_movement(uuid, int, uuid, uuid, text, uuid, uuid) to app_user, app_service_role;
 
 -- Down Migration
 
-revoke execute on function catalog.record_stock_movement(uuid, int, uuid, uuid, text, uuid, uuid) from app_user, service_role;
+revoke execute on function catalog.record_stock_movement(uuid, int, uuid, uuid, text, uuid, uuid) from app_user, app_service_role;
 drop function if exists catalog.record_stock_movement(uuid, int, uuid, uuid, text, uuid, uuid);
 
-revoke all privileges on catalog.stock_locations, catalog.stock_movements from service_role;
+revoke all privileges on catalog.stock_locations, catalog.stock_movements from app_service_role;
 
 alter table catalog.stock_movements disable row level security;
 alter table catalog.stock_locations disable row level security;

@@ -1,13 +1,13 @@
 -- Up Migration
 -- 10-customer-storefront/04-database-design.md §4 (catalog block): public
--- read for every catalog table except inventory (service_role-only; the
+-- read for every catalog table except inventory (app_service_role-only; the
 -- customer-facing boolean comes from catalog.v_sku_availability, granted
--- separately below). AC-02 (S07's admin routes) writes via service_role,
+-- separately below). AC-02 (S07's admin routes) writes via app_service_role,
 -- exactly like PC-12's config writes (0006_rls_policies.sql precedent) — no
 -- direct end-user write policy exists on any catalog table (NFR-AC-006 sole
 -- writer discipline; FR-AC02-001 "an attempted write from SF/SP is denied by
 -- grants/RLS").
-grant usage on schema catalog to app_user, service_role;
+grant usage on schema catalog to app_user, app_service_role;
 
 -- ---------------------------------------------------------------------------
 -- catalog.brand_families
@@ -59,7 +59,7 @@ grant select on catalog.prices to app_user;
 
 -- ---------------------------------------------------------------------------
 -- catalog.inventory — NO end-user policy (04-roles §3 "Inventory: R in-stock
--- flag only" => served by catalog.v_sku_availability; base table service_role
+-- flag only" => served by catalog.v_sku_availability; base table app_service_role
 -- only, matching AC-02's sole-writer discipline). The view is owned by the
 -- migration-running role, which is the Postgres superuser in this project's
 -- self-hosted images — superusers always bypass RLS regardless of FORCE ROW
@@ -80,15 +80,15 @@ create policy sku_media_public_read on catalog.sku_media for select using (true)
 grant select on catalog.sku_media to app_user;
 
 -- ---------------------------------------------------------------------------
--- service_role: full bypass-backed access to every catalog table (AC-02
+-- app_service_role: full bypass-backed access to every catalog table (AC-02
 -- writes, D-14a stock movements) — same closing grant pattern as
 -- 0006_rls_policies.sql for schema core/audit.
 -- ---------------------------------------------------------------------------
-grant all privileges on all tables in schema catalog to service_role;
+grant all privileges on all tables in schema catalog to app_service_role;
 
 -- Down Migration
 
-revoke all privileges on all tables in schema catalog from service_role;
+revoke all privileges on all tables in schema catalog from app_service_role;
 
 revoke select on catalog.sku_media from app_user;
 drop policy if exists sku_media_public_read on catalog.sku_media;
@@ -121,4 +121,4 @@ revoke select on catalog.brand_families from app_user;
 drop policy if exists fam_public_read on catalog.brand_families;
 alter table catalog.brand_families disable row level security;
 
-revoke usage on schema catalog from app_user, service_role;
+revoke usage on schema catalog from app_user, app_service_role;

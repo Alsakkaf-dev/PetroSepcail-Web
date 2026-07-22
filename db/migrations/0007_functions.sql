@@ -6,9 +6,9 @@ create function core.admin_read_customer(p_customer uuid, p_reason text)
 returns core.identities language plpgsql security definer as $$
 declare r core.identities;
 begin
-  if (auth.jwt()->>'role') not in ('admin','super_admin') then raise exception 'forbidden'; end if;
+  if (app_auth.jwt()->>'role') not in ('admin','super_admin') then raise exception 'forbidden'; end if;
   insert into audit.audit_log(actor_id, actor_role, action, resource, resource_id, reason, at)
-    values ((auth.jwt()->>'sub')::uuid, auth.jwt()->>'role','pii_read','identity',p_customer::text,p_reason, now());
+    values ((app_auth.jwt()->>'sub')::uuid, app_auth.jwt()->>'role','pii_read','identity',p_customer::text,p_reason, now());
   select * into r from core.identities where id = p_customer;  -- single record only
   return r;
 end $$;
@@ -25,7 +25,7 @@ comment on function core.get_setting(text) is
   'PC-12/TC-PC12-001 — stable read of a single settings key. Runs as caller '
   '(no SECURITY DEFINER), so it is still gated by settings_admin_read RLS for '
   'app_user; server-side business logic that needs it for anonymous/customer '
-  'flows (e.g. VAT display) calls it over a service_role connection.';
+  'flows (e.g. VAT display) calls it over a app_service_role connection.';
 
 -- Down Migration
 
