@@ -71,7 +71,28 @@ alter table catalog.inventory force row level security;
 
 grant select on catalog.v_sku_availability to app_user;
 
+-- ---------------------------------------------------------------------------
+-- catalog.sku_media
+-- ---------------------------------------------------------------------------
+alter table catalog.sku_media enable row level security;
+alter table catalog.sku_media force row level security;
+create policy sku_media_public_read on catalog.sku_media for select using (true);
+grant select on catalog.sku_media to app_user;
+
+-- ---------------------------------------------------------------------------
+-- service_role: full bypass-backed access to every catalog table (AC-02
+-- writes, D-14a stock movements) — same closing grant pattern as
+-- 0006_rls_policies.sql for schema core/audit.
+-- ---------------------------------------------------------------------------
+grant all privileges on all tables in schema catalog to service_role;
+
 -- Down Migration
+
+revoke all privileges on all tables in schema catalog from service_role;
+
+revoke select on catalog.sku_media from app_user;
+drop policy if exists sku_media_public_read on catalog.sku_media;
+alter table catalog.sku_media disable row level security;
 
 revoke select on catalog.v_sku_availability from app_user;
 alter table catalog.inventory disable row level security;
