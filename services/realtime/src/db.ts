@@ -28,7 +28,7 @@ export async function withServiceRoleTransaction<T>(fn: (client: PoolClient) => 
   const client = await getPool().connect();
   try {
     await client.query("begin");
-    await client.query("set local role service_role");
+    await client.query("set local role app_service_role");
     const result = await fn(client);
     await client.query("commit");
     return result;

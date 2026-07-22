@@ -13,7 +13,7 @@ interface IdentityRow {
 
 // EP-PC-011 · GET /me · auth -> "own identity via RLS". The first real
 // business endpoint on the PC-GW-3 path (S03): app_user + `set local
-// request.jwt.claims`, not service_role — core.identities' identity_self_rw
+// request.jwt.claims`, not app_service_role — core.identities' identity_self_rw
 // and core.role_grants' role_grants_self_read policies (db/migrations/0006,
 // S01) do the actual scoping. Deliberately minimal (no WHERE-clause safety
 // net beyond normal query shape) so the E2E test genuinely exercises RLS

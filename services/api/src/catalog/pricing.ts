@@ -2,7 +2,7 @@ import { withServiceRoleTransaction } from "../db.js";
 
 // SF-01 (S07): `core.get_setting`'s own comment (0007_functions.sql, S01)
 // is explicit — "server-side business logic that needs it for anonymous/
-// customer flows (e.g. VAT display) calls it over a service_role
+// customer flows (e.g. VAT display) calls it over a app_service_role
 // connection", since `core.settings`' RLS (`settings_admin_read`) blocks
 // app_user reads for non-admin actors, including the guest/customer callers
 // every public catalog endpoint serves (FR-SF01-011).

@@ -6,7 +6,7 @@ import { ApiError } from "../errors.js";
 // EP-PC-030 · GET /i18n/{locale} · public — client-hydration bundle, cacheable.
 // core.i18n_strings' `i18n_public_read` RLS policy is `using (true)` (S01),
 // so this reads over the normal RLS-bound app_user path with actor: null —
-// no reason to reach for service_role just because the caller is anonymous.
+// no reason to reach for app_service_role just because the caller is anonymous.
 export function registerI18nRoutes(app: FastifyInstance): void {
   app.get<{ Params: { locale: string } }>("/api/v1/i18n/:locale", async (request, reply) => {
     const { locale } = request.params;

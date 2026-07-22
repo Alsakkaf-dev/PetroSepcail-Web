@@ -3,7 +3,7 @@ import type { UserRole } from "../security/jwt.js";
 
 // core.identities / core.role_grants / core.auth_tokens / core.mfa_secrets /
 // core.verification_tokens (db/migrations/0004, S01). All queries here run
-// inside a service_role transaction (services/api/src/db.ts) — parameterized
+// inside a app_service_role transaction (services/api/src/db.ts) — parameterized
 // throughout, never string-interpolated.
 
 export interface IdentityRow {

@@ -63,7 +63,7 @@ beforeEach(async () => {
 });
 
 describe("withServiceRoleTransaction", () => {
-  it("wraps fn in begin -> set local role service_role -> commit and releases the client", async () => {
+  it("wraps fn in begin -> set local role app_service_role -> commit and releases the client", async () => {
     const result = await withServiceRoleTransaction(async (client) => {
       await client.query("select 1 as x");
       return 42;
@@ -71,7 +71,7 @@ describe("withServiceRoleTransaction", () => {
 
     expect(result).toBe(42);
     const c = h.lastClient!;
-    expect(sqlsOf(c)).toEqual(["begin", "set local role service_role", "select 1 as x", "commit"]);
+    expect(sqlsOf(c)).toEqual(["begin", "set local role app_service_role", "select 1 as x", "commit"]);
     expect(c.release).toHaveBeenCalledTimes(1);
   });
 
@@ -83,7 +83,7 @@ describe("withServiceRoleTransaction", () => {
     ).rejects.toThrow("consumer boom");
 
     const c = h.lastClient!;
-    expect(sqlsOf(c)).toEqual(["begin", "set local role service_role", "rollback"]);
+    expect(sqlsOf(c)).toEqual(["begin", "set local role app_service_role", "rollback"]);
     expect(c.release).toHaveBeenCalledTimes(1);
   });
 

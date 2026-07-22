@@ -173,10 +173,10 @@ export function registerCheckoutRoutes(app: FastifyInstance): void {
     const actor = requireActor(request);
     const body = bankTransferProofRequest.parse(request.body);
 
-    // core.outbox (publishEvent) is service_role-only by design (no
+    // core.outbox (publishEvent) is app_service_role-only by design (no
     // app_user grant at all — 0004/0006_rls_policies.sql) — FR-PC05-001
     // requires the event write in the SAME transaction as the state change,
-    // so this whole handler runs over service_role with an explicit
+    // so this whole handler runs over app_service_role with an explicit
     // ownership check, the same pattern config.ts/adminCatalog.ts use for
     // any route that both mutates owner-scoped data and emits an event.
     await withServiceRoleTransaction(async (client) => {
