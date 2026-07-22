@@ -3,6 +3,7 @@ import { verifyAccessToken, type AccessTokenClaims } from "@petrospecial/auth-sh
 import { WebSocketServer, type WebSocket } from "ws";
 import { authorizeChannel } from "./channels/channelAuth.js";
 import type { EventEnvelope } from "./events.js";
+import { logger } from "./logger.js";
 
 export interface MinimalRequest {
   url?: string;
@@ -50,6 +51,10 @@ export function buildServer(): RealtimeServer {
   const wss = new WebSocketServer({ server, path: "/realtime" });
   const connections = new Set<Connection>();
 
+  wss.on("error", (err) => {
+    logger.error({ err }, "websocket server error");
+  });
+
   wss.on("connection", (socket, request) => {
     void (async () => {
       // Query string only (no URL object): avoids the WHATWG URL
@@ -69,7 +74,12 @@ export function buildServer(): RealtimeServer {
 
       const connection: Connection = { socket, actor, channels: new Set() };
       connections.add(connection);
+      logger.info({ actorSub: actor?.sub ?? null }, "ws connection opened");
       socket.send(JSON.stringify({ type: "welcome" }));
+
+      socket.on("error", (err) => {
+        logger.error({ err }, "ws connection error");
+      });
 
       socket.on("message", (raw) => {
         let msg: { type?: string; channel?: string };
@@ -95,6 +105,7 @@ export function buildServer(): RealtimeServer {
 
       socket.on("close", () => {
         connections.delete(connection);
+        logger.info({ actorSub: actor?.sub ?? null }, "ws connection closed");
       });
     })();
   });
