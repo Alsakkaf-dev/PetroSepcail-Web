@@ -1,6 +1,7 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import { ZodError } from "zod";
 import { errorEnvelope } from "@petrospecial/contracts";
+import { buildLoggerOptions } from "@petrospecial/observability";
 import { ApiError } from "./errors.js";
 import { checkReadiness } from "./gateway/readiness.js";
 import { registerRateLimit } from "./gateway/rateLimit.js";
@@ -13,7 +14,7 @@ import { registerMediaRoutes } from "./routes/media.js";
 import { registerNotificationRoutes } from "./routes/notifications.js";
 
 export async function buildServer(): Promise<FastifyInstance> {
-  const app = Fastify({ logger: true });
+  const app = Fastify({ logger: buildLoggerOptions("api") });
 
   // 03-sdd.md §10 request lifecycle order: request context (request_id,
   // actor, locale) resolves onRequest, before rate limiting (preHandler)
