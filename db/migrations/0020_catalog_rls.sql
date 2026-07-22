@@ -57,7 +57,24 @@ alter table catalog.prices force row level security;
 create policy prices_public_read on catalog.prices for select using (true);
 grant select on catalog.prices to app_user;
 
+-- ---------------------------------------------------------------------------
+-- catalog.inventory — NO end-user policy (04-roles §3 "Inventory: R in-stock
+-- flag only" => served by catalog.v_sku_availability; base table service_role
+-- only, matching AC-02's sole-writer discipline). The view is owned by the
+-- migration-running role, which is the Postgres superuser in this project's
+-- self-hosted images — superusers always bypass RLS regardless of FORCE ROW
+-- LEVEL SECURITY, so the view still aggregates across every row for any
+-- caller while the base table itself stays fully inaccessible to app_user.
+-- ---------------------------------------------------------------------------
+alter table catalog.inventory enable row level security;
+alter table catalog.inventory force row level security;
+
+grant select on catalog.v_sku_availability to app_user;
+
 -- Down Migration
+
+revoke select on catalog.v_sku_availability from app_user;
+alter table catalog.inventory disable row level security;
 
 revoke select on catalog.prices from app_user;
 drop policy if exists prices_public_read on catalog.prices;
