@@ -52,8 +52,9 @@
 }
 
 .ps-toast__dismiss {
-  inline-size: 32px;
-  block-size: 32px;
+  /* PC-08 §5/§6: touch targets >= 44px, even for a small dismiss glyph. */
+  inline-size: 44px;
+  block-size: 44px;
   flex: none;
   border-radius: 50%;
   color: var(--muted);
