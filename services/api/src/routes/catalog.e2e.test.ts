@@ -95,6 +95,7 @@ describe.runIf(dockerAvailable())("Catalog + search + admin catalog CRUD (SF-01/
     process.env.MINIO_BUCKET_MEDIA = "ps-media";
     process.env.MINIO_BUCKET_INVOICES = "ps-invoices";
     process.env.MINIO_BUCKET_POD = "ps-pod";
+    process.env.PUBLIC_BASE_URL = "https://localhost";
     const { Client: MinioClient } = await import("minio");
     const minioAdmin = new MinioClient({
       endPoint: "127.0.0.1",
@@ -205,6 +206,16 @@ describe.runIf(dockerAvailable())("Catalog + search + admin catalog CRUD (SF-01/
     expect(body.specs.apiService).toBe("API SL");
     expect(body.specs.drainKm).toBe(5000);
     expect(body.certifications.length).toBeGreaterThan(0);
+  });
+
+  it("TC-SF01-018: product images are publicly visible via a browser-reachable signed URL", async () => {
+    // Regression guard for a real bug S07 caught live: core.media_objects had
+    // no public-read RLS policy, so a guest's join from sku_media silently
+    // returned zero media rows (0024_media_product_image_public_read.sql).
+    const res = await app.inject({ method: "GET", url: "/api/v1/catalog/products/super-special-10w30" });
+    const body = res.json();
+    expect(body.media.length).toBe(3);
+    expect(body.media[0].url).toMatch(/^https:\/\/localhost\/media\//);
   });
 
   it("TC-SF01-016: pack-sizes expose inStock boolean, never a raw quantity", async () => {
