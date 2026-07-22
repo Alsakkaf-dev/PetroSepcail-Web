@@ -103,3 +103,24 @@ export const inventoryUpdateResponse = z.object({
   reserved: z.number().int()
 });
 export type InventoryUpdateResponse = z.infer<typeof inventoryUpdateResponse>;
+
+// SPEC-GAP: 40-admin-center/05-api-specification.md §2 defines EP-AC-010..013
+// as write-only (no GET) for AC-02 — the admin console still needs a way to
+// see current prices/stock before editing them (the console's own DoD:
+// "admin can CRUD products"). Additive read endpoint, admin-only, paired
+// with EP-AC-012/013 the same way EP-PC-040/041 pairs a GET with its PUT
+// (60-platform-core precedent).
+export const adminSkuListItem = z.object({
+  skuId: z.string().uuid(),
+  slug: z.string(),
+  nameAr: z.string(),
+  nameEn: z.string(),
+  isActive: z.boolean(),
+  packSizeId: z.string().uuid(),
+  sizeLabel: z.string(),
+  retailPrice: z.string().nullable(),
+  qtyOnHand: z.number().int(),
+  reserved: z.number().int()
+});
+export const adminSkuListResponse = z.object({ items: z.array(adminSkuListItem) });
+export type AdminSkuListResponse = z.infer<typeof adminSkuListResponse>;
