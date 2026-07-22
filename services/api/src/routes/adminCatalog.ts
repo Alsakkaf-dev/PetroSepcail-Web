@@ -1,4 +1,5 @@
 import {
+  adminSkuListResponse,
   inventoryUpdateRequest,
   inventoryUpdateResponse,
   packSizeUpsertRequest,
@@ -38,6 +39,43 @@ async function replaceSkuContent(
 }
 
 export function registerAdminCatalogRoutes(app: FastifyInstance): void {
+  // SPEC-GAP (packages/contracts/src/ac-catalog.ts, adminSkuListResponse):
+  // an additive read the console needs to display current values before
+  // editing — no GET exists for AC-02 in 40-admin-center/05-api-
+  // specification.md §2.
+  app.get("/api/v1/admin/catalog/skus", { preHandler: requirePermission("read", "catalog") }, async (_request, reply) => {
+    const rows = await withServiceRoleTransaction(async (client) => {
+      const res = await client.query(
+        `select s.id as sku_id, s.slug, s.name_ar, s.name_en, s.is_active,
+                p.id as pack_size_id, p.size_label,
+                catalog.resolve_retail_price(p.id) as retail_price,
+                i.qty_on_hand, i.reserved
+         from catalog.skus s
+         join catalog.pack_sizes p on p.sku_id = s.id
+         left join catalog.inventory i on i.pack_size_id = p.id
+         order by s.name_ar, p.size_liters`
+      );
+      return res.rows;
+    });
+
+    return reply.code(200).send(
+      adminSkuListResponse.parse({
+        items: rows.map((r) => ({
+          skuId: r.sku_id,
+          slug: r.slug,
+          nameAr: r.name_ar,
+          nameEn: r.name_en,
+          isActive: r.is_active,
+          packSizeId: r.pack_size_id,
+          sizeLabel: r.size_label,
+          retailPrice: r.retail_price,
+          qtyOnHand: r.qty_on_hand ?? 0,
+          reserved: r.reserved ?? 0
+        }))
+      })
+    );
+  });
+
   // EP-AC-010 · POST /admin/catalog/skus · auth(admin) — create
   app.post("/api/v1/admin/catalog/skus", { preHandler: requirePermission("create", "catalog") }, async (request, reply) => {
     const body = skuUpsertRequest.parse(request.body);
