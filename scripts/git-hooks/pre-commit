@@ -1,8 +1,12 @@
 #!/bin/sh
 # Fast local gate (ADR-13). Full `npm run verify` (incl. the ephemeral-Postgres
 # migration test) runs on demand / in the go-live smoke test, not on every commit.
+# SPEC-GAP fix (S06): *.e2e.test.ts files match test:unit's own vitest glob, so
+# without this exclusion the "fast" gate was silently booting real Postgres/
+# MinIO/mailpit containers on every commit — excluded here to restore the
+# comment above's actual intent; `npm run verify` (unfiltered) still runs them.
 set -e
 npm run typecheck
 npm run lint
-npm run test:unit
+npx vitest run --exclude "**/*.e2e.test.ts"
 npm run parity-grep
