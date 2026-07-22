@@ -1,0 +1,34 @@
+.ps-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding-block: 0.3rem;
+  padding-inline: 0.7rem;
+  border-radius: var(--r-pill);
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: var(--fs-200);
+  line-height: 1.3;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.ps-badge--neutral {
+  background: var(--line-soft);
+  border: 1px solid var(--line);
+}
+
+.ps-badge--gold {
+  background: var(--gold-metal);
+}
+
+.ps-badge--blue {
+  background: var(--bg-tint);
+  border: 1px solid var(--blue-600);
+  color: var(--blue);
+}
+
+.ps-badge--flame {
+  background: var(--bg-tint);
+  border-inline-start: 3px solid var(--flame);
+}
