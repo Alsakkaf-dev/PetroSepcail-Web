@@ -22,6 +22,7 @@
     "db:migrate:up": "node-pg-migrate -m db/migrations --migration-file-language sql up",
     "db:migrate:down": "node-pg-migrate -m db/migrations --migration-file-language sql down",
     "parity-grep": "node scripts/parity-grep.mjs",
+    "verify-audit-chain": "node scripts/verify-audit-chain.mjs",
     "prepare": "node scripts/git-hooks/install.mjs"
   },
   "devDependencies": {
