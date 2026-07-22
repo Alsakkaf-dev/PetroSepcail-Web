@@ -1,0 +1,30 @@
+.ps-loading-state {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3) 0;
+}
+
+.ps-loading-state__line {
+  block-size: 1rem;
+  border-radius: var(--r-sm);
+  background: linear-gradient(90deg, var(--bg-warm) 25%, var(--line-soft) 50%, var(--bg-warm) 75%);
+  background-size: 200% 100%;
+  animation: ps-skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes ps-skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ps-loading-state__line {
+    animation: none;
+    background: var(--bg-warm);
+  }
+}
