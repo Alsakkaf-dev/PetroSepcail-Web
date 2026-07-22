@@ -2,16 +2,29 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { ZodError } from "zod";
 import { errorEnvelope } from "@petrospecial/contracts";
 import { buildLoggerOptions } from "@petrospecial/observability";
-import { ApiError } from "./errors.js";
+import { ApiError, type ErrorCode } from "./errors.js";
 import { checkReadiness } from "./gateway/readiness.js";
 import { registerRateLimit } from "./gateway/rateLimit.js";
 import { registerRequestContext } from "./gateway/requestContext.js";
+import { metrics } from "./metrics.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerConfigRoutes } from "./routes/config.js";
 import { registerI18nRoutes } from "./routes/i18n.js";
 import { registerMeRoutes } from "./routes/me.js";
 import { registerMediaRoutes } from "./routes/media.js";
 import { registerNotificationRoutes } from "./routes/notifications.js";
+
+// TC-PC10-004: reasons the login handler (routes/auth.ts) can reject a
+// credential-verification attempt. Counted centrally here, in the one place
+// every ApiError thrown from any route already flows through, rather than
+// threading a metrics import down into the transaction/repository layers.
+const LOGIN_FAILURE_CODES: ReadonlySet<ErrorCode> = new Set([
+  "INVALID_CREDENTIALS",
+  "ACCOUNT_LOCKED",
+  "EMAIL_UNVERIFIED",
+  "MFA_REQUIRED",
+  "MFA_INVALID"
+]);
 
 export async function buildServer(): Promise<FastifyInstance> {
   const app = Fastify({ logger: buildLoggerOptions("api") });
@@ -22,6 +35,17 @@ export async function buildServer(): Promise<FastifyInstance> {
   registerRequestContext(app);
   await registerRateLimit(app);
 
+  // TC-PC10-004: HTTP latency + error-rate signals, one observation per
+  // completed response. `routeOptions.url` is the registered pattern (e.g.
+  // "/api/v1/media/:objectKey/url"), not the raw path, so labels stay
+  // low-cardinality even once path-param routes exist.
+  app.addHook("onResponse", async (request, reply) => {
+    const route = request.routeOptions.url ?? request.url;
+    const labels = { method: request.method, route, status_code: String(reply.statusCode) };
+    metrics.httpRequestDuration.observe(labels, reply.elapsedTime / 1000);
+    if (reply.statusCode >= 500) metrics.httpErrorsTotal.inc(labels);
+  });
+
   // EP-PC-060/061 (FR-PC04-005). Kept as bare /health too (not just
   // /api/v1/health) — that's what docker-compose's healthcheck already
   // polls for every service (S00); no reason to break it for this one.
@@ -31,6 +55,10 @@ export async function buildServer(): Promise<FastifyInstance> {
     const result = await checkReadiness();
     const ready = result.db && result.storage && result.realtime;
     return reply.code(ready ? 200 : 503).send(result);
+  });
+  app.get("/metrics", async (_request, reply) => {
+    reply.header("content-type", metrics.registry.contentType);
+    return reply.send(await metrics.registry.metrics());
   });
 
   registerAuthRoutes(app);
@@ -43,8 +71,11 @@ export async function buildServer(): Promise<FastifyInstance> {
   // D-09 error envelope {error:{code,message,details}} — the single
   // translation point from thrown errors to the wire format every EP-PC
   // endpoint promises.
-  app.setErrorHandler((err, _request, reply) => {
+  app.setErrorHandler((err, request, reply) => {
     if (err instanceof ApiError) {
+      if (request.routeOptions.url === "/api/v1/auth/login" && LOGIN_FAILURE_CODES.has(err.code)) {
+        metrics.authFailuresTotal.inc({ reason: err.code });
+      }
       return reply.code(err.status).send(err.toEnvelope());
     }
     if (err instanceof ZodError) {
