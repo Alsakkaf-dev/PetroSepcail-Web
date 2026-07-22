@@ -1,0 +1,22 @@
+.ps-error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--sp-2);
+  padding: var(--sp-5) var(--sp-4);
+}
+
+.ps-error-state__dot {
+  inline-size: 0.9rem;
+  block-size: 0.9rem;
+  border-radius: 50%;
+  background: var(--flame);
+}
+
+.ps-error-state__message {
+  color: var(--ink);
+  font-weight: 600;
+  font-size: var(--fs-400);
+  max-width: 36ch;
+}
