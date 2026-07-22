@@ -14,7 +14,7 @@ import { normalizeSearchText } from "../catalog/search.js";
 import { withRlsTransaction } from "../db.js";
 import { ApiError } from "../errors.js";
 import { decodeCursor, encodeCursor, parsePagination } from "../gateway/pagination.js";
-import { getMinioClient } from "../media/minioClient.js";
+import { getMinioClient, toPublicMediaUrl } from "../media/minioClient.js";
 
 const DOWNLOAD_URL_EXPIRY_SECONDS = 3600;
 const MEDIA_BUCKET = "ps-media"; // catalog.sku_media only ever stores product_image objects (bucketForPurpose)
@@ -196,7 +196,8 @@ async function queryAllFacets(client: PoolClient, filters: Filters, vatRate: num
 async function toProductCard(row: ProductRow) {
   let thumbUrl: string | null = null;
   if (row.thumb_object_key) {
-    thumbUrl = await getMinioClient().presignedGetObject(MEDIA_BUCKET, row.thumb_object_key, DOWNLOAD_URL_EXPIRY_SECONDS);
+    const signed = await getMinioClient().presignedGetObject(MEDIA_BUCKET, row.thumb_object_key, DOWNLOAD_URL_EXPIRY_SECONDS);
+    thumbUrl = toPublicMediaUrl(signed);
   }
   return {
     slug: row.slug,
@@ -437,7 +438,7 @@ export function registerCatalogRoutes(app: FastifyInstance): void {
 
     const mediaWithUrls = await Promise.all(
       media.map(async (m) => ({
-        url: await getMinioClient().presignedGetObject(MEDIA_BUCKET, m.object_key, DOWNLOAD_URL_EXPIRY_SECONDS),
+        url: toPublicMediaUrl(await getMinioClient().presignedGetObject(MEDIA_BUCKET, m.object_key, DOWNLOAD_URL_EXPIRY_SECONDS)),
         altAr: m.alt_ar,
         altEn: m.alt_en
       }))
