@@ -19,11 +19,17 @@
 	# SF-01/PC-09 (S07): presigned MinIO URLs are signed against the
 	# container-internal `minio` host — unreachable from a real browser.
 	# Path-style proxy (strip the /media prefix so what MinIO receives
-	# matches its own /<bucket>/<object> layout); Caddy sets the upstream
-	# Host header to the proxied target by default, matching what the
-	# signature was computed against (media/minioClient.ts).
+	# matches its own /<bucket>/<object> layout). Real bug caught live:
+	# Caddy's reverse_proxy PRESERVES the client's original Host header by
+	# default (it does not rewrite it to the upstream target) — MinIO's
+	# SigV4 presigned URLs sign the `host` header (X-Amz-SignedHeaders=host),
+	# so a pass-through Host of "localhost" broke every signature
+	# (403 SignatureDoesNotMatch) until header_up explicitly forced it to
+	# match what media/minioClient.ts signed against.
 	handle_path /media/* {
-		reverse_proxy minio:9000
+		reverse_proxy minio:9000 {
+			header_up Host minio:9000
+		}
 	}
 	handle {
 		reverse_proxy store:3000
@@ -40,11 +46,17 @@
 	# SF-01/PC-09 (S07): presigned MinIO URLs are signed against the
 	# container-internal `minio` host — unreachable from a real browser.
 	# Path-style proxy (strip the /media prefix so what MinIO receives
-	# matches its own /<bucket>/<object> layout); Caddy sets the upstream
-	# Host header to the proxied target by default, matching what the
-	# signature was computed against (media/minioClient.ts).
+	# matches its own /<bucket>/<object> layout). Real bug caught live:
+	# Caddy's reverse_proxy PRESERVES the client's original Host header by
+	# default (it does not rewrite it to the upstream target) — MinIO's
+	# SigV4 presigned URLs sign the `host` header (X-Amz-SignedHeaders=host),
+	# so a pass-through Host of "localhost" broke every signature
+	# (403 SignatureDoesNotMatch) until header_up explicitly forced it to
+	# match what media/minioClient.ts signed against.
 	handle_path /media/* {
-		reverse_proxy minio:9000
+		reverse_proxy minio:9000 {
+			header_up Host minio:9000
+		}
 	}
 	handle {
 		reverse_proxy admin:3001
@@ -61,11 +73,17 @@
 	# SF-01/PC-09 (S07): presigned MinIO URLs are signed against the
 	# container-internal `minio` host — unreachable from a real browser.
 	# Path-style proxy (strip the /media prefix so what MinIO receives
-	# matches its own /<bucket>/<object> layout); Caddy sets the upstream
-	# Host header to the proxied target by default, matching what the
-	# signature was computed against (media/minioClient.ts).
+	# matches its own /<bucket>/<object> layout). Real bug caught live:
+	# Caddy's reverse_proxy PRESERVES the client's original Host header by
+	# default (it does not rewrite it to the upstream target) — MinIO's
+	# SigV4 presigned URLs sign the `host` header (X-Amz-SignedHeaders=host),
+	# so a pass-through Host of "localhost" broke every signature
+	# (403 SignatureDoesNotMatch) until header_up explicitly forced it to
+	# match what media/minioClient.ts signed against.
 	handle_path /media/* {
-		reverse_proxy minio:9000
+		reverse_proxy minio:9000 {
+			header_up Host minio:9000
+		}
 	}
 	handle {
 		reverse_proxy driver:3002
