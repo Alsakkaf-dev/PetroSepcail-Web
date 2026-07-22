@@ -7,3 +7,4 @@ export * from "./pc-media.js";
 export * from "./pc-notifications.js";
 export * from "./pc-profile.js";
 export * from "./sf-catalog.js";
+export * from "./ac-catalog.js";
