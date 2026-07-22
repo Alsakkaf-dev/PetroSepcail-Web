@@ -110,6 +110,26 @@ create table catalog.prices (
 create unique index one_current_price on catalog.prices (pack_size_id) where is_current;
 comment on table catalog.prices is 'SF-01 — retail price authority source; VAT applied by rule, not stored here. Wholesale tier_prices are defined in 30-supplier-portal/04 (same catalog schema).';
 
+-- 2.7 inventory (quantity hidden from customers — in-stock flag only) --------
+create table catalog.inventory (
+  pack_size_id uuid primary key references catalog.pack_sizes(id) on delete cascade,
+  qty_on_hand  int not null default 0 check (qty_on_hand >= 0),
+  reserved     int not null default 0 check (reserved >= 0),
+  updated_at   timestamptz not null default now()
+);
+comment on table catalog.inventory is 'AC-02 writes; single Jeddah hub source of truth (D-14a); customers read in-stock flag via v_sku_availability only.';
+create trigger set_updated_at before update on catalog.inventory
+  for each row execute function moddatetime(updated_at);
+
+-- customer-facing availability view: exposes a boolean, never a number (FR-SF01-005 / 04-roles §3 "Inventory: R in-stock flag only")
+create view catalog.v_sku_availability as
+select p.id as pack_size_id, p.sku_id,
+       (i.qty_on_hand - i.reserved) > 0 as in_stock
+from catalog.pack_sizes p
+join catalog.inventory i on i.pack_size_id = p.id
+where p.is_active;
+comment on view catalog.v_sku_availability is 'SF-01 FR-SF01-005 — boolean availability; no quantity leak';
+
 -- Down Migration
 
 drop schema if exists catalog cascade;
