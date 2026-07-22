@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@petrospecial/observability": "*",
     "fastify": "^5.10.0"
   },
   "devDependencies": {
