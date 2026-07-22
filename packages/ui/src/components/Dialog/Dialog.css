@@ -1,0 +1,56 @@
+.ps-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(18, 20, 23, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-4);
+  z-index: 100;
+}
+
+.ps-dialog {
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+  max-width: min(32rem, 100%);
+  max-block-size: 90vh;
+  overflow-y: auto;
+  padding: var(--sp-5);
+}
+
+.ps-dialog__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-block-end: var(--sp-3);
+}
+
+.ps-dialog__title {
+  font-family: var(--font-display);
+  font-size: var(--fs-600);
+  color: var(--ink);
+}
+
+.ps-dialog__close {
+  inline-size: 44px;
+  block-size: 44px;
+  flex: none;
+  border-radius: 50%;
+  font-size: var(--fs-600);
+  line-height: 1;
+  color: var(--muted);
+}
+
+.ps-dialog__close:hover {
+  background: var(--bg-warm);
+  color: var(--ink);
+}
+
+.ps-dialog__footer {
+  margin-block-start: var(--sp-4);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+}
