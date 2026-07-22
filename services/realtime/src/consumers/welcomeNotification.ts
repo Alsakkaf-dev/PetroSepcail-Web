@@ -10,6 +10,13 @@ import { registerConsumer } from "./framework.js";
 // registration time by services/api's deliverEmail(), not repeated here).
 export function registerWelcomeNotificationConsumer(broadcastToChannel: BroadcastToChannelFn): void {
   registerConsumer("pc06.welcome-notification", async (envelope) => {
+    // runConsumers() (framework.ts) runs every registered consumer against
+    // every outbox event with no name filter — a real bug this guard fixes:
+    // before it existed, the first non-"identity.user.registered" event ever
+    // published (S06's platform.config.changed) crashed here on a null
+    // payload.user_id and permanently jammed the outbox, since the
+    // dispatcher only ever retries the same oldest undispatched row.
+    if (envelope.name !== "identity.user.registered") return;
     const userId = envelope.payload.user_id as string;
 
     const { withServiceRoleTransaction } = await import("../db.js");
