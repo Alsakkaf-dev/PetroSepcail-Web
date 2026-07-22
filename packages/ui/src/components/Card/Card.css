@@ -1,0 +1,22 @@
+.ps-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.ps-card--padded {
+  padding: var(--sp-4);
+}
+
+.ps-card__header {
+  margin-block-end: var(--sp-3);
+  padding-block-end: var(--sp-3);
+  border-block-end: 1px solid var(--line-soft);
+}
+
+.ps-card__footer {
+  margin-block-start: var(--sp-3);
+  padding-block-start: var(--sp-3);
+  border-block-start: 1px solid var(--line-soft);
+}
