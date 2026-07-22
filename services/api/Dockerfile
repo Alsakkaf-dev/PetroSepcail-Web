@@ -8,6 +8,8 @@ COPY apps/admin/package.json apps/admin/package.json
 COPY apps/driver/package.json apps/driver/package.json
 COPY packages/ui/package.json packages/ui/package.json
 COPY packages/contracts/package.json packages/contracts/package.json
+COPY packages/auth-shared/package.json packages/auth-shared/package.json
+COPY packages/observability/package.json packages/observability/package.json
 COPY services/api/package.json services/api/package.json
 COPY services/realtime/package.json services/realtime/package.json
 COPY services/zatca-sim/package.json services/zatca-sim/package.json
