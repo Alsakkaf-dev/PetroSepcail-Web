@@ -1,6 +1,14 @@
+/* PC-08 (D-08): every style here references a token from packages/ui, no
+ * literal hex/px duplicating what the design system already defines. */
+@import "@petrospecial/ui/src/tokens/tokens.generated.css";
+@import "@petrospecial/ui/src/tokens/base.css";
+
 html,
 body {
   margin: 0;
   padding: 0;
-  font-family: system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
 }
+
