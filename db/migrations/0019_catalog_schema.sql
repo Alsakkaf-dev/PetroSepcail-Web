@@ -62,6 +62,18 @@ comment on table catalog.skus is 'SF-01 — 23 launch SKUs; structured spec fiel
 create trigger set_updated_at before update on catalog.skus
   for each row execute function moddatetime(updated_at);
 
+-- 2.3 sku_content (the 7 datasheet blocks, structured) ------------------------
+create table catalog.sku_content (
+  id       uuid primary key default gen_random_uuid(),
+  sku_id   uuid not null references catalog.skus(id) on delete cascade,
+  block    text not null check (block in
+             ('overview','specs','benefits','quality','manufacturer','hse','cta')),
+  ordinal  int not null default 0,                       -- for multi-line blocks (benefits bullets, overview paras)
+  body_ar  text not null, body_en text not null,
+  unique (sku_id, block, ordinal)
+);
+comment on table catalog.sku_content is 'SF-01 FR-SF01-003 — 7-block datasheet content, AR non-null';
+
 -- Down Migration
 
 drop schema if exists catalog cascade;
