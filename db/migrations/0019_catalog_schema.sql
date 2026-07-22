@@ -98,6 +98,18 @@ create table catalog.pack_sizes (
 );
 comment on table catalog.pack_sizes is 'SF-01 FR-SF01-004 — one buyable variant per row';
 
+-- 2.6 prices (retail list price, ex-VAT — the value behind EP-X-004 for retail)
+create table catalog.prices (
+  id            uuid primary key default gen_random_uuid(),
+  pack_size_id  uuid not null references catalog.pack_sizes(id) on delete cascade,
+  list_price    numeric(12,2) not null check (list_price >= 0),  -- ex-VAT retail unit price (SAR)
+  effective_at  timestamptz not null default now(),
+  is_current    boolean not null default true,
+  created_at    timestamptz not null default now()
+);
+create unique index one_current_price on catalog.prices (pack_size_id) where is_current;
+comment on table catalog.prices is 'SF-01 — retail price authority source; VAT applied by rule, not stored here. Wholesale tier_prices are defined in 30-supplier-portal/04 (same catalog schema).';
+
 -- Down Migration
 
 drop schema if exists catalog cascade;
