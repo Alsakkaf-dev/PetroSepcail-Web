@@ -1,0 +1,34 @@
+/* Hand-authored (not generated): the minimal baseline every packages/ui
+ * component assumes is present, so components stay accessible even before a
+ * consumer app imports the full site stylesheet (FR-PC08-004). Mirrors the
+ * equivalent rules in assets/css/styles.css so both stay visually identical. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+:focus-visible {
+  outline: 3px solid var(--blue-600);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* Numerals, phone numbers, technical codes always render LTR even in an RTL
+ * document (site behavior — assets/css/styles.css `.ltr`). */
+.ps-ltr {
+  direction: ltr;
+  unicode-bidi: isolate;
+  font-family: var(--font-latin);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
