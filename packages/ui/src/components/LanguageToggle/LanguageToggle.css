@@ -1,0 +1,24 @@
+.ps-lang-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-inline-size: 44px;
+  min-block-size: 44px;
+  padding-inline: 0.9rem;
+  border: 2px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--blue);
+  font-weight: 700;
+  font-size: var(--fs-300);
+  font-family: var(--font-latin);
+}
+
+.ps-lang-toggle:hover {
+  border-color: var(--gold);
+}
+
+.ps-lang-toggle__label {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
