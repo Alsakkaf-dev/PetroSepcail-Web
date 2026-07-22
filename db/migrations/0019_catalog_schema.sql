@@ -74,6 +74,17 @@ create table catalog.sku_content (
 );
 comment on table catalog.sku_content is 'SF-01 FR-SF01-003 — 7-block datasheet content, AR non-null';
 
+-- 2.4 certifications -----------------------------------------------------------
+create table catalog.certifications (
+  id        uuid primary key default gen_random_uuid(),
+  sku_id    uuid not null references catalog.skus(id) on delete cascade,
+  mark      text not null check (mark in
+              ('iso_9001','api_service','saso','saudi_made','virgin_base_oils','aramco_spec')),
+  caption_ar text not null, caption_en text not null,
+  unique (sku_id, mark)
+);
+comment on table catalog.certifications is 'SF-01 FR-SF01-006 — structured trust marks';
+
 -- Down Migration
 
 drop schema if exists catalog cascade;
