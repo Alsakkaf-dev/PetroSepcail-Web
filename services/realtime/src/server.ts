@@ -4,6 +4,7 @@ import { WebSocketServer, type WebSocket } from "ws";
 import { authorizeChannel } from "./channels/channelAuth.js";
 import type { EventEnvelope } from "./events.js";
 import { logger } from "./logger.js";
+import { metrics } from "./metrics.js";
 
 export interface MinimalRequest {
   url?: string;
@@ -18,6 +19,13 @@ export function handleRequest(req: MinimalRequest, res: MinimalResponse): void {
   if (req.url === "/health") {
     res.writeHead(200, { "content-type": "application/json" });
     res.end(JSON.stringify({ status: "ok", service: "realtime" }));
+    return;
+  }
+  if (req.url === "/metrics") {
+    void metrics.registry.metrics().then((body) => {
+      res.writeHead(200, { "content-type": metrics.registry.contentType });
+      res.end(body);
+    });
     return;
   }
   res.writeHead(404);
