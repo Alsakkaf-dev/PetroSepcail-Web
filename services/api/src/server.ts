@@ -1,4 +1,5 @@
 import Fastify, { type FastifyInstance } from "fastify";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import { ZodError } from "zod";
 import { errorEnvelope } from "@petrospecial/contracts";
 import { buildLoggerOptions } from "@petrospecial/observability";
@@ -104,16 +105,31 @@ export async function buildServer(): Promise<FastifyInstance> {
   return app;
 }
 
-// Vercel Serverless (S09 Docker->managed migration): Vercel's Node.js
-// runtime auto-detects a `server` entrypoint (src/server.{js,ts,...}) via
-// static analysis for a module-level, synchronous .listen() call -- a
-// .listen() buried inside a conditional .then() was NOT detected ("No
-// entrypoint found"). A top-level await keeps the same guard (only runs
-// under Vercel's own build/runtime, never for Docker's index.ts entrypoint
-// or the test suites, which only ever import buildServer() by name) while
-// making the .listen() call itself unconditional and synchronous-looking
-// at module scope, matching Vercel's documented detection pattern.
-if (process.env.VERCEL) {
-  const app = await buildServer();
-  app.listen({ port: Number(process.env.PORT ?? 3000), host: "0.0.0.0" });
+// Vercel Serverless (S09 Docker->managed migration): the previous approach
+// here (an unconditional top-level `.listen()` under `if (process.env.VERCEL)`)
+// was based on a wrong theory -- Vercel does NOT start the server itself via
+// a detected `.listen()` call. Its Node.js runtime invokes the compiled
+// module's *default export* directly, once per request, and requires that
+// export to be a `(req, res) => ...` handler (or a raw `http.Server`) --
+// confirmed directly by its own runtime error: "Invalid export found ...
+// The default export must be a function or server." Fix: export exactly
+// that. The Fastify instance is built + made ready once and memoized
+// (`readyApp`) so warm serverless invocations reuse it instead of rebuilding
+// on every request; each request is then re-emitted onto Fastify's
+// underlying raw `http.Server` (`app.server`), which is the documented way
+// to drive a Fastify app from a handler Vercel/Node itself invokes rather
+// than one that owns its own `.listen()`. Local dev (`src/index.ts`) and the
+// test suite never import this default export -- they only ever call
+// `buildServer()` directly -- so none of this touches non-Vercel runs.
+let readyApp: Promise<FastifyInstance> | undefined;
+
+export default async function handler(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  if (!readyApp) {
+    readyApp = buildServer().then(async (app) => {
+      await app.ready();
+      return app;
+    });
+  }
+  const app = await readyApp;
+  app.server.emit("request", req, res);
 }
