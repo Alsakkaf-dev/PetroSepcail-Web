@@ -28,3 +28,6 @@ secrets/
 
 # Platform backups (PC-11: DB dumps/WAL segments contain real data, never committed)
 backups/
+
+# Scratch dir used for git-lock/debris recovery on this machine (never committed)
+_delete_me/
