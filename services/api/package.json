@@ -27,6 +27,7 @@
     "@types/nodemailer": "^8.0.1",
     "@types/pg": "^8.11.6",
     "tsx": "^4.16.2",
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "node-pg-migrate": "^9.0.0"
   }
 }
