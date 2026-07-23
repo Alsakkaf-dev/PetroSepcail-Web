@@ -105,18 +105,15 @@ export async function buildServer(): Promise<FastifyInstance> {
 }
 
 // Vercel Serverless (S09 Docker->managed migration): Vercel's Node.js
-// runtime auto-detects a `server` entrypoint (src/server.{js,ts,...}) that
-// calls .listen() during module startup and captures it as a Vercel
-// Function -- the port passed here is never actually bound publicly on
-// Vercel, only used for local `vercel dev`. Docker's entrypoint (index.ts)
-// and the test suites both import buildServer() directly without ever
-// loading this file as the module entrypoint, so this block never runs for
-// them -- process.env.VERCEL is only set by Vercel's own build/runtime.
+// runtime auto-detects a `server` entrypoint (src/server.{js,ts,...}) via
+// static analysis for a module-level, synchronous .listen() call -- a
+// .listen() buried inside a conditional .then() was NOT detected ("No
+// entrypoint found"). A top-level await keeps the same guard (only runs
+// under Vercel's own build/runtime, never for Docker's index.ts entrypoint
+// or the test suites, which only ever import buildServer() by name) while
+// making the .listen() call itself unconditional and synchronous-looking
+// at module scope, matching Vercel's documented detection pattern.
 if (process.env.VERCEL) {
-  buildServer()
-    .then((app) => app.listen({ port: Number(process.env.PORT ?? 3000), host: "0.0.0.0" }))
-    .catch((err) => {
-      console.error(err);
-      process.exit(1);
-    });
+  const app = await buildServer();
+  app.listen({ port: Number(process.env.PORT ?? 3000), host: "0.0.0.0" });
 }
