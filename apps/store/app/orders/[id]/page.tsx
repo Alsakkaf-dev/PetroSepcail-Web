@@ -14,7 +14,13 @@ interface OrderDetail {
   lines: Array<{ nameAr: string; nameEn: string; qty: number; lineTotal: string }>;
   payment: { status: string } | null;
   payTo?: { iban: string; holder: string };
+  timeline: Array<{ status: string; at: string }>;
 }
+
+// SF-05 (S09) — FR-SF05-007/006: cancel only before 'preparing'; confirm
+// receipt only from 'delivered'. Mirrors the same status set the backend
+// enforces (orders.cancel_order/confirm_receipt, db/migrations/0035/0037).
+const CANCELLABLE_STATUSES = new Set(["pending_payment", "paid", "confirmed"]);
 
 export default function OrderConfirmationPage() {
   const params = useParams<{ id: string }>();
@@ -28,6 +34,26 @@ export default function OrderConfirmationPage() {
       .then(setOrder)
       .catch((err) => setError(err instanceof Error ? err.message : "failed"));
   }, [params.id]);
+
+  async function cancelOrder() {
+    if (!order) return;
+    try {
+      const res = await authedFetch<{ status: string }>(`/api/v1/orders/${order.orderId}/cancel`, { method: "POST" });
+      setOrder({ ...order, status: res.status });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "failed");
+    }
+  }
+
+  async function confirmReceipt() {
+    if (!order) return;
+    try {
+      const res = await authedFetch<{ status: string }>(`/api/v1/orders/${order.orderId}/confirm-receipt`, { method: "POST" });
+      setOrder({ ...order, status: res.status });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "failed");
+    }
+  }
 
   async function submitProof(e: React.FormEvent) {
     e.preventDefault();
@@ -71,6 +97,30 @@ export default function OrderConfirmationPage() {
       <p style={{ fontWeight: 700 }}>
         الإجمالي: <span className="ps-ltr">{order.total} SAR</span>
       </p>
+
+      <section style={{ margin: "16px 0" }}>
+        <h2 style={{ fontSize: 16 }}>سجل الحالة</h2>
+        <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+          {order.timeline.map((t, i) => (
+            <li key={i} style={{ fontSize: 13, color: "var(--muted)" }}>
+              {t.status} — {new Date(t.at).toLocaleString("ar-SA")}
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        {CANCELLABLE_STATUSES.has(order.status) && (
+          <button type="button" onClick={cancelOrder}>
+            إلغاء الطلب
+          </button>
+        )}
+        {order.status === "delivered" && (
+          <button type="button" onClick={confirmReceipt}>
+            تأكيد الاستلام
+          </button>
+        )}
+      </div>
 
       {order.paymentMethod === "cod" && (
         <p>الدفع نقدًا عند الاستلام — المبلغ المستحق: <span className="ps-ltr">{order.codAmount} SAR</span></p>
