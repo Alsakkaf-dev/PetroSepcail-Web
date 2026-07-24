@@ -1,84 +1,39 @@
-// Migration test (ADR-13): applies db/migrations to a throwaway ephemeral
-// Postgres container, proving the runner + connection wiring work. There are
-// zero migration files until S01 — that is expected to pass trivially here.
-import { execFileSync, spawnSync } from "node:child_process";
+// Migration test (ADR-13, revised under D-15/D-17): applies db/migrations to
+// a throwaway ephemeral Postgres, proving the runner + connection wiring
+// work. Docker is retired from this project (D-15 hosting pivot, host
+// machine no longer has it installed) — this now boots a real Postgres
+// binary directly via `embedded-postgres`, no container runtime required.
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import EmbeddedPostgres from "embedded-postgres";
 import { Client } from "pg";
 
-const CONTAINER = "ps-migration-test";
-
-function dockerAvailable() {
-  const res = spawnSync("docker", ["--version"], { stdio: "ignore" });
-  return res.status === 0;
-}
-
-function stopContainer() {
-  spawnSync("docker", ["stop", CONTAINER], { stdio: "ignore" });
-}
-
-async function waitForPostgres(port, timeoutMs = 30_000) {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    const client = new Client({
-      host: "127.0.0.1",
-      port,
-      user: "postgres",
-      password: "test",
-      database: "test"
-    });
-    try {
-      await client.connect();
-      await client.end();
-      return;
-    } catch {
-      await new Promise((r) => setTimeout(r, 500));
-    }
-  }
-  throw new Error(`Postgres did not become ready within ${timeoutMs}ms`);
-}
+const PORT = 54329;
+const PASSWORD = "test";
 
 async function main() {
-  if (!dockerAvailable()) {
-    console.error(
-      "[test:migration] Docker is required to run the ephemeral-Postgres migration test " +
-        "(ADR-13) but is not available on this machine. Install Docker (or Docker Desktop) " +
-        "and re-run `npm run test:migration` / `npm run verify`."
-    );
-    process.exit(1);
-  }
+  const dataDir = mkdtempSync(join(tmpdir(), "ps-migration-test-"));
+  const pg = new EmbeddedPostgres({
+    databaseDir: dataDir,
+    user: "postgres",
+    password: PASSWORD,
+    port: PORT,
+    persistent: false,
+    // Windows' auto-detected locale defaults initdb to a non-UTF8 codepage
+    // (e.g. WIN1252), which then rejects the Arabic seed data (0023) — force
+    // UTF8 explicitly rather than relying on the host's locale.
+    initdbFlags: ["--encoding=UTF8", "--locale=C"]
+  });
 
-  spawnSync("docker", ["rm", "-f", CONTAINER], { stdio: "ignore" });
-
-  execFileSync("docker", [
-    "run",
-    "--rm",
-    "-d",
-    "--name",
-    CONTAINER,
-    "-e",
-    "POSTGRES_PASSWORD=test",
-    "-e",
-    "POSTGRES_DB=test",
-    "-p",
-    "0:5432",
-    "postgres:16-alpine"
-  ]);
+  await pg.initialise();
+  await pg.start();
 
   try {
-    const portOutput = execFileSync("docker", ["port", CONTAINER, "5432"]).toString().trim();
-    const port = Number(portOutput.split(":").pop());
-
-    await waitForPostgres(port);
-
     execFileSync(
       "npx",
-      [
-        "node-pg-migrate",
-        "-m",
-        "db/migrations",
-        "--migration-file-language",
-        "sql",
-        "up"
-      ],
+      ["node-pg-migrate", "-m", "db/migrations", "--migration-file-language", "sql", "up"],
       {
         // All arguments above are static string literals (no interpolated
         // input), so shell:true carries no injection risk here — it's
@@ -88,19 +43,19 @@ async function main() {
         shell: true,
         env: {
           ...process.env,
-          DATABASE_URL: `postgres://postgres:test@127.0.0.1:${port}/test`
+          DATABASE_URL: `postgres://postgres:${PASSWORD}@127.0.0.1:${PORT}/postgres`
         }
       }
     );
 
     console.log("[test:migration] migrations applied cleanly on ephemeral Postgres");
   } finally {
-    stopContainer();
+    await pg.stop();
+    rmSync(dataDir, { recursive: true, force: true });
   }
 }
 
 main().catch((err) => {
   console.error(err);
-  stopContainer();
   process.exit(1);
 });
