@@ -12,7 +12,11 @@ let pool: Pool | undefined;
 
 function getPool(): Pool {
   if (!pool) {
-    pool = new Pool({ connectionString: requireEnv("DATABASE_URL") });
+    // Bounded, matching the 2s budget the /ready storage/realtime probes
+    // already use (gateway/readiness.ts) — without this, pg's default of no
+    // timeout lets a single unreachable/slow DB host hang the whole pool
+    // (and, via pingDb(), the readiness check) indefinitely.
+    pool = new Pool({ connectionString: requireEnv("DATABASE_URL"), connectionTimeoutMillis: 2000 });
     // node-postgres: "the pool will emit an error on behalf of any idle
     // clients it contains if they encounter network-related errors ...
     // your application should always register an 'error' handler on the
