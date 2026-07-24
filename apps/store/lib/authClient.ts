@@ -4,10 +4,17 @@
 // of scope for this session — only the cart/checkout API + a minimal client
 // flow needed to prove it live) — a bearer token in localStorage is enough
 // to carry a customer across the cart -> checkout -> confirmation pages.
-// Relative fetch paths only: reached through Caddy, which proxies /api/*
-// to the `api` container on the SAME origin (Caddyfile) — see apps/admin's
-// catalog page for the identical rationale.
+// Client components run in the browser, on a different origin from the API
+// (D-15 Vercel pivot: no Caddy same-origin proxy exists anymore) — every
+// call must be an absolute URL built from NEXT_PUBLIC_API_URL (the
+// browser-safe counterpart of lib/api.ts's server-only API_URL).
 const TOKEN_KEY = "ps-store-token";
+
+function apiUrl(path: string): string {
+  const base = process.env.NEXT_PUBLIC_API_URL;
+  if (!base) throw new Error("missing required env var NEXT_PUBLIC_API_URL");
+  return `${base}${path}`;
+}
 
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -23,7 +30,7 @@ export function clearToken(): void {
 }
 
 export async function login(email: string, password: string): Promise<string> {
-  const res = await fetch("/api/v1/auth/login", {
+  const res = await fetch(apiUrl("/api/v1/auth/login"), {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ email, password })
@@ -37,7 +44,7 @@ export async function login(email: string, password: string): Promise<string> {
 export async function authedFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getToken();
   if (!token) throw new Error("NOT_LOGGED_IN");
-  const res = await fetch(path, {
+  const res = await fetch(apiUrl(path), {
     ...init,
     headers: { ...init?.headers, authorization: `Bearer ${token}`, "content-type": "application/json" }
   });
