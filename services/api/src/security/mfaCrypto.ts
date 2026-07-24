@@ -4,16 +4,25 @@ import { readFileSync } from "node:fs";
 // At-rest encryption for core.mfa_secrets.totp_secret (04-database-design
 // §3.4 column comment: "encrypted (pgcrypto)"). pgcrypto is installed in the
 // DB (db/migrations/0001) for future use, but the actual AEAD encrypt/decrypt
-// runs here with a key from MFA_ENCRYPTION_KEY_PATH (generated on first boot,
-// scripts/init/generate-mfa-key.mjs) — equally secure, and keeps the key
-// entirely out of SQL statements/logs.
+// runs here with a key equally secure, and keeps the key entirely out of SQL
+// statements/logs. Two supported deployment models, same as
+// packages/auth-shared/src/jwt.ts: local/test reads the key file
+// MFA_ENCRYPTION_KEY_PATH points at (generated on first boot,
+// scripts/init/generate-mfa-key.mjs); Vercel serverless (D-15 pivot, no
+// persistent filesystem to write a secrets volume into) sets the base64 key
+// directly as MFA_ENCRYPTION_KEY.
 let keyPromise: Buffer | undefined;
 
 function getKey(): Buffer {
   if (!keyPromise) {
-    const path = process.env.MFA_ENCRYPTION_KEY_PATH;
-    if (!path) throw new Error("missing required env var MFA_ENCRYPTION_KEY_PATH");
-    keyPromise = Buffer.from(readFileSync(path, "utf8").trim(), "base64");
+    const inline = process.env.MFA_ENCRYPTION_KEY;
+    if (inline) {
+      keyPromise = Buffer.from(inline.trim(), "base64");
+    } else {
+      const path = process.env.MFA_ENCRYPTION_KEY_PATH;
+      if (!path) throw new Error("missing required env var MFA_ENCRYPTION_KEY_PATH");
+      keyPromise = Buffer.from(readFileSync(path, "utf8").trim(), "base64");
+    }
   }
   return keyPromise;
 }
