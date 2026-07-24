@@ -3,11 +3,22 @@
 import type { AddressRow, CheckoutQuoteResponse } from "@petrospecial/contracts";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { authedFetch } from "../../lib/authClient";
-import { dirFor, otherLocale, slotLabel, t, useLocale } from "../../lib/locale";
+import { dirFor, otherLocale, slotLabel, t } from "../../lib/locale";
+import { useLocale } from "../../lib/useLocale";
 
+// useLocale() (useSearchParams) requires a Suspense boundary in the Next.js
+// App Router static-export path, or `next build` fails at prerender.
 export default function CheckoutPage() {
+  return (
+    <Suspense fallback={null}>
+      <CheckoutPageInner />
+    </Suspense>
+  );
+}
+
+function CheckoutPageInner() {
   const locale = useLocale();
   const router = useRouter();
   const [addresses, setAddresses] = useState<AddressRow[]>([]);
