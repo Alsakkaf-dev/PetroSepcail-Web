@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { authedFetch } from "../../../lib/authClient";
+import { dirFor, localeDateTimeString, orderStatusLabel, otherLocale, t, useLocale } from "../../../lib/locale";
 
 interface OrderDetail {
   orderId: string;
@@ -23,6 +25,7 @@ interface OrderDetail {
 const CANCELLABLE_STATUSES = new Set(["pending_payment", "paid", "confirmed"]);
 
 export default function OrderConfirmationPage() {
+  const locale = useLocale();
   const params = useParams<{ id: string }>();
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -73,37 +76,42 @@ export default function OrderConfirmationPage() {
   }
 
   if (error) return <p style={{ color: "#b91c1c", padding: 24 }}>{error}</p>;
-  if (!order) return <p style={{ padding: 24 }}>جارٍ التحميل...</p>;
+  if (!order) return <p style={{ padding: 24 }}>{t(locale, "loading")}</p>;
 
   return (
-    <main dir="rtl" style={{ maxWidth: 600, margin: "0 auto", padding: 24 }}>
-      <h1 style={{ fontFamily: "var(--font-display)" }}>تم تأكيد الطلب</h1>
+    <main dir={dirFor(locale)} style={{ maxWidth: 600, margin: "0 auto", padding: 24 }}>
+      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h1 style={{ fontFamily: "var(--font-display)" }}>{t(locale, "orderConfirmed")}</h1>
+        <Link href={`/orders/${order.orderId}?lang=${otherLocale(locale)}`}>{t(locale, "switchLang")}</Link>
+      </header>
       <p>
-        رقم الطلب: <span className="ps-ltr">{order.orderId}</span>
+        {t(locale, "orderNumber")} <span className="ps-ltr">{order.orderId}</span>
       </p>
 
       <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 16 }}>
         <tbody>
           {order.lines.map((l, i) => (
             <tr key={i}>
-              <td>{l.nameAr}</td>
+              <td>{locale === "ar" ? l.nameAr : l.nameEn}</td>
               <td>× {l.qty}</td>
-              <td className="ps-ltr">{l.lineTotal} SAR</td>
+              <td className="ps-ltr">
+                {l.lineTotal} {t(locale, "sar")}
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
 
       <p style={{ fontWeight: 700 }}>
-        الإجمالي: <span className="ps-ltr">{order.total} SAR</span>
+        {t(locale, "total")} <span className="ps-ltr">{order.total} {t(locale, "sar")}</span>
       </p>
 
       <section style={{ margin: "16px 0" }}>
-        <h2 style={{ fontSize: 16 }}>سجل الحالة</h2>
+        <h2 style={{ fontSize: 16 }}>{t(locale, "statusHistory")}</h2>
         <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-          {order.timeline.map((t, i) => (
+          {order.timeline.map((tl, i) => (
             <li key={i} style={{ fontSize: 13, color: "var(--muted)" }}>
-              {t.status} — {new Date(t.at).toLocaleString("ar-SA")}
+              {orderStatusLabel(locale, tl.status)} — {localeDateTimeString(locale, tl.at)}
             </li>
           ))}
         </ul>
@@ -112,32 +120,34 @@ export default function OrderConfirmationPage() {
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         {CANCELLABLE_STATUSES.has(order.status) && (
           <button type="button" onClick={cancelOrder}>
-            إلغاء الطلب
+            {t(locale, "cancelOrder")}
           </button>
         )}
         {order.status === "delivered" && (
           <button type="button" onClick={confirmReceipt}>
-            تأكيد الاستلام
+            {t(locale, "confirmReceipt")}
           </button>
         )}
       </div>
 
       {order.paymentMethod === "cod" && (
-        <p>الدفع نقدًا عند الاستلام — المبلغ المستحق: <span className="ps-ltr">{order.codAmount} SAR</span></p>
+        <p>
+          {t(locale, "codDueLabel")} <span className="ps-ltr">{order.codAmount} {t(locale, "sar")}</span>
+        </p>
       )}
 
       {order.paymentMethod === "bank_transfer" && order.payTo && (
         <section style={{ padding: 16, background: "var(--bg-warm)", borderRadius: 8 }}>
-          <p>حوّل المبلغ إلى:</p>
+          <p>{t(locale, "transferAmountTo")}</p>
           <p className="ps-ltr">
             IBAN: {order.payTo.iban} ({order.payTo.holder})
           </p>
           {order.payment?.status === "pending" || proofSubmitted ? (
-            <p>تم استلام إثبات التحويل — بانتظار التحقق.</p>
+            <p>{t(locale, "proofReceivedPendingVerification")}</p>
           ) : (
             <form onSubmit={submitProof} style={{ display: "grid", gap: 8 }}>
-              <input placeholder="رقم مرجع التحويل" value={bankRef} onChange={(e) => setBankRef(e.target.value)} />
-              <button type="submit">إرسال إثبات التحويل</button>
+              <input placeholder={t(locale, "bankRefPlaceholder")} value={bankRef} onChange={(e) => setBankRef(e.target.value)} />
+              <button type="submit">{t(locale, "submitProof")}</button>
             </form>
           )}
         </section>
