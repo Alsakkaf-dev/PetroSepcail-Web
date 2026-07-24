@@ -3,9 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
-    "dev": "next dev -p ${ADMIN_PORT:-3001}",
+    "dev": "next dev -p 3001",
     "build": "next build",
-    "start": "next start -p ${ADMIN_PORT:-3001}",
+    "start": "next start -p 3001",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
