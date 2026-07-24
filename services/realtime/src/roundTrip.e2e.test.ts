@@ -1,38 +1,13 @@
-import { execFileSync, spawnSync } from "node:child_process";
 import { generateKeyPairSync } from "node:crypto";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { startEphemeralPostgres, type EphemeralPostgres } from "./testHelpers/ephemeralPostgres.js";
 
 // The S04 Out contract, proven for real: "event round-trip demo works
-// (publish -> outbox -> dispatch -> consumer -> WS)." Same ephemeral-Postgres
-// pattern as services/api's E2E suites.
-const CONTAINER = "ps-eventbus-e2e-test";
-
-function dockerAvailable(): boolean {
-  return spawnSync("docker", ["--version"], { stdio: "ignore" }).status === 0;
-}
-
-function stopContainer() {
-  spawnSync("docker", ["stop", CONTAINER], { stdio: "ignore" });
-}
-
-async function waitForPostgres(port: number, timeoutMs = 30_000): Promise<void> {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    const client = new Client({ host: "127.0.0.1", port, user: "postgres", password: "test", database: "test" });
-    try {
-      await client.connect();
-      await client.end();
-      return;
-    } catch {
-      await new Promise((r) => setTimeout(r, 500));
-    }
-  }
-  throw new Error(`Postgres did not become ready within ${timeoutMs}ms`);
-}
+// (publish -> outbox -> dispatch -> consumer -> WS)."
 
 async function waitFor(predicate: () => boolean, timeoutMs = 10_000): Promise<void> {
   const start = Date.now();
@@ -43,8 +18,9 @@ async function waitFor(predicate: () => boolean, timeoutMs = 10_000): Promise<vo
   throw new Error("condition not met within timeout");
 }
 
-describe.runIf(dockerAvailable())("event bus round trip (PC-05): publish -> outbox -> dispatch -> consumer -> WS", () => {
+describe("event bus round trip (PC-05): publish -> outbox -> dispatch -> consumer -> WS", () => {
   let dir: string;
+  let pg: EphemeralPostgres;
   let dbClient: Client;
   let dispatcherHandle: { stop: () => Promise<void> };
   let httpServer: import("node:http").Server;
@@ -54,21 +30,8 @@ describe.runIf(dockerAvailable())("event bus round trip (PC-05): publish -> outb
   let customerToken: string;
 
   beforeAll(async () => {
-    spawnSync("docker", ["rm", "-f", CONTAINER], { stdio: "ignore" });
-    execFileSync("docker", [
-      "run", "--rm", "-d", "--name", CONTAINER,
-      "-e", "POSTGRES_PASSWORD=test", "-e", "POSTGRES_DB=test",
-      "-p", "0:5432", "postgres:16-alpine"
-    ]);
-    const pgPort = Number(execFileSync("docker", ["port", CONTAINER, "5432"]).toString().trim().split(":").pop());
-    await waitForPostgres(pgPort);
-    const dbUrl = `postgres://postgres:test@127.0.0.1:${pgPort}/test`;
-
-    execFileSync("npx", ["node-pg-migrate", "-m", "db/migrations", "--migration-file-language", "sql", "up"], {
-      stdio: "inherit",
-      shell: true,
-      env: { ...process.env, DATABASE_URL: dbUrl }
-    });
+    pg = await startEphemeralPostgres(54349);
+    const dbUrl = pg.dbUrl;
 
     dir = mkdtempSync(path.join(tmpdir(), "ps-eventbus-e2e-"));
     const { privateKey, publicKey } = generateKeyPairSync("rsa", {
@@ -117,7 +80,7 @@ describe.runIf(dockerAvailable())("event bus round trip (PC-05): publish -> outb
     await closePool();
     await dbClient?.end();
     rmSync(dir, { recursive: true, force: true });
-    stopContainer();
+    await pg?.stop();
   });
 
   it("delivers a published event to its consumer exactly once and broadcasts it over WS to a subscribed client", async () => {
