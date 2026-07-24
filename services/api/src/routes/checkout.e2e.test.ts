@@ -97,7 +97,10 @@ describe("Cart + Checkout (SF-03/SF-04)", () => {
     await app?.close();
     await closePool();
     await dbClient?.end();
-    rmSync(dir, { recursive: true, force: true });
+    // Guarded: if beforeAll failed before `dir` was assigned, an unguarded
+    // throw here would skip stop() below and permanently orphan the
+    // postgres/minio child process bound to this file's fixed port.
+    if (dir) rmSync(dir, { recursive: true, force: true });
     await minio?.stop();
     await pg?.stop();
   });
