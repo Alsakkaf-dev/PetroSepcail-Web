@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { authedFetch } from "../../../lib/authClient";
-import { dirFor, localeDateTimeString, orderStatusLabel, otherLocale, t, useLocale } from "../../../lib/locale";
+import { dirFor, localeDateTimeString, orderStatusLabel, otherLocale, t } from "../../../lib/locale";
+import { useLocale } from "../../../lib/useLocale";
 
 interface OrderDetail {
   orderId: string;
@@ -24,7 +25,17 @@ interface OrderDetail {
 // enforces (orders.cancel_order/confirm_receipt, db/migrations/0035/0037).
 const CANCELLABLE_STATUSES = new Set(["pending_payment", "paid", "confirmed"]);
 
+// useLocale() (useSearchParams) requires a Suspense boundary in the Next.js
+// App Router static-export path, or `next build` fails at prerender.
 export default function OrderConfirmationPage() {
+  return (
+    <Suspense fallback={null}>
+      <OrderConfirmationPageInner />
+    </Suspense>
+  );
+}
+
+function OrderConfirmationPageInner() {
   const locale = useLocale();
   const params = useParams<{ id: string }>();
   const [order, setOrder] = useState<OrderDetail | null>(null);
