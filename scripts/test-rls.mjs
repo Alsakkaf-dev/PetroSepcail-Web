@@ -1,12 +1,19 @@
 // RLS verification (PC-DB-2, S01 Out contract: "RLS test suite green").
 // Spins up a throwaway ephemeral Postgres, applies db/migrations for real,
-// then exercises the actual RLS policies as app_user/service_role — proving
-// isolation genuinely works rather than just that the DDL compiles.
-import { execFileSync, spawnSync } from "node:child_process";
+// then exercises the actual RLS policies as app_user/app_service_role — proving
+// isolation genuinely works rather than just that the DDL compiles. Docker
+// is retired from this project (D-15 hosting pivot) — this boots a real
+// Postgres binary directly via `embedded-postgres`, no container runtime.
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import EmbeddedPostgres from "embedded-postgres";
 import { Client } from "pg";
 import { verifyAuditChain } from "./verify-audit-chain.mjs";
 
-const CONTAINER = "ps-rls-test";
+const PORT = 54330;
+const PASSWORD = "test";
 let failures = 0;
 
 function ok(label, cond) {
@@ -16,29 +23,6 @@ function ok(label, cond) {
     console.error(`  FAIL ${label}`);
     failures += 1;
   }
-}
-
-function dockerAvailable() {
-  return spawnSync("docker", ["--version"], { stdio: "ignore" }).status === 0;
-}
-
-function stopContainer() {
-  spawnSync("docker", ["stop", CONTAINER], { stdio: "ignore" });
-}
-
-async function waitForPostgres(port, timeoutMs = 30_000) {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    const client = new Client({ host: "127.0.0.1", port, user: "postgres", password: "test", database: "test" });
-    try {
-      await client.connect();
-      await client.end();
-      return;
-    } catch {
-      await new Promise((r) => setTimeout(r, 500));
-    }
-  }
-  throw new Error(`Postgres did not become ready within ${timeoutMs}ms`);
 }
 
 async function setClaims(client, claims) {
@@ -52,29 +36,37 @@ async function asRole(client, role) {
 }
 
 async function main() {
-  if (!dockerAvailable()) {
-    console.error("[test:rls] Docker is required but not available. Install Docker and re-run.");
-    process.exit(1);
-  }
+  const dataDir = mkdtempSync(join(tmpdir(), "ps-rls-test-"));
+  const pg = new EmbeddedPostgres({
+    databaseDir: dataDir,
+    user: "postgres",
+    password: PASSWORD,
+    port: PORT,
+    persistent: false,
+    // Force UTF8 regardless of the host's auto-detected Windows codepage —
+    // see test-migration.mjs for the same fix (Arabic seed data otherwise
+    // fails to load under a WIN1252 cluster encoding).
+    initdbFlags: ["--encoding=UTF8", "--locale=C"]
+  });
 
-  spawnSync("docker", ["rm", "-f", CONTAINER], { stdio: "ignore" });
-  execFileSync("docker", [
-    "run", "--rm", "-d", "--name", CONTAINER,
-    "-e", "POSTGRES_PASSWORD=test", "-e", "POSTGRES_DB=test",
-    "-p", "0:5432", "postgres:16-alpine"
-  ]);
+  await pg.initialise();
+  await pg.start();
 
   try {
-    const port = Number(execFileSync("docker", ["port", CONTAINER, "5432"]).toString().trim().split(":").pop());
-    await waitForPostgres(port);
+    execFileSync(
+      "npx",
+      ["node-pg-migrate", "-m", "db/migrations", "--migration-file-language", "sql", "up"],
+      {
+        stdio: "inherit",
+        shell: true,
+        env: {
+          ...process.env,
+          DATABASE_URL: `postgres://postgres:${PASSWORD}@127.0.0.1:${PORT}/postgres`
+        }
+      }
+    );
 
-    execFileSync("npx", ["node-pg-migrate", "-m", "db/migrations", "--migration-file-language", "sql", "up"], {
-      stdio: "inherit",
-      shell: true,
-      env: { ...process.env, DATABASE_URL: `postgres://postgres:test@127.0.0.1:${port}/test` }
-    });
-
-    const admin = new Client({ host: "127.0.0.1", port, user: "postgres", password: "test", database: "test" });
+    const admin = new Client({ host: "127.0.0.1", port: PORT, user: "postgres", password: PASSWORD, database: "postgres" });
     await admin.connect();
 
     console.log("\n[test:rls] core.identities — self-row isolation");
@@ -91,11 +83,11 @@ async function main() {
       await admin.query("reset role");
     }
 
-    console.log("[test:rls] service_role bypass");
+    console.log("[test:rls] app_service_role bypass");
     {
-      await asRole(admin, "service_role");
+      await asRole(admin, "app_service_role");
       const all = await admin.query("select id from core.identities");
-      ok("service_role sees all 5 seeded identities", all.rowCount === 5);
+      ok("app_service_role sees all 5 seeded identities", all.rowCount === 5);
       await admin.query("reset role");
     }
 
@@ -146,12 +138,12 @@ async function main() {
       } catch (err) {
         ownerDenied = err.code === "42501"; // permission denied — no table GRANT at all
       }
-      ok("owning identity is denied at the table-grant level (secret, service_role only)", ownerDenied);
+      ok("owning identity is denied at the table-grant level (secret, app_service_role only)", ownerDenied);
       await admin.query("reset role");
 
-      await asRole(admin, "service_role");
+      await asRole(admin, "app_service_role");
       const asService = await admin.query("select id from core.auth_tokens");
-      ok("service_role sees the token row", asService.rowCount === 1);
+      ok("app_service_role sees the token row", asService.rowCount === 1);
       await admin.query("reset role");
     }
 
@@ -229,20 +221,20 @@ async function main() {
     {
       await admin.query(
         `insert into audit.audit_log(actor_id, actor_role, action, resource, resource_id, reason, at)
-         values (null, 'service_role', 'chain_test', 'chain_resource', '1', null, now())`
+         values (null, 'app_service_role', 'chain_test', 'chain_resource', '1', null, now())`
       );
 
       const before = await verifyAuditChain(admin);
       ok("chain verifies intact after a genuine insert", before.violations.length === 0 && before.totalRows >= 1);
 
-      await asRole(admin, "service_role");
+      await asRole(admin, "app_service_role");
       let updateDenied = false;
       try {
         await admin.query("update audit.audit_log set action = 'tampered' where action = 'chain_test'");
       } catch (err) {
         updateDenied = err.code === "42501";
       }
-      ok("service_role UPDATE on audit_log is permission-denied (immutability)", updateDenied);
+      ok("app_service_role UPDATE on audit_log is permission-denied (immutability)", updateDenied);
 
       let deleteDenied = false;
       try {
@@ -250,10 +242,10 @@ async function main() {
       } catch (err) {
         deleteDenied = err.code === "42501";
       }
-      ok("service_role DELETE on audit_log is permission-denied (immutability)", deleteDenied);
+      ok("app_service_role DELETE on audit_log is permission-denied (immutability)", deleteDenied);
       await admin.query("reset role");
 
-      // The table owner (superuser bootstrap role, not service_role) can
+      // The table owner (superuser bootstrap role, not app_service_role) can
       // still write directly — proving the *chain verifier* catches tamper
       // that gets past the grant layer some other way (e.g. a raw restore).
       await admin.query("update audit.audit_log set action = 'tampered' where action = 'chain_test'");
@@ -274,12 +266,12 @@ async function main() {
     }
     console.log("\n[test:rls] all RLS assertions passed");
   } finally {
-    stopContainer();
+    await pg.stop();
+    rmSync(dataDir, { recursive: true, force: true });
   }
 }
 
 main().catch((err) => {
   console.error(err);
-  stopContainer();
   process.exit(1);
 });
