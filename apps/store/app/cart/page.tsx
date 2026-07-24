@@ -3,50 +3,12 @@
 import type { CartResponse } from "@petrospecial/contracts";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { authedFetch, getToken, login } from "../../lib/authClient";
-
-function LoginForm({ onLoggedIn }: { onLoggedIn: () => void }) {
-  const [email, setEmail] = useState("customer.seed@petrospecial.internal");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    try {
-      await login(email, password);
-      onLoggedIn();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
-    }
-  }
-
-  return (
-    <form onSubmit={submit} style={{ maxWidth: 320, display: "grid", gap: 12 }} dir="rtl">
-      <p>سجّل الدخول لعرض سلتك</p>
-      <input
-        type="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        placeholder="البريد الإلكتروني"
-        style={{ padding: 8, borderRadius: 6, border: "1px solid var(--line)" }}
-      />
-      <input
-        type="password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        placeholder="كلمة المرور"
-        style={{ padding: 8, borderRadius: 6, border: "1px solid var(--line)" }}
-      />
-      {error && <p style={{ color: "#b91c1c" }}>{error}</p>}
-      <button type="submit" style={{ padding: "8px 16px", borderRadius: 6, background: "var(--gold)", border: "none" }}>
-        دخول
-      </button>
-    </form>
-  );
-}
+import { LoginForm } from "../../components/LoginForm";
+import { authedFetch, getToken } from "../../lib/authClient";
+import { dirFor, otherLocale, t, useLocale } from "../../lib/locale";
 
 export default function CartPage() {
+  const locale = useLocale();
   const [loggedIn, setLoggedIn] = useState(false);
   const [cart, setCart] = useState<CartResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -79,16 +41,19 @@ export default function CartPage() {
   }
 
   return (
-    <main dir="rtl" style={{ maxWidth: 700, margin: "0 auto", padding: 24 }}>
-      <h1 style={{ fontFamily: "var(--font-display)" }}>سلة المشتريات</h1>
+    <main dir={dirFor(locale)} style={{ maxWidth: 700, margin: "0 auto", padding: 24 }}>
+      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h1 style={{ fontFamily: "var(--font-display)" }}>{t(locale, "cartTitle")}</h1>
+        <Link href={`/cart?lang=${otherLocale(locale)}`}>{t(locale, "switchLang")}</Link>
+      </header>
 
-      {!loggedIn && <LoginForm onLoggedIn={() => setLoggedIn(true)} />}
+      {!loggedIn && <LoginForm locale={locale} promptKey="loginToViewCart" onLoggedIn={() => setLoggedIn(true)} />}
       {error && <p style={{ color: "#b91c1c" }}>{error}</p>}
 
       {loggedIn && cart && cart.lines.length === 0 && (
         <div>
-          <p>سلتك فارغة.</p>
-          <Link href="/catalog">تصفح المنتجات</Link>
+          <p>{t(locale, "cartEmpty")}</p>
+          <Link href={`/catalog?lang=${locale}`}>{t(locale, "browseProducts")}</Link>
         </div>
       )}
 
@@ -108,9 +73,13 @@ export default function CartPage() {
                 }}
               >
                 <div>
-                  <p style={{ margin: 0, fontWeight: 700 }}>{line.nameAr}</p>
-                  {!line.inStock && <p style={{ margin: 0, color: "#b91c1c", fontSize: 12 }}>غير متوفر حاليًا</p>}
-                  {line.priceUpdated && <p style={{ margin: 0, color: "var(--flame)", fontSize: 12 }}>تم تحديث السعر</p>}
+                  <p style={{ margin: 0, fontWeight: 700 }}>{locale === "ar" ? line.nameAr : line.nameEn}</p>
+                  {!line.inStock && (
+                    <p style={{ margin: 0, color: "#b91c1c", fontSize: 12 }}>{t(locale, "currentlyUnavailable")}</p>
+                  )}
+                  {line.priceUpdated && (
+                    <p style={{ margin: 0, color: "var(--flame)", fontSize: 12 }}>{t(locale, "priceUpdated")}</p>
+                  )}
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <input
@@ -121,9 +90,11 @@ export default function CartPage() {
                     onChange={(e) => updateQty(line.lineId, Number(e.target.value))}
                     style={{ width: 60 }}
                   />
-                  <span className="ps-ltr">{line.unitPrice} SAR</span>
+                  <span className="ps-ltr">
+                    {line.unitPrice} {t(locale, "sar")}
+                  </span>
                   <button type="button" onClick={() => removeLine(line.lineId)}>
-                    إزالة
+                    {t(locale, "remove")}
                   </button>
                 </div>
               </div>
@@ -132,25 +103,29 @@ export default function CartPage() {
 
           <div style={{ marginTop: 24, padding: 16, background: "var(--bg-warm)", borderRadius: 8 }}>
             <p>
-              المجموع الفرعي: <span className="ps-ltr">{cart.totals.subtotal} SAR</span>
+              {t(locale, "subtotal")} <span className="ps-ltr">{cart.totals.subtotal} {t(locale, "sar")}</span>
             </p>
             <p>
-              الضريبة: <span className="ps-ltr">{cart.totals.vat} SAR</span>
+              {t(locale, "vat")} <span className="ps-ltr">{cart.totals.vat} {t(locale, "sar")}</span>
             </p>
             <p style={{ fontWeight: 700 }}>
-              الإجمالي: <span className="ps-ltr">{cart.totals.total} SAR</span>
+              {t(locale, "total")} <span className="ps-ltr">{cart.totals.total} {t(locale, "sar")}</span>
             </p>
             {cart.freeDeliveryRemaining && (
               <p style={{ fontSize: 13, color: "var(--muted)" }}>
-                أضف <span className="ps-ltr">{cart.freeDeliveryRemaining} SAR</span> أخرى للحصول على توصيل مجاني
+                {t(locale, "freeDeliveryHintPrefix")}{" "}
+                <span className="ps-ltr">
+                  {cart.freeDeliveryRemaining} {t(locale, "sar")}
+                </span>{" "}
+                {t(locale, "freeDeliveryHintSuffix")}
               </p>
             )}
-            <Link href="/checkout">
+            <Link href={`/checkout?lang=${locale}`}>
               <button
                 type="button"
                 style={{ padding: "10px 24px", borderRadius: 8, background: "var(--gold)", border: "none", fontWeight: 700 }}
               >
-                إتمام الشراء
+                {t(locale, "proceedToCheckout")}
               </button>
             </Link>
           </div>
