@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { authedFetch, getToken, login } from "../../lib/authClient";
+import { LoginForm } from "../../components/LoginForm";
+import { authedFetch, getToken } from "../../lib/authClient";
+import { dirFor, localeDateString, orderStatusLabel, otherLocale, t, useLocale } from "../../lib/locale";
 
 interface OrderListItem {
   orderId: string;
@@ -13,52 +15,10 @@ interface OrderListItem {
   slot: string;
 }
 
-const STATUS_LABELS_AR: Record<string, string> = {
-  pending_payment: "بانتظار الدفع",
-  paid: "تم الدفع",
-  confirmed: "مؤكد",
-  preparing: "قيد التجهيز",
-  ready_for_pickup: "جاهز للتسليم",
-  assigned: "تم تعيين سائق",
-  picked_up: "تم الاستلام من المستودع",
-  en_route: "في الطريق",
-  delivered: "تم التوصيل",
-  confirmed_received: "تم تأكيد الاستلام",
-  cancelled: "ملغى",
-  refunded: "مسترد",
-  returned: "مرتجع"
-};
-
-function LoginForm({ onLoggedIn }: { onLoggedIn: () => void }) {
-  const [email, setEmail] = useState("customer.seed@petrospecial.internal");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    try {
-      await login(email, password);
-      onLoggedIn();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
-    }
-  }
-
-  return (
-    <form onSubmit={submit} style={{ maxWidth: 320, display: "grid", gap: 12 }} dir="rtl">
-      <p>سجّل الدخول لعرض طلباتك</p>
-      <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="البريد الإلكتروني" />
-      <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="كلمة المرور" />
-      {error && <p style={{ color: "#b91c1c" }}>{error}</p>}
-      <button type="submit">دخول</button>
-    </form>
-  );
-}
-
 // EP-SF-030 / FR-SF10-003 (S09) — order history list, linking to SF-05's
 // existing order detail page (orders/[id]).
 export default function OrdersListPage() {
+  const locale = useLocale();
   const [loggedIn, setLoggedIn] = useState(false);
   const [items, setItems] = useState<OrderListItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -75,20 +35,23 @@ export default function OrdersListPage() {
   }, [loggedIn]);
 
   return (
-    <main dir="rtl" style={{ maxWidth: 700, margin: "0 auto", padding: 24 }}>
-      <h1 style={{ fontFamily: "var(--font-display)" }}>طلباتي</h1>
+    <main dir={dirFor(locale)} style={{ maxWidth: 700, margin: "0 auto", padding: 24 }}>
+      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h1 style={{ fontFamily: "var(--font-display)" }}>{t(locale, "myOrders")}</h1>
+        <Link href={`/orders?lang=${otherLocale(locale)}`}>{t(locale, "switchLang")}</Link>
+      </header>
 
-      {!loggedIn && <LoginForm onLoggedIn={() => setLoggedIn(true)} />}
+      {!loggedIn && <LoginForm locale={locale} promptKey="loginToViewOrders" onLoggedIn={() => setLoggedIn(true)} />}
       {error && <p style={{ color: "#b91c1c" }}>{error}</p>}
 
-      {loggedIn && items && items.length === 0 && <p>لا توجد طلبات سابقة.</p>}
+      {loggedIn && items && items.length === 0 && <p>{t(locale, "noOrdersYet")}</p>}
 
       {loggedIn && items && items.length > 0 && (
         <div style={{ display: "grid", gap: 12 }}>
           {items.map((o) => (
             <Link
               key={o.orderId}
-              href={`/orders/${o.orderId}`}
+              href={`/orders/${o.orderId}?lang=${locale}`}
               style={{
                 display: "flex",
                 justifyContent: "space-between",
@@ -100,12 +63,12 @@ export default function OrdersListPage() {
               }}
             >
               <div>
-                <p style={{ margin: 0, fontWeight: 700 }}>{STATUS_LABELS_AR[o.status] ?? o.status}</p>
-                <p style={{ margin: 0, fontSize: 12, color: "var(--muted)" }}>
-                  {new Date(o.placedAt).toLocaleDateString("ar-SA")}
-                </p>
+                <p style={{ margin: 0, fontWeight: 700 }}>{orderStatusLabel(locale, o.status)}</p>
+                <p style={{ margin: 0, fontSize: 12, color: "var(--muted)" }}>{localeDateString(locale, o.placedAt)}</p>
               </div>
-              <span className="ps-ltr">{o.total} SAR</span>
+              <span className="ps-ltr">
+                {o.total} {t(locale, "sar")}
+              </span>
             </Link>
           ))}
         </div>
