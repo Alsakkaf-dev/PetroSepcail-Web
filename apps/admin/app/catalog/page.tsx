@@ -3,17 +3,21 @@
 import type { AdminSkuListResponse } from "@petrospecial/contracts";
 import { useEffect, useState } from "react";
 
-// AC-02 (S07). Relative fetch paths only: this console is only ever reached
-// through Caddy, which proxies /api/* to the `api` container on the SAME
-// origin as the admin console itself (Caddyfile) — there is no public API
-// host to hardcode (D-13), and running this page via bare `next dev` with no
-// Caddy in front will 404 these calls (docker compose up is this project's
-// primary dev/verification path, per the roadmap's own
-// live-verify-with-Docker convention).
+// AC-02 (S07). This is a client component (runs in the browser, a different
+// origin from the API under the Vercel pivot, D-15 — no Caddy same-origin
+// proxy exists anymore), so every call is built into an absolute URL from
+// NEXT_PUBLIC_API_URL (the browser-safe counterpart of the server-only
+// API_URL apps/store/lib/api.ts uses).
 //
 // No console shell/session yet (AC-M5-0 is a later, separate M5 task) — this
 // page is a self-contained login + CRUD screen, not wired into a broader
 // authenticated layout.
+
+function apiUrl(path: string): string {
+  const base = process.env.NEXT_PUBLIC_API_URL;
+  if (!base) throw new Error("missing required env var NEXT_PUBLIC_API_URL");
+  return `${base}${path}`;
+}
 
 interface Row {
   skuId: string;
@@ -28,7 +32,7 @@ interface Row {
 }
 
 async function api<T>(path: string, token: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, {
+  const res = await fetch(apiUrl(path), {
     ...init,
     headers: { ...init?.headers, authorization: `Bearer ${token}`, "content-type": "application/json" }
   });
@@ -50,7 +54,7 @@ function LoginForm({ onLoggedIn }: { onLoggedIn: (token: string) => void }) {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/v1/auth/login", {
+      const res = await fetch(apiUrl("/api/v1/auth/login"), {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ email, password })
