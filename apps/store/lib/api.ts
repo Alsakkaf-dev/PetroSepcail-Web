@@ -1,6 +1,7 @@
-// Server Components run inside the `store` container, on the same Docker
-// network as `api` — API_URL (`.env`) is the container-internal address,
-// not the public Caddy-fronted one. No fallback literal (D-13/parity-grep):
+// Server Components run in the `store` Vercel deployment and call the
+// separately-deployed `petro-sepcail-web-api` project over public HTTPS
+// (D-15 pivot — no shared Docker network anymore); API_URL is that
+// project's real reachable URL. No fallback literal (D-13/parity-grep):
 // a missing env var must fail loudly, not silently resolve to localhost.
 function apiUrl(path: string): string {
   const base = process.env.API_URL;
