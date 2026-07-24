@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { LoginForm } from "../../components/LoginForm";
 import { authedFetch, getToken } from "../../lib/authClient";
-import { dirFor, localeDateString, orderStatusLabel, otherLocale, t, useLocale } from "../../lib/locale";
+import { dirFor, localeDateString, orderStatusLabel, otherLocale, t } from "../../lib/locale";
+import { useLocale } from "../../lib/useLocale";
 
 interface OrderListItem {
   orderId: string;
@@ -17,7 +18,17 @@ interface OrderListItem {
 
 // EP-SF-030 / FR-SF10-003 (S09) — order history list, linking to SF-05's
 // existing order detail page (orders/[id]).
+// useLocale() (useSearchParams) requires a Suspense boundary in the Next.js
+// App Router static-export path, or `next build` fails at prerender.
 export default function OrdersListPage() {
+  return (
+    <Suspense fallback={null}>
+      <OrdersListPageInner />
+    </Suspense>
+  );
+}
+
+function OrdersListPageInner() {
   const locale = useLocale();
   const [loggedIn, setLoggedIn] = useState(false);
   const [items, setItems] = useState<OrderListItem[] | null>(null);
