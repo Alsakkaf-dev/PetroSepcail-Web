@@ -28,16 +28,29 @@ function requireEnv(name: string): string {
   return value;
 }
 
+// Two supported deployment models: local/test (secrets/init scripts write
+// real PEM files to disk, *_PATH points at them) and Vercel serverless
+// (D-15 pivot — no persistent/shared filesystem to write a secrets volume
+// into, so the PEM content itself is a Vercel encrypted Environment
+// Variable). Content wins when both are set; a literal "\n" is unescaped
+// since pasting a multi-line PEM into a single-line env var UI commonly
+// requires that.
+function loadKeyMaterial(contentVar: string, pathVar: string): string {
+  const content = process.env[contentVar];
+  if (content) return content.includes("\\n") ? content.replace(/\\n/g, "\n") : content;
+  return readFileSync(requireEnv(pathVar), "utf8");
+}
+
 let privateKeyPromise: Promise<KeyLike> | undefined;
 let publicKeyPromise: Promise<KeyLike> | undefined;
 
 function getPrivateKey(): Promise<KeyLike> {
-  privateKeyPromise ??= importPKCS8(readFileSync(requireEnv("JWT_PRIVATE_KEY_PATH"), "utf8"), "RS256");
+  privateKeyPromise ??= importPKCS8(loadKeyMaterial("JWT_PRIVATE_KEY", "JWT_PRIVATE_KEY_PATH"), "RS256");
   return privateKeyPromise;
 }
 
 function getPublicKey(): Promise<KeyLike> {
-  publicKeyPromise ??= importSPKI(readFileSync(requireEnv("JWT_PUBLIC_KEY_PATH"), "utf8"), "RS256");
+  publicKeyPromise ??= importSPKI(loadKeyMaterial("JWT_PUBLIC_KEY", "JWT_PUBLIC_KEY_PATH"), "RS256");
   return publicKeyPromise;
 }
 
