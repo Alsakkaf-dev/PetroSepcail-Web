@@ -77,7 +77,10 @@ describe("PC-01/02 auth E2E (real Postgres)", () => {
     await app?.close();
     await closePool(); // must close before the container stops, or idle
     // clients emit an unhandled 'error' event when Postgres force-closes them
-    rmSync(dir, { recursive: true, force: true });
+    // Guarded: if beforeAll failed before `dir` was assigned, an unguarded
+    // throw here would skip stop() below and permanently orphan the
+    // postgres/smtp child process bound to this file's fixed port.
+    if (dir) rmSync(dir, { recursive: true, force: true });
     await smtp?.stop();
     await pg?.stop();
   });
