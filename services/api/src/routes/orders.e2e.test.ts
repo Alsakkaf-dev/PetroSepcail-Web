@@ -118,7 +118,10 @@ describe("Order lifecycle (SF-05)", () => {
     await app?.close();
     await closePool();
     await dbClient?.end();
-    rmSync(dir, { recursive: true, force: true });
+    // Guarded: if beforeAll failed before `dir` was assigned, an unguarded
+    // throw here would skip stop() below and permanently orphan the
+    // postgres child process bound to this file's fixed port.
+    if (dir) rmSync(dir, { recursive: true, force: true });
     await pg?.stop();
   });
 
