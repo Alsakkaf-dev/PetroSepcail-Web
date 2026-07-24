@@ -2,12 +2,23 @@
 
 import type { CartResponse } from "@petrospecial/contracts";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { LoginForm } from "../../components/LoginForm";
 import { authedFetch, getToken } from "../../lib/authClient";
-import { dirFor, otherLocale, t, useLocale } from "../../lib/locale";
+import { dirFor, otherLocale, t } from "../../lib/locale";
+import { useLocale } from "../../lib/useLocale";
 
+// useLocale() (useSearchParams) requires a Suspense boundary in the Next.js
+// App Router static-export path, or `next build` fails at prerender.
 export default function CartPage() {
+  return (
+    <Suspense fallback={null}>
+      <CartPageInner />
+    </Suspense>
+  );
+}
+
+function CartPageInner() {
   const locale = useLocale();
   const [loggedIn, setLoggedIn] = useState(false);
   const [cart, setCart] = useState<CartResponse | null>(null);
