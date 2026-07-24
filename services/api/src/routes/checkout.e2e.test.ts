@@ -1,60 +1,22 @@
-import { execFileSync, spawnSync } from "node:child_process";
 import { generateKeyPairSync, randomBytes } from "node:crypto";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { startEphemeralPostgres, type EphemeralPostgres } from "../testHelpers/ephemeralPostgres.js";
+import { startEphemeralMinio, type EphemeralMinio } from "../testHelpers/ephemeralMinio.js";
 
-// SF-03/SF-04 (S08): real Postgres + MinIO, same docker-orchestration
-// pattern as catalog.e2e.test.ts / me.e2e.test.ts. Proves the cart -> quote
-// -> place-order (COD + bank transfer) -> proof flow against the actual
+// SF-03/SF-04 (S08): real Postgres + S3-compatible storage, same pattern as
+// catalog.e2e.test.ts / me.e2e.test.ts. Proves the cart -> quote ->
+// place-order (COD + bank transfer) -> proof flow against the actual
 // 23-SKU seed and the real orders.place_order DB function.
-const CONTAINER = "ps-checkout-e2e-test";
-const MINIO_CONTAINER = "ps-checkout-e2e-minio";
 const DEV_PASSWORD = "DevSeed#12345"; // db/migrations/0010
 
-function dockerAvailable(): boolean {
-  return spawnSync("docker", ["--version"], { stdio: "ignore" }).status === 0;
-}
-
-function stopContainer() {
-  spawnSync("docker", ["stop", CONTAINER], { stdio: "ignore" });
-  spawnSync("docker", ["stop", MINIO_CONTAINER], { stdio: "ignore" });
-}
-
-async function waitForPostgres(port: number, timeoutMs = 30_000): Promise<void> {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    const client = new Client({ host: "127.0.0.1", port, user: "postgres", password: "test", database: "test" });
-    try {
-      await client.connect();
-      await client.end();
-      return;
-    } catch {
-      await new Promise((r) => setTimeout(r, 500));
-    }
-  }
-  throw new Error(`Postgres did not become ready within ${timeoutMs}ms`);
-}
-
-async function waitForHttp(url: string, timeoutMs = 15_000): Promise<void> {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    try {
-      const res = await fetch(url);
-      if (res.status < 500) return;
-    } catch {
-      // not up yet
-    }
-    await new Promise((r) => setTimeout(r, 300));
-  }
-  throw new Error(`${url} did not become ready within ${timeoutMs}ms`);
-}
-
-describe.runIf(dockerAvailable())("Cart + Checkout (SF-03/SF-04)", () => {
+describe("Cart + Checkout (SF-03/SF-04)", () => {
   let dir: string;
-  let dbUrl: string;
+  let pg: EphemeralPostgres;
+  let minio: EphemeralMinio;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let app: any;
   let customerToken: string;
@@ -63,51 +25,20 @@ describe.runIf(dockerAvailable())("Cart + Checkout (SF-03/SF-04)", () => {
   let packSizeId: string; // super-special-10w30's pack size
 
   beforeAll(async () => {
-    spawnSync("docker", ["rm", "-f", CONTAINER], { stdio: "ignore" });
-    execFileSync("docker", [
-      "run", "--rm", "-d", "--name", CONTAINER,
-      "-e", "POSTGRES_PASSWORD=test", "-e", "POSTGRES_DB=test",
-      "-p", "0:5432", "postgres:16-alpine"
-    ]);
-    const port = Number(execFileSync("docker", ["port", CONTAINER, "5432"]).toString().trim().split(":").pop());
-    await waitForPostgres(port);
-    dbUrl = `postgres://postgres:test@127.0.0.1:${port}/test`;
+    pg = await startEphemeralPostgres(54345);
+    const dbUrl = pg.dbUrl;
 
-    execFileSync("npx", ["node-pg-migrate", "-m", "db/migrations", "--migration-file-language", "sql", "up"], {
-      stdio: "inherit",
-      shell: true,
-      env: { ...process.env, DATABASE_URL: dbUrl }
-    });
-
-    spawnSync("docker", ["rm", "-f", MINIO_CONTAINER], { stdio: "ignore" });
-    execFileSync("docker", [
-      "run", "--rm", "-d", "--name", MINIO_CONTAINER,
-      "-e", "MINIO_ROOT_USER=petrospecial", "-e", "MINIO_ROOT_PASSWORD=petrospecial_dev_password",
-      "-p", "0:9000", "minio/minio:latest", "server", "/data"
-    ]);
-    const minioPort = Number(execFileSync("docker", ["port", MINIO_CONTAINER, "9000"]).toString().trim().split(":").pop());
-    await waitForHttp(`http://127.0.0.1:${minioPort}/minio/health/live`);
+    minio = await startEphemeralMinio(54346);
 
     process.env.MINIO_ENDPOINT = "127.0.0.1";
-    process.env.MINIO_API_PORT = String(minioPort);
+    process.env.MINIO_API_PORT = String(minio.port);
     process.env.MINIO_USE_SSL = "false";
-    process.env.MINIO_ROOT_USER = "petrospecial";
-    process.env.MINIO_ROOT_PASSWORD = "petrospecial_dev_password";
+    process.env.MINIO_ROOT_USER = minio.accessKey;
+    process.env.MINIO_ROOT_PASSWORD = minio.secretKey;
     process.env.MINIO_BUCKET_MEDIA = "ps-media";
     process.env.MINIO_BUCKET_INVOICES = "ps-invoices";
     process.env.MINIO_BUCKET_POD = "ps-pod";
     process.env.PUBLIC_BASE_URL = "https://localhost";
-    const { Client: MinioClient } = await import("minio");
-    const minioAdmin = new MinioClient({
-      endPoint: "127.0.0.1",
-      port: minioPort,
-      useSSL: false,
-      accessKey: "petrospecial",
-      secretKey: "petrospecial_dev_password"
-    });
-    for (const bucket of ["ps-media", "ps-invoices", "ps-pod"]) {
-      await minioAdmin.makeBucket(bucket);
-    }
 
     dir = mkdtempSync(path.join(tmpdir(), "ps-checkout-e2e-"));
     const { privateKey, publicKey } = generateKeyPairSync("rsa", {
@@ -167,7 +98,8 @@ describe.runIf(dockerAvailable())("Cart + Checkout (SF-03/SF-04)", () => {
     await closePool();
     await dbClient?.end();
     rmSync(dir, { recursive: true, force: true });
-    stopContainer();
+    await minio?.stop();
+    await pg?.stop();
   });
 
   it("TC-SF03-001..004: adding a line creates a cart with server-authoritative totals", async () => {
