@@ -5,24 +5,18 @@
 // wired into apps/store yet (S06 handover) — every string used here is one
 // of the two locale fields the catalog API already returns per item
 // (nameAr/nameEn etc.), so no separate i18n dictionary is needed for these
-// screens specifically.
-import { useSearchParams } from "next/navigation";
+// screens specifically. useLocale() (the client-component counterpart of
+// this file's own parseLocale(), for pages with no server parent to hand
+// them a searchParams-derived locale prop) lives in ./useLocale.ts, not
+// here — this file is imported by server components too (e.g.
+// app/search/page.tsx), and pulling next/navigation's useSearchParams into
+// that import graph fails the Next.js App Router build ("needs
+// useSearchParams... none of its parents are marked use client").
 
 export type Locale = "ar" | "en";
 
 export function parseLocale(value: string | string[] | undefined): Locale {
   return value === "en" ? "en" : "ar";
-}
-
-// Client-component counterpart of the server-side `searchParams.lang` prop
-// pattern (see catalog/page.tsx): cart/checkout/orders/account are "use
-// client" pages with no server parent to hand them a `locale` prop, so they
-// read the same `?lang=` query param themselves via next/navigation. Only
-// called from client components, but the import itself is safe from a
-// shared module also used server-side (catalog/page.tsx never calls it).
-export function useLocale(): Locale {
-  const params = useSearchParams();
-  return parseLocale(params.get("lang") ?? undefined);
 }
 
 export function localeDateString(locale: Locale, iso: string): string {
