@@ -1,4 +1,4 @@
-import { meResponse } from "@petrospecial/contracts";
+import { meResponse, meUpdateRequest } from "@petrospecial/contracts";
 import type { FastifyInstance } from "fastify";
 import { withRlsTransaction } from "../db.js";
 import { ApiError } from "../errors.js";
@@ -37,6 +37,42 @@ export function registerMeRoutes(app: FastifyInstance): void {
 
     if (!result.identity) throw new ApiError("NOT_FOUND");
 
+    return reply.code(200).send(
+      meResponse.parse({
+        id: result.identity.id,
+        fullName: result.identity.full_name,
+        email: result.identity.email,
+        phone: result.identity.phone,
+        locale: result.identity.locale,
+        roles: result.roles
+      })
+    );
+  });
+
+  // EP-PC-012 · PATCH /me · auth (S09) — FR-SF10-001 profile edit.
+  app.patch("/api/v1/me", async (request, reply) => {
+    const actor = request.ctx.actor;
+    if (!actor) throw new ApiError("INVALID_CREDENTIALS");
+    const body = meUpdateRequest.parse(request.body);
+
+    const result = await withRlsTransaction(actor, async (client) => {
+      const updated = await client.query<IdentityRow>(
+        `update core.identities set
+           full_name = coalesce($2, full_name),
+           phone = coalesce($3, phone),
+           locale = coalesce($4, locale)
+         where id = $1
+         returning id, full_name, email, phone, locale`,
+        [actor.sub, body.fullName ?? null, body.phone ?? null, body.locale ?? null]
+      );
+      const grants = await client.query<{ role: string }>(
+        "select role from core.role_grants where identity_id = $1",
+        [actor.sub]
+      );
+      return { identity: updated.rows[0], roles: grants.rows.map((r) => r.role) };
+    });
+
+    if (!result.identity) throw new ApiError("NOT_FOUND");
     return reply.code(200).send(
       meResponse.parse({
         id: result.identity.id,
