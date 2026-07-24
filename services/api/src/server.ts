@@ -1,3 +1,4 @@
+import cors from "@fastify/cors";
 import Fastify, { type FastifyInstance } from "fastify";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { ZodError } from "zod";
@@ -35,6 +36,14 @@ const LOGIN_FAILURE_CODES: ReadonlySet<ErrorCode> = new Set([
 
 export async function buildServer(): Promise<FastifyInstance> {
   const app = Fastify({ logger: buildLoggerOptions("api") });
+
+  // store/admin/driver run as separate Vercel projects on separate origins
+  // from this one (D-15 pivot — no Caddy same-origin proxy anymore), so
+  // their browser-side fetches are genuine cross-origin requests. Auth here
+  // is a bearer token attached manually per-request (no cookies), so there
+  // is no CSRF/credential-leak concern in reflecting any origin — this is
+  // the standard open-CORS posture for a public bearer-token JSON API.
+  await app.register(cors, { origin: true });
 
   // 03-sdd.md §10 request lifecycle order: request context (request_id,
   // actor, locale) resolves onRequest, before rate limiting (preHandler)
