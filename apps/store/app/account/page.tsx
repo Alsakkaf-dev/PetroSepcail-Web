@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { LoginForm } from "../../components/LoginForm";
 import { authedFetch, getToken } from "../../lib/authClient";
-import { dirFor, otherLocale, t, useLocale } from "../../lib/locale";
+import { dirFor, otherLocale, t } from "../../lib/locale";
+import { useLocale } from "../../lib/useLocale";
 
 interface MeResponse {
   fullName: string;
@@ -30,7 +31,17 @@ interface ConsentItem {
 // SF-10 (S09) — FR-SF10-001/003/004/006. Address book (FR-SF10-002) already
 // has its own real endpoints (EP-PC-013..015) but no dedicated page yet —
 // out of this file's scope, linked to below as a follow-on.
+// useLocale() (useSearchParams) requires a Suspense boundary in the Next.js
+// App Router static-export path, or `next build` fails at prerender.
 export default function AccountPage() {
+  return (
+    <Suspense fallback={null}>
+      <AccountPageInner />
+    </Suspense>
+  );
+}
+
+function AccountPageInner() {
   const locale = useLocale();
   const [loggedIn, setLoggedIn] = useState(false);
   const [me, setMe] = useState<MeResponse | null>(null);
