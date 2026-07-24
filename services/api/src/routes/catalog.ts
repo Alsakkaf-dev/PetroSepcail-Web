@@ -196,8 +196,19 @@ async function queryAllFacets(client: PoolClient, filters: Filters, vatRate: num
 async function toProductCard(row: ProductRow) {
   let thumbUrl: string | null = null;
   if (row.thumb_object_key) {
-    const signed = await getMinioClient().presignedGetObject(MEDIA_BUCKET, row.thumb_object_key, DOWNLOAD_URL_EXPIRY_SECONDS);
-    thumbUrl = toPublicMediaUrl(signed);
+    // MinIO is retired from this deployment target (D-15 hosting pivot to
+    // Vercel Blob, ADR-17) but media/minioClient.ts hasn't been migrated
+    // yet — MINIO_ENDPOINT etc. are unset in production, so this throws for
+    // every SKU that has a real photo. Degrade to the same null-thumbUrl
+    // placeholder path the storefront already uses for SKUs with no photo
+    // at all (TC-SF01-007) rather than letting one broken thumbnail 500 the
+    // entire product listing via Promise.all.
+    try {
+      const signed = await getMinioClient().presignedGetObject(MEDIA_BUCKET, row.thumb_object_key, DOWNLOAD_URL_EXPIRY_SECONDS);
+      thumbUrl = toPublicMediaUrl(signed);
+    } catch {
+      thumbUrl = null;
+    }
   }
   return {
     slug: row.slug,
@@ -436,13 +447,20 @@ export function registerCatalogRoutes(app: FastifyInstance): void {
     if (!detail) throw new ApiError("NOT_FOUND");
     const { sku, blocks, certifications, media, rating } = detail;
 
-    const mediaWithUrls = await Promise.all(
+    // Same MinIO-retirement gap as toProductCard() above: skip any photo
+    // whose presigned URL can't be generated rather than 500ing the whole
+    // page (the contract's media[].url is a required string, so a broken
+    // item is dropped, not nulled).
+    const mediaWithUrlsSettled = await Promise.allSettled(
       media.map(async (m) => ({
         url: toPublicMediaUrl(await getMinioClient().presignedGetObject(MEDIA_BUCKET, m.object_key, DOWNLOAD_URL_EXPIRY_SECONDS)),
         altAr: m.alt_ar,
         altEn: m.alt_en
       }))
     );
+    const mediaWithUrls = mediaWithUrlsSettled
+      .filter((r): r is PromiseFulfilledResult<{ url: string; altAr: string | null; altEn: string | null }> => r.status === "fulfilled")
+      .map((r) => r.value);
 
     return reply.code(200).send(
       productDetailResponse.parse({
