@@ -1,17 +1,14 @@
 "use client";
 
 import type { AddressRow, CheckoutQuoteResponse } from "@petrospecial/contracts";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { authedFetch } from "../../lib/authClient";
-
-const SLOT_LABELS: Record<string, string> = {
-  same_day: "اليوم",
-  next_am: "غدًا صباحًا (9–13)",
-  next_pm: "غدًا مساءً (14–20)"
-};
+import { dirFor, otherLocale, slotLabel, t, useLocale } from "../../lib/locale";
 
 export default function CheckoutPage() {
+  const locale = useLocale();
   const router = useRouter();
   const [addresses, setAddresses] = useState<AddressRow[]>([]);
   const [addressId, setAddressId] = useState<string>("");
@@ -82,7 +79,7 @@ export default function CheckoutPage() {
         headers: { "idempotency-key": `store-${cart.cartId}-${Date.now()}` },
         body: JSON.stringify({ cartId: cart.cartId, addressId, slot, paymentMethod })
       });
-      router.push(`/orders/${res.orderId}`);
+      router.push(`/orders/${res.orderId}?lang=${locale}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "failed");
     } finally {
@@ -91,12 +88,15 @@ export default function CheckoutPage() {
   }
 
   return (
-    <main dir="rtl" style={{ maxWidth: 600, margin: "0 auto", padding: 24 }}>
-      <h1 style={{ fontFamily: "var(--font-display)" }}>إتمام الشراء</h1>
+    <main dir={dirFor(locale)} style={{ maxWidth: 600, margin: "0 auto", padding: 24 }}>
+      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h1 style={{ fontFamily: "var(--font-display)" }}>{t(locale, "checkoutTitle")}</h1>
+        <Link href={`/checkout?lang=${otherLocale(locale)}`}>{t(locale, "switchLang")}</Link>
+      </header>
       {error && <p style={{ color: "#b91c1c" }}>{error}</p>}
 
       <section style={{ marginBottom: 24 }}>
-        <h2>العنوان</h2>
+        <h2>{t(locale, "addressLabel")}</h2>
         {addresses.map((a) => (
           <label key={a.id} style={{ display: "block" }}>
             <input type="radio" name="address" checked={addressId === a.id} onChange={() => setAddressId(a.id)} />
@@ -104,55 +104,58 @@ export default function CheckoutPage() {
           </label>
         ))}
         <button type="button" onClick={() => setShowNewAddress((v) => !v)}>
-          + عنوان جديد
+          {t(locale, "addNewAddress")}
         </button>
         {showNewAddress && (
           <form onSubmit={addAddress} style={{ display: "grid", gap: 8, marginTop: 8 }}>
             <input
-              placeholder="الاسم"
+              placeholder={t(locale, "recipientNamePlaceholder")}
               value={newAddress.recipientName}
               onChange={(e) => setNewAddress({ ...newAddress, recipientName: e.target.value })}
             />
             <input
-              placeholder="الجوال"
+              placeholder={t(locale, "phonePlaceholder")}
               value={newAddress.phone}
               onChange={(e) => setNewAddress({ ...newAddress, phone: e.target.value })}
             />
             <input
-              placeholder="العنوان"
+              placeholder={t(locale, "addressLine1Placeholder")}
               value={newAddress.line1}
               onChange={(e) => setNewAddress({ ...newAddress, line1: e.target.value })}
             />
             <input
-              placeholder="خط العرض (اختياري)"
+              placeholder={t(locale, "latPlaceholder")}
               value={newAddress.lat}
               onChange={(e) => setNewAddress({ ...newAddress, lat: e.target.value })}
             />
             <input
-              placeholder="خط الطول (اختياري)"
+              placeholder={t(locale, "lngPlaceholder")}
               value={newAddress.lng}
               onChange={(e) => setNewAddress({ ...newAddress, lng: e.target.value })}
             />
-            <button type="submit">حفظ العنوان</button>
+            <button type="submit">{t(locale, "saveAddress")}</button>
           </form>
         )}
       </section>
 
       {addressId && (
         <section style={{ marginBottom: 24 }}>
-          <h2>التوصيل</h2>
+          <h2>{t(locale, "deliveryLabel")}</h2>
           <button type="button" onClick={getQuote}>
-            احسب رسوم التوصيل
+            {t(locale, "calculateDeliveryFee")}
           </button>
           {quote && (
             <div>
               <p>
-                رسوم التوصيل: <span className="ps-ltr">{quote.freeDelivery ? "0.00 (مجاني)" : `${quote.deliveryFee} SAR`}</span>
+                {t(locale, "deliveryFee")}{" "}
+                <span className="ps-ltr">
+                  {quote.freeDelivery ? `0.00 ${t(locale, "free")}` : `${quote.deliveryFee} ${t(locale, "sar")}`}
+                </span>
               </p>
               {quote.slots.map((s) => (
                 <label key={s.code} style={{ display: "block" }}>
                   <input type="radio" name="slot" checked={slot === s.code} onChange={() => setSlot(s.code)} />
-                  {SLOT_LABELS[s.code] ?? s.code}
+                  {slotLabel(locale, s.code)}
                 </label>
               ))}
             </div>
@@ -162,16 +165,20 @@ export default function CheckoutPage() {
 
       {quote && (
         <section style={{ marginBottom: 24 }}>
-          <h2>طريقة الدفع</h2>
+          <h2>{t(locale, "paymentMethodLabel")}</h2>
           <label style={{ display: "block" }}>
             <input type="radio" checked={paymentMethod === "cod"} onChange={() => setPaymentMethod("cod")} />
-            الدفع عند الاستلام
+            {t(locale, "cod")}
           </label>
           <label style={{ display: "block" }}>
-            <input type="radio" checked={paymentMethod === "bank_transfer"} onChange={() => setPaymentMethod("bank_transfer")} />
-            تحويل بنكي
+            <input
+              type="radio"
+              checked={paymentMethod === "bank_transfer"}
+              onChange={() => setPaymentMethod("bank_transfer")}
+            />
+            {t(locale, "bankTransfer")}
           </label>
-          <p style={{ fontSize: 12, color: "var(--muted)" }}>الدفع بالبطاقة قريبًا</p>
+          <p style={{ fontSize: 12, color: "var(--muted)" }}>{t(locale, "cardComingSoon")}</p>
 
           <button
             type="button"
@@ -179,7 +186,7 @@ export default function CheckoutPage() {
             onClick={placeOrder}
             style={{ padding: "10px 24px", borderRadius: 8, background: "var(--gold)", border: "none", fontWeight: 700 }}
           >
-            {placing ? "جارٍ التأكيد..." : "تأكيد الطلب"}
+            {placing ? t(locale, "placingOrder") : t(locale, "confirmOrder")}
           </button>
         </section>
       )}
