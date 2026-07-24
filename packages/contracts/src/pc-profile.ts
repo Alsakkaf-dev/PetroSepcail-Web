@@ -19,6 +19,18 @@ export const meResponse = z.object({
 });
 export type MeResponse = z.infer<typeof meResponse>;
 
+// EP-PC-012 · PATCH /me · auth (S09) — FR-SF10-001 profile edit reuses this
+// directly, no second identity store. Email/phone are deliberately excluded
+// (changing either re-opens verification/uniqueness questions §2 doesn't
+// specify — out of scope here, matches this file's own "only what's built"
+// convention).
+export const meUpdateRequest = z.object({
+  fullName: z.string().min(1).optional(),
+  phone: z.string().min(1).optional(),
+  locale: z.enum(["ar", "en"]).optional()
+});
+export type MeUpdateRequest = z.infer<typeof meUpdateRequest>;
+
 // EP-PC-013/014/015 (S08: SF-04 checkout needs a saved-address selector —
 // flagged unbuilt since S02, picked up here as the genuine prerequisite it
 // turned out to be).
