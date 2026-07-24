@@ -9,8 +9,10 @@ import { checkReadiness } from "./gateway/readiness.js";
 import { registerRateLimit } from "./gateway/rateLimit.js";
 import { registerRequestContext } from "./gateway/requestContext.js";
 import { metrics } from "./metrics.js";
+import { registerAccountRoutes } from "./routes/account.js";
 import { registerAddressRoutes } from "./routes/addresses.js";
 import { registerAdminCatalogRoutes } from "./routes/adminCatalog.js";
+import { registerAdminUserRoutes } from "./routes/adminUsers.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerCartRoutes } from "./routes/cart.js";
 import { registerCatalogRoutes } from "./routes/catalog.js";
@@ -89,6 +91,8 @@ export async function buildServer(): Promise<FastifyInstance> {
   registerCartRoutes(app);
   registerCheckoutRoutes(app);
   registerOrderRoutes(app);
+  registerAccountRoutes(app);
+  registerAdminUserRoutes(app);
 
   // D-09 error envelope {error:{code,message,details}} — the single
   // translation point from thrown errors to the wire format every EP-PC
