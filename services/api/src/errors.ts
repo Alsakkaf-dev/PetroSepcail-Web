@@ -69,6 +69,12 @@ export const ERROR_REGISTRY = {
     status: 410,
     messageKey: "error.payment_window_expired",
     message: "The payment window for this order has expired."
+  },
+  // 10-customer-storefront/05-api-specification.md §10 (SF-05, S09).
+  ORDER_NOT_CANCELLABLE: {
+    status: 409,
+    messageKey: "error.order_not_cancellable",
+    message: "This order can no longer be cancelled."
   }
 } as const;
 
