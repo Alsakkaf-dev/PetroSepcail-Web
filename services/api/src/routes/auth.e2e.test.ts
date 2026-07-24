@@ -1,43 +1,18 @@
-import { execFileSync, spawnSync } from "node:child_process";
 import { generateKeyPairSync, randomBytes } from "node:crypto";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { startEphemeralPostgres, type EphemeralPostgres } from "../testHelpers/ephemeralPostgres.js";
+import { startEphemeralSmtp, type EphemeralSmtp } from "../testHelpers/ephemeralSmtp.js";
 
 // Real end-to-end verification of S02 (PC-01/02): spins up an ephemeral
 // Postgres, applies the actual db/migrations, then drives the actual HTTP
 // routes via Fastify's inject() — proving the S02 Out contract ("all 5
 // seeded roles can log in end-to-end; token lifecycle complete") for real,
-// not by unit-testing pieces in isolation. Mirrors the docker-orchestration
-// pattern of scripts/test-migration.mjs / scripts/test-rls.mjs.
-const CONTAINER = "ps-auth-e2e-test";
-const MAILPIT_CONTAINER = "ps-auth-e2e-mailpit";
+// not by unit-testing pieces in isolation.
 const DEV_PASSWORD = "DevSeed#12345"; // db/migrations/0010
-
-function dockerAvailable(): boolean {
-  return spawnSync("docker", ["--version"], { stdio: "ignore" }).status === 0;
-}
-
-function stopContainer() {
-  spawnSync("docker", ["stop", CONTAINER], { stdio: "ignore" });
-  spawnSync("docker", ["stop", MAILPIT_CONTAINER], { stdio: "ignore" });
-}
-
-async function waitForHttp(url: string, timeoutMs = 15_000): Promise<void> {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    try {
-      const res = await fetch(url);
-      if (res.ok) return;
-    } catch {
-      // not up yet
-    }
-    await new Promise((r) => setTimeout(r, 300));
-  }
-  throw new Error(`${url} did not become ready within ${timeoutMs}ms`);
-}
 
 async function waitFor(predicate: () => Promise<boolean>, timeoutMs = 10_000): Promise<void> {
   const start = Date.now();
@@ -48,55 +23,22 @@ async function waitFor(predicate: () => Promise<boolean>, timeoutMs = 10_000): P
   throw new Error("condition not met within timeout");
 }
 
-async function waitForPostgres(port: number, timeoutMs = 30_000): Promise<void> {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    const client = new Client({ host: "127.0.0.1", port, user: "postgres", password: "test", database: "test" });
-    try {
-      await client.connect();
-      await client.end();
-      return;
-    } catch {
-      await new Promise((r) => setTimeout(r, 500));
-    }
-  }
-  throw new Error(`Postgres did not become ready within ${timeoutMs}ms`);
-}
-
-describe.runIf(dockerAvailable())("PC-01/02 auth E2E (real Postgres)", () => {
+describe("PC-01/02 auth E2E (real Postgres)", () => {
   let dir: string;
-  let dbUrl: string;
+  let pg: EphemeralPostgres;
+  let smtp: EphemeralSmtp;
   let dbClient: Client; // raw superuser connection for direct test setup (no HTTP shortcut exists)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let app: any;
-  let mailpitSmtpPort: number;
-  let mailpitHttpPort: number;
 
   beforeAll(async () => {
-    spawnSync("docker", ["rm", "-f", CONTAINER], { stdio: "ignore" });
-    execFileSync("docker", [
-      "run", "--rm", "-d", "--name", CONTAINER,
-      "-e", "POSTGRES_PASSWORD=test", "-e", "POSTGRES_DB=test",
-      "-p", "0:5432", "postgres:16-alpine"
-    ]);
-    const port = Number(execFileSync("docker", ["port", CONTAINER, "5432"]).toString().trim().split(":").pop());
-    await waitForPostgres(port);
-    dbUrl = `postgres://postgres:test@127.0.0.1:${port}/test`;
+    pg = await startEphemeralPostgres(54341);
+    const dbUrl = pg.dbUrl;
 
     // FR-PC06-004: real SMTP delivery test target (catcher mode's actual
     // T1 backend), proving deliverEmail() genuinely sends mail rather than
     // just asserting the onscreen fallback works.
-    spawnSync("docker", ["rm", "-f", MAILPIT_CONTAINER], { stdio: "ignore" });
-    execFileSync("docker", ["run", "--rm", "-d", "--name", MAILPIT_CONTAINER, "-p", "0:1025", "-p", "0:8025", "axllent/mailpit:latest"]);
-    mailpitSmtpPort = Number(execFileSync("docker", ["port", MAILPIT_CONTAINER, "1025"]).toString().trim().split(":").pop());
-    mailpitHttpPort = Number(execFileSync("docker", ["port", MAILPIT_CONTAINER, "8025"]).toString().trim().split(":").pop());
-    await waitForHttp(`http://127.0.0.1:${mailpitHttpPort}/api/v1/messages`);
-
-    execFileSync("npx", ["node-pg-migrate", "-m", "db/migrations", "--migration-file-language", "sql", "up"], {
-      stdio: "inherit",
-      shell: true,
-      env: { ...process.env, DATABASE_URL: dbUrl }
-    });
+    smtp = await startEphemeralSmtp(54342);
 
     dir = mkdtempSync(path.join(tmpdir(), "ps-auth-e2e-"));
     const { privateKey, publicKey } = generateKeyPairSync("rsa", {
@@ -117,7 +59,7 @@ describe.runIf(dockerAvailable())("PC-01/02 auth E2E (real Postgres)", () => {
     process.env.EMAIL_MODE = "onscreen"; // so register returns a verifyLink for real E2E
     process.env.PUBLIC_BASE_URL = "https://localhost";
     process.env.SMTP_HOST = "127.0.0.1";
-    process.env.SMTP_PORT = String(mailpitSmtpPort);
+    process.env.SMTP_PORT = String(smtp.port);
     process.env.SMTP_FROM = "no-reply@petrospecial.internal";
 
     const { buildServer } = await import("../server.js");
@@ -136,7 +78,8 @@ describe.runIf(dockerAvailable())("PC-01/02 auth E2E (real Postgres)", () => {
     await closePool(); // must close before the container stops, or idle
     // clients emit an unhandled 'error' event when Postgres force-closes them
     rmSync(dir, { recursive: true, force: true });
-    stopContainer();
+    await smtp?.stop();
+    await pg?.stop();
   });
 
   const SEED_IDS: Record<string, string> = {
@@ -500,19 +443,13 @@ describe.runIf(dockerAvailable())("PC-01/02 auth E2E (real Postgres)", () => {
       expect(registerRes.statusCode).toBe(201);
       expect(registerRes.json().verifyLink).toBeUndefined(); // not onscreen — no link in the response
 
-      type MailpitMessage = { ID: string; To: { Address: string }[] };
-      let messages: MailpitMessage[] = [];
-      await waitFor(async () => {
-        const res = await fetch(`http://127.0.0.1:${mailpitHttpPort}/api/v1/messages`);
-        messages = ((await res.json()) as { messages: MailpitMessage[] }).messages;
-        return messages.some((m) => m.To.some((to) => to.Address === "mailpit.test@petrospecial.internal"));
-      });
-      const mail = messages.find((m) => m.To.some((to) => to.Address === "mailpit.test@petrospecial.internal"))!;
+      await waitFor(async () =>
+        smtp.messages.some((m) => m.to.includes("mailpit.test@petrospecial.internal"))
+      );
+      const mail = smtp.messages.find((m) => m.to.includes("mailpit.test@petrospecial.internal"))!;
 
-      const detailRes = await fetch(`http://127.0.0.1:${mailpitHttpPort}/api/v1/message/${mail.ID}`);
-      const detail = (await detailRes.json()) as { Subject: string; Text: string };
-      expect(detail.Subject).toBe("Verify your PetroSpecial account");
-      expect(detail.Text).toContain("/verify-email?token=");
+      expect(mail.subject).toBe("Verify your PetroSpecial account");
+      expect(mail.text).toContain("/verify-email?token=");
 
       // Delivery was logged (FR-PC06-005).
       const log = await dbClient.query(
