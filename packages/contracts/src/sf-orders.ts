@@ -70,6 +70,9 @@ export const orderDetailResponse = z.object({
     })
     .nullable(),
   timeline: z.array(orderTimelineEntry),
+  // DL-05 FR-DL05-002 (S12) — set only while a delivery task is 'arrived';
+  // null otherwise (no OTP minted yet, or delivery already completed).
+  deliveryOtp: z.string().nullable(),
   payTo: z.object({ iban: z.string(), holder: z.string() }).optional()
 });
 export type OrderDetailResponse = z.infer<typeof orderDetailResponse>;

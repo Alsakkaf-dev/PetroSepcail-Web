@@ -115,11 +115,25 @@ export function registerOrderRoutes(app: FastifyInstance): void {
         "select status, at from orders.status_history where order_id = $1 order by at",
         [request.params.id]
       );
-      return { order, lines: linesRes.rows, payment: paymentRes.rows[0] ?? null, history: historyRes.rows };
+      // DL-05 FR-DL05-002 (S12): the delivery OTP is read here, not pushed —
+      // no SMS vendor exists (0049's own note), so the customer's own order
+      // page is the delivery channel; only visible while a task is 'arrived'
+      // (the driver is at the door and actually needs it read aloud).
+      const otpRes = await client.query<{ otp_code: string | null }>(
+        "select otp_code from delivery.delivery_tasks where order_id = $1 and status = 'arrived'",
+        [request.params.id]
+      );
+      return {
+        order,
+        lines: linesRes.rows,
+        payment: paymentRes.rows[0] ?? null,
+        history: historyRes.rows,
+        deliveryOtp: otpRes.rows[0]?.otp_code ?? null
+      };
     });
 
     if (!result) throw new ApiError("NOT_FOUND");
-    const { order, lines, payment, history } = result;
+    const { order, lines, payment, history, deliveryOtp } = result;
 
     let payTo: { iban: string; holder: string } | undefined;
     if (order.status === "pending_payment") {
@@ -169,6 +183,7 @@ export function registerOrderRoutes(app: FastifyInstance): void {
           ? { method: payment.method, status: payment.status, bankRef: payment.bank_ref, proofMediaId: payment.proof_media_id }
           : null,
         timeline,
+        deliveryOtp,
         ...(payTo ? { payTo } : {})
       })
     );

@@ -12,17 +12,21 @@ import { metrics } from "./metrics.js";
 import { registerAccountRoutes } from "./routes/account.js";
 import { registerAddressRoutes } from "./routes/addresses.js";
 import { registerAdminCatalogRoutes } from "./routes/adminCatalog.js";
+import { registerAdminOrderRoutes } from "./routes/adminOrders.js";
 import { registerAdminUserRoutes } from "./routes/adminUsers.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerCartRoutes } from "./routes/cart.js";
 import { registerCatalogRoutes } from "./routes/catalog.js";
 import { registerCheckoutRoutes } from "./routes/checkout.js";
 import { registerConfigRoutes } from "./routes/config.js";
+import { registerDriverDeliveryRoutes } from "./routes/driverDelivery.js";
+import { registerDriverShiftRoutes } from "./routes/driverShift.js";
 import { registerOrderRoutes } from "./routes/orders.js";
 import { registerI18nRoutes } from "./routes/i18n.js";
 import { registerMeRoutes } from "./routes/me.js";
 import { registerMediaRoutes } from "./routes/media.js";
 import { registerNotificationRoutes } from "./routes/notifications.js";
+import { registerStorefrontFullRoutes } from "./routes/storefrontFull.js";
 
 // TC-PC10-004: reasons the login handler (routes/auth.ts) can reject a
 // credential-verification attempt. Counted centrally here, in the one place
@@ -93,6 +97,10 @@ export async function buildServer(): Promise<FastifyInstance> {
   registerOrderRoutes(app);
   registerAccountRoutes(app);
   registerAdminUserRoutes(app);
+  registerAdminOrderRoutes(app);
+  registerDriverDeliveryRoutes(app);
+  registerDriverShiftRoutes(app);
+  registerStorefrontFullRoutes(app);
 
   // D-09 error envelope {error:{code,message,details}} — the single
   // translation point from thrown errors to the wire format every EP-PC

@@ -43,12 +43,19 @@ export function authorizeChannel(channel: string, actor: AccessTokenClaims | nul
 }
 
 // admin:alerts — the one channel with no forward table dependency, so it's
-// real and testable now. The other three named channels
-// (delivery:{task_id}:location, orders:{order_id}:status,
-// driver:{driver_id}:tasks) need tables that don't exist until DL/SF land
-// (S07/S11/S13) — same deferred-policy precedent as S01's
-// `addr_driver_active` RLS policy. Those sessions register their own
-// authorizer here; this file's matching logic doesn't need to change.
+// real and testable now. delivery:{task_id}:location's real implementation
+// (DL-03, S11) ended up going through Pusher instead of this WS server —
+// services/api/src/realtime/pusherClient.ts's own header comment explains
+// why (this server has no persistent process on Vercel to hold connections
+// at all, unlike Pusher). Registering it here too would need
+// `ChannelAuthorizer` widened from a synchronous JWT-claims check to
+// something that can query delivery.delivery_tasks (task ownership isn't
+// encodable in a JWT claim) — a real signature change this session
+// deliberately didn't make blind, rather than ship a half-correct
+// default-allow/deny here. orders:{order_id}:status and
+// driver:{driver_id}:tasks still have the same original deferred-table
+// blocker (SF-06/S13, and no admin task-list consumer yet) and are
+// untouched.
 registerChannel("admin:alerts", (actor) => actor !== null && (actor.role === "admin" || actor.role === "super_admin"));
 
 // events:{name} — the generic internal fan-out the dispatcher (dispatcher.ts)

@@ -75,6 +75,56 @@ export const ERROR_REGISTRY = {
     status: 409,
     messageKey: "error.order_not_cancellable",
     message: "This order can no longer be cancelled."
+  },
+  // 20-delivery-logistics/05-api-specification.md §8 (DL-01/04, S10).
+  TASK_NOT_ASSIGNED: {
+    status: 409,
+    messageKey: "error.task_not_assigned",
+    message: "This delivery task is not assigned to you."
+  },
+  // 20-delivery-logistics/05-api-specification.md §8 (DL-02/03/07, S11).
+  STOCK_INSUFFICIENT: {
+    status: 409,
+    messageKey: "error.stock_insufficient",
+    message: "This load or hand-over exceeds available stock."
+  },
+  SHIFT_REQUIRED: {
+    status: 409,
+    messageKey: "error.shift_required",
+    message: "This action requires an active, van-loaded shift."
+  },
+  AUDIT_VARIANCE: {
+    status: 409,
+    messageKey: "error.audit_variance",
+    message: "A stock variance must be resolved before this can close."
+  },
+  CUSTODY_OPEN: {
+    status: 409,
+    messageKey: "error.custody_open",
+    message: "Unremitted cash custody must be cleared before this can close."
+  },
+  // 20-delivery-logistics/05-api-specification.md §8 (DL-05/09, S12).
+  OTP_MISMATCH: { status: 422, messageKey: "error.otp_mismatch", message: "The delivery code is incorrect." },
+  POD_INCOMPLETE: {
+    status: 422,
+    messageKey: "error.pod_incomplete",
+    message: "A photo and confirmation are required to complete this delivery."
+  },
+  // 10-customer-storefront/05-api-specification.md §6/7 (SF-07/08, S13).
+  RETURN_WINDOW_CLOSED: {
+    status: 422,
+    messageKey: "error.return_window_closed",
+    message: "This order is no longer eligible for return."
+  },
+  NOT_VERIFIED_PURCHASE: {
+    status: 403,
+    messageKey: "error.not_verified_purchase",
+    message: "You can only review products from a delivered order."
+  },
+  REVIEW_EDIT_WINDOW_CLOSED: {
+    status: 403,
+    messageKey: "error.review_edit_window_closed",
+    message: "This review can no longer be edited or deleted."
   }
 } as const;
 

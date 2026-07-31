@@ -1,5 +1,8 @@
 import { startBankTransferSweeper } from "./bankTransferSweeper.js";
+import { startAuditDueWorker } from "./auditDueWorker.js";
+import { startDispatchWorker } from "./dispatchWorker.js";
 import { buildHealthServer } from "./health.js";
+import { startPingPurgeWorker } from "./pingPurgeWorker.js";
 import { createHealthWatcher } from "./healthWatcher.js";
 import { logger } from "./logger.js";
 
@@ -28,6 +31,15 @@ healthWatcher.start();
 // FR-SF04-010 AC3 (S08): cancels bank-transfer orders with no proof/
 // verification within the payment window and releases their reserved stock.
 startBankTransferSweeper();
+
+// DL-01 (S10): drains EV-PC-013/014 into task creation/auto-assign or recall.
+startDispatchWorker();
+
+// DL-03 FR-DL03-003 (S11): 30-day PDPL retention purge for location pings.
+startPingPurgeWorker();
+
+// DL-06/D-14 rule g (S12): raises a stock audit per driver once their cadence has elapsed.
+startAuditDueWorker();
 
 setInterval(() => {
   logger.info("heartbeat");

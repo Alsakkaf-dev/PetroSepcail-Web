@@ -13,3 +13,5 @@ export * from "./sf-checkout.js";
 export * from "./sf-orders.js";
 export * from "./sf-account.js";
 export * from "./ac-users.js";
+export * from "./dl-delivery.js";
+export * from "./sf-storefront-full.js";
