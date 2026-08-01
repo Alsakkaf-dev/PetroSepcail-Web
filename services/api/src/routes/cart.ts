@@ -66,12 +66,26 @@ async function loadLines(client: PoolClient, cartId: string): Promise<{ rows: Li
   return { rows: res.rows, priceUpdated };
 }
 
-async function computeTotals(client: PoolClient, cartId: string, vatRate: number) {
+async function computeTotals(client: PoolClient, cartId: string, vatRate: number, userId: string) {
   const { rows, priceUpdated } = await loadLines(client, cartId);
   const subtotal = rows.reduce((sum, r) => sum + Number(r.unit_price) * r.qty, 0);
   const vat = subtotal * vatRate;
   const cart = await client.query<{ coupon_code: string | null }>("select coupon_code from orders.carts where id = $1", [cartId]);
-  const discount = 0; // LE-02 not built yet (S19) — see checkout/couponStub.ts
+  const couponCode = cart.rows[0]?.coupon_code ?? null;
+
+  // FR-SF03-007-equivalent: re-validate live on every read (same "prices
+  // refresh on open" precedent loadLines already sets) rather than trusting
+  // a stale stored discount — a coupon can expire, hit its cap, or stop
+  // meeting min_order between when it was applied and now.
+  let discount = 0;
+  if (couponCode) {
+    const res = await client.query<{ result: { valid: boolean; discountSar: string | null } }>(
+      "select loyalty.validate_coupon($1, $2, $3) as result",
+      [couponCode, userId, subtotal + vat]
+    );
+    const result = res.rows[0]?.result;
+    if (result?.valid && result.discountSar !== null) discount = Number(result.discountSar);
+  }
   const total = subtotal + vat - discount;
   return {
     rows,
@@ -103,7 +117,7 @@ function toCartResponse(cartId: string, data: Awaited<ReturnType<typeof computeT
       inStock: r.in_stock ?? false,
       ...(data.priceUpdated.has(r.line_id) ? { priceUpdated: true } : {})
     })),
-    coupon: null, // no valid coupon possible yet (couponStub always rejects)
+    coupon: data.couponCode && Number(data.totals.discount) > 0 ? { code: data.couponCode, discountSar: data.totals.discount } : null,
     totals: data.totals,
     freeDeliveryRemaining
   });
@@ -122,7 +136,7 @@ export function registerCartRoutes(app: FastifyInstance): void {
     const vatRate = await getVatRate();
     const result = await withRlsTransaction(actor, async (client) => {
       const cartId = await getOrCreateOpenCart(client, actor.sub);
-      const data = await computeTotals(client, cartId, vatRate);
+      const data = await computeTotals(client, cartId, vatRate, actor.sub);
       const freeDeliveryRemaining = await getFreeDeliveryRemaining(client, data.subtotalInclVat);
       return { cartId, data, freeDeliveryRemaining };
     });
@@ -157,7 +171,7 @@ export function registerCartRoutes(app: FastifyInstance): void {
            set qty = least(orders.cart_lines.qty + excluded.qty, 99), unit_price = excluded.unit_price`,
         [cartId, body.packSizeId, body.qty, unitPrice]
       );
-      const data = await computeTotals(client, cartId, vatRate);
+      const data = await computeTotals(client, cartId, vatRate, actor.sub);
       const line = data.rows.find((r) => r.pack_size_id === body.packSizeId)!;
       return { line, totals: data.totals };
     });
@@ -192,7 +206,7 @@ export function registerCartRoutes(app: FastifyInstance): void {
         [request.params.lineId, body.qty, cartId]
       );
       if (updated.rows.length === 0) throw new ApiError("NOT_FOUND");
-      const data = await computeTotals(client, cartId, vatRate);
+      const data = await computeTotals(client, cartId, vatRate, actor.sub);
       const line = data.rows.find((r) => r.line_id === request.params.lineId)!;
       return { line, totals: data.totals };
     });
@@ -221,7 +235,7 @@ export function registerCartRoutes(app: FastifyInstance): void {
     const totals = await withRlsTransaction(actor, async (client) => {
       const cartId = await getOrCreateOpenCart(client, actor.sub);
       await client.query("delete from orders.cart_lines where id = $1 and cart_id = $2", [request.params.lineId, cartId]);
-      const data = await computeTotals(client, cartId, vatRate);
+      const data = await computeTotals(client, cartId, vatRate, actor.sub);
       return data.totals;
     });
     return reply.code(200).send(cartTotalsResponse.parse({ totals }));
@@ -229,15 +243,26 @@ export function registerCartRoutes(app: FastifyInstance): void {
 
   // EP-SF-014 · POST /cart/coupon · auth
   app.post("/api/v1/cart/coupon", async (request, reply) => {
-    requireActor(request);
+    const actor = requireActor(request);
     const body = applyCouponRequest.parse(request.body);
-    const result = await validateCoupon(body.code);
+    const vatRate = await getVatRate();
     const locale = request.ctx.locale ?? "ar";
+
+    const outcome = await withRlsTransaction(actor, async (client) => {
+      const cartId = await getOrCreateOpenCart(client, actor.sub);
+      const before = await computeTotals(client, cartId, vatRate, actor.sub);
+      const result = await validateCoupon(client, body.code, actor.sub, before.subtotalInclVat);
+      if (!result.valid) return { valid: false as const, reason: locale === "en" ? result.reasonEn : result.reasonAr };
+
+      await client.query("update orders.carts set coupon_code = $2 where id = $1", [cartId, body.code]);
+      const after = await computeTotals(client, cartId, vatRate, actor.sub);
+      return { valid: true as const, discountSar: money(result.discountSar ?? 0), totals: after.totals };
+    });
+
     return reply.code(200).send(
-      applyCouponResponse.parse({
-        valid: false,
-        reason: locale === "en" ? result.reasonEn : result.reasonAr
-      })
+      outcome.valid
+        ? applyCouponResponse.parse({ valid: true, discountSar: outcome.discountSar, totals: outcome.totals })
+        : applyCouponResponse.parse({ valid: false, reason: outcome.reason ?? "" })
     );
   });
 
@@ -248,7 +273,7 @@ export function registerCartRoutes(app: FastifyInstance): void {
     const totals = await withRlsTransaction(actor, async (client) => {
       const cartId = await getOrCreateOpenCart(client, actor.sub);
       await client.query("update orders.carts set coupon_code = null where id = $1", [cartId]);
-      const data = await computeTotals(client, cartId, vatRate);
+      const data = await computeTotals(client, cartId, vatRate, actor.sub);
       return data.totals;
     });
     return reply.code(200).send(cartTotalsResponse.parse({ totals }));

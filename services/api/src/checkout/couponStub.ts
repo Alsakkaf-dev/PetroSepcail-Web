@@ -1,22 +1,29 @@
-// SF-03 (S08): EP-X-002 (`POST /api/v1/loyalty/validate-coupon`) is LE-02's
-// endpoint (06-integration-contracts.md) — LE-02 doesn't exist until S19.
-// Per the roadmap's own explicit instruction ("coupon seam (LE-02 stub
-// honoring contract)"), every code is rejected with a bilingual reason,
-// never a discount — this is what "no wrong charge" (NFR-SF-002,
-// FR-SF04-013) demands from a dependency that isn't real yet. LE-02 (S19)
-// replaces this module's body only; callers (routes/cart.ts) never change.
+import type { PoolClient } from "pg";
+
+// SF-03 (S08) stub -> LE-02 (S19) real implementation. The original stub's
+// own comment promised "callers never change" but the real validator
+// genuinely needs the caller's id and the order total (min_order/per-user-
+// limit/first-order checks can't be done without them) -- the stub never
+// checked anything real, so it never needed them. `loyalty.validate_coupon`
+// (0070) is SECURITY DEFINER and does the actual work; this is a thin
+// pass-through, not a second copy of the logic.
 export interface CouponResult {
-  valid: false;
-  discountSar: null;
-  reasonAr: string;
-  reasonEn: string;
+  valid: boolean;
+  discountSar: number | null;
+  reasonAr: string | null;
+  reasonEn: string | null;
 }
 
-export async function validateCoupon(_code: string): Promise<CouponResult> {
+export async function validateCoupon(client: PoolClient, code: string, userId: string, orderTotal: number): Promise<CouponResult> {
+  const res = await client.query<{ result: { valid: boolean; discountSar: string | null; reasonAr: string | null; reasonEn: string | null } }>(
+    "select loyalty.validate_coupon($1, $2, $3) as result",
+    [code, userId, orderTotal]
+  );
+  const result = res.rows[0]?.result;
   return {
-    valid: false,
-    discountSar: null,
-    reasonAr: "الكوبونات غير متاحة حاليًا",
-    reasonEn: "Coupons are not available yet"
+    valid: result?.valid ?? false,
+    discountSar: result?.discountSar !== null && result?.discountSar !== undefined ? Number(result.discountSar) : null,
+    reasonAr: result?.reasonAr ?? null,
+    reasonEn: result?.reasonEn ?? null
   };
 }

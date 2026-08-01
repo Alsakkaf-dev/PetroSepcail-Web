@@ -1,0 +1,12 @@
+{
+  "name": "PetroSpecial Driver",
+  "short_name": "PS Driver",
+  "description": "PetroSpecial driver delivery app",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#16265c",
+  "theme_color": "#16265c",
+  "icons": [{ "src": "/icon.svg", "sizes": "192x192 512x512", "type": "image/svg+xml", "purpose": "any" }]
+}

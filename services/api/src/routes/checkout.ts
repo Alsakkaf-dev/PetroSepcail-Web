@@ -6,6 +6,7 @@ import {
 } from "@petrospecial/contracts";
 import type { FastifyInstance } from "fastify";
 import { getVatRate, money } from "../catalog/pricing.js";
+import { validateCoupon } from "../checkout/couponStub.js";
 import { quoteDelivery } from "../checkout/deliveryQuote.js";
 import { withRlsTransaction, withServiceRoleTransaction } from "../db.js";
 import { ApiError } from "../errors.js";
@@ -96,6 +97,43 @@ export function registerCheckoutRoutes(app: FastifyInstance): void {
     );
     if (!quote.inRadius) throw new ApiError("OUT_OF_DELIVERY_RADIUS");
 
+    // LE-02 (S19): re-validate the cart's stored coupon against the
+    // server-computed subtotal right before placement — never trust the
+    // value shown at cart-preview time, same "server-resolved, never
+    // client-supplied" discipline every price in this codebase already
+    // follows. A no-longer-valid coupon silently contributes 0 discount
+    // rather than blocking checkout (NFR-LE-008: a loyalty problem never
+    // blocks a checkout).
+    const couponCode = await withRlsTransaction(actor, async (client) => {
+      const res = await client.query<{ coupon_code: string | null }>("select coupon_code from orders.carts where id = $1", [body.cartId]);
+      return res.rows[0]?.coupon_code ?? null;
+    });
+    let couponDiscount = 0;
+    if (couponCode) {
+      const coupon = await withRlsTransaction(actor, (client) => validateCoupon(client, couponCode, actor.sub, subtotalInclVat));
+      if (coupon.valid && coupon.discountSar !== null) couponDiscount = coupon.discountSar;
+    }
+
+    // LE-07: redemption stacks with the coupon; server re-caps via
+    // loyalty.quote_redemption (≤50% of total + available balance,
+    // NFR-LE-003) rather than trusting body.pointsToRedeem's discount value.
+    let allowedPoints = 0;
+    let redeemDiscount = 0;
+    if (body.pointsToRedeem && body.pointsToRedeem > 0) {
+      const remainingAfterCoupon = Math.max(subtotalInclVat - couponDiscount, 0);
+      const quote = await withRlsTransaction(actor, async (client) => {
+        const res = await client.query<{ result: { allowedPoints: number; discountSar: string } }>(
+          "select loyalty.quote_redemption($1, $2, $3) as result",
+          [actor.sub, body.pointsToRedeem, remainingAfterCoupon]
+        );
+        return res.rows[0]!.result;
+      });
+      allowedPoints = quote.allowedPoints;
+      redeemDiscount = Number(quote.discountSar);
+    }
+
+    const discountAmount = money(couponDiscount + redeemDiscount);
+
     // The error-mapping catch deliberately sits OUTSIDE withServiceRoleTransaction:
     // db.ts's runInTransaction treats a thrown ApiError as a controlled
     // business outcome and COMMITS regardless (correct for auth's own
@@ -119,7 +157,7 @@ export function registerCheckoutRoutes(app: FastifyInstance): void {
             body.fulfillmentType ?? "home_delivery",
             body.pickupLocationId ?? null,
             quote.deliveryFee,
-            "0.00"
+            discountAmount
           ]
         );
         return res.rows[0] as {
@@ -137,6 +175,20 @@ export function registerCheckoutRoutes(app: FastifyInstance): void {
       if (message.includes("COD_LIMIT_EXCEEDED")) throw new ApiError("COD_LIMIT_EXCEEDED");
       if (message.includes("CONFLICT")) throw new ApiError("CONFLICT");
       throw err;
+    }
+
+    // loyalty.apply_coupon_redemption/apply_redemption are each idempotent
+    // per order — safe to call again on a replay, but skipped anyway to
+    // avoid an unnecessary write on the (already-recorded) common path.
+    if (!result.is_replay) {
+      await withServiceRoleTransaction(async (client) => {
+        if (couponCode && couponDiscount > 0) {
+          await client.query("select loyalty.apply_coupon_redemption($1, $2, $3, $4)", [couponCode, actor.sub, result.order_id, money(couponDiscount)]);
+        }
+        if (allowedPoints > 0) {
+          await client.query("select loyalty.apply_redemption($1, $2, $3)", [actor.sub, result.order_id, allowedPoints]);
+        }
+      });
     }
 
     if (result.status === "confirmed") {

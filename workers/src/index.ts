@@ -2,7 +2,10 @@ import { startBankTransferSweeper } from "./bankTransferSweeper.js";
 import { startAuditDueWorker } from "./auditDueWorker.js";
 import { startDispatchWorker } from "./dispatchWorker.js";
 import { buildHealthServer } from "./health.js";
+import { startInvoiceWorker } from "./invoiceWorker.js";
+import { startLoyaltyWorker } from "./loyaltyWorker.js";
 import { startPingPurgeWorker } from "./pingPurgeWorker.js";
+import { startStatementWorker } from "./statementWorker.js";
 import { createHealthWatcher } from "./healthWatcher.js";
 import { logger } from "./logger.js";
 
@@ -12,7 +15,7 @@ function requireEnv(name: string): string {
   return value;
 }
 
-// Mailer/push/scheduler job runners land in S05 (PC-06/12); zatca dispatch in S15.
+// Mailer/push/scheduler job runners land in S05 (PC-06/12).
 const port = Number(process.env.WORKERS_HEALTH_PORT ?? 4020);
 
 buildHealthServer().listen(port, "0.0.0.0", () => {
@@ -40,6 +43,19 @@ startPingPurgeWorker();
 
 // DL-06/D-14 rule g (S12): raises a stock audit per driver once their cadence has elapsed.
 startAuditDueWorker();
+
+// SP-04/05 (S15): stamps a wholesale invoice's ZATCA delivery date on
+// EV-PC-022, and sweeps invoices past due_at into 'overdue' daily.
+startInvoiceWorker();
+
+// SP-06/07 (S16): monthly statement generation + EV-PC-043 (loyalty
+// reward -> credit note) consumer — no longer dormant as of S19/S20,
+// loyaltyWorker.ts below is the real producer.
+startStatementWorker();
+
+// LE-01/05/06 (S19/S20): points earn/reverse, coupon release, early-pay +
+// volume supplier rewards, points expiry, campaign scheduler.
+startLoyaltyWorker();
 
 setInterval(() => {
   logger.info("heartbeat");

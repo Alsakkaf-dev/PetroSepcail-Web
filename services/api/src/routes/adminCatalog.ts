@@ -273,63 +273,97 @@ export function registerAdminCatalogRoutes(app: FastifyInstance): void {
     const body = priceUpdateRequest.parse(request.body);
     const actor = request.ctx.actor!;
 
-    if (body.tierPrices) {
-      // SPEC-GAP (packages/contracts/src/ac-catalog.ts): catalog.tier_prices
-      // is SP-02's table (30-supplier-portal, S14) and doesn't exist yet.
-      throw new ApiError("VALIDATION_ERROR", {
-        field: "tierPrices",
-        reason: "tier pricing lands with SP-02 (S14); not available yet"
-      });
+    if (!body.retailPrice && !body.tierPrices) {
+      throw new ApiError("VALIDATION_ERROR", { field: "retailPrice/tierPrices", reason: "at least one is required" });
     }
-    if (!body.retailPrice) throw new ApiError("VALIDATION_ERROR", { field: "retailPrice", reason: "required" });
 
-    const row = await withServiceRoleTransaction(async (client) => {
+    const result = await withServiceRoleTransaction(async (client) => {
       const packSize = await client.query("select id from catalog.pack_sizes where id = $1", [body.packSizeId]);
       if (packSize.rows.length === 0) throw new ApiError("NOT_FOUND");
 
-      const before = await client.query<{ list_price: string }>(
-        "select list_price from catalog.prices where pack_size_id = $1 and is_current",
-        [body.packSizeId]
-      );
-      const oldPrice = before.rows[0]?.list_price ?? null;
+      let retailPrice: string;
+      let effectiveAt: Date;
+      let oldPrice: string | null = null;
 
-      await client.query("update catalog.prices set is_current = false where pack_size_id = $1 and is_current", [
-        body.packSizeId
-      ]);
-      const res = await client.query<{ list_price: string; effective_at: Date }>(
-        `insert into catalog.prices (pack_size_id, list_price, is_current)
-         values ($1, $2, true) returning list_price, effective_at`,
-        [body.packSizeId, body.retailPrice]
-      );
+      if (body.retailPrice) {
+        const before = await client.query<{ list_price: string }>(
+          "select list_price from catalog.prices where pack_size_id = $1 and is_current",
+          [body.packSizeId]
+        );
+        oldPrice = before.rows[0]?.list_price ?? null;
 
-      // FR-AC02-003: "a change emits EV-PC-003 ... issued invoices are never
-      // retro-priced" — this only ever inserts a new catalog.prices row, it
-      // never updates orders.order_lines' already-snapshotted unit_price.
-      await publishEvent(client, {
-        name: "catalog.price.changed",
-        actorSub: actor.sub,
-        actorRole: actor.role,
-        payload: { pack_size_id: body.packSizeId, old: oldPrice, new: res.rows[0]!.list_price }
-      });
-      await client.query(
-        `insert into audit.audit_log (actor_id, actor_role, action, resource, resource_id, before, after)
-         values ($1, $2, 'price_changed', 'catalog.prices', $3, $4, $5)`,
-        [
-          actor.sub,
-          actor.role,
-          body.packSizeId,
-          JSON.stringify({ listPrice: oldPrice }),
-          JSON.stringify({ listPrice: res.rows[0]!.list_price })
-        ]
-      );
-      return res.rows[0]!;
+        await client.query("update catalog.prices set is_current = false where pack_size_id = $1 and is_current", [
+          body.packSizeId
+        ]);
+        const res = await client.query<{ list_price: string; effective_at: Date }>(
+          `insert into catalog.prices (pack_size_id, list_price, is_current)
+           values ($1, $2, true) returning list_price, effective_at`,
+          [body.packSizeId, body.retailPrice]
+        );
+        retailPrice = res.rows[0]!.list_price;
+        effectiveAt = res.rows[0]!.effective_at;
+
+        // FR-AC02-003: "a change emits EV-PC-003 ... issued invoices are
+        // never retro-priced" — this only ever inserts a new catalog.prices
+        // row, it never updates orders.order_lines' already-snapshotted
+        // unit_price.
+        await publishEvent(client, {
+          name: "catalog.price.changed",
+          actorSub: actor.sub,
+          actorRole: actor.role,
+          payload: { pack_size_id: body.packSizeId, old: oldPrice, new: retailPrice }
+        });
+        await client.query(
+          `insert into audit.audit_log (actor_id, actor_role, action, resource, resource_id, before, after)
+           values ($1, $2, 'price_changed', 'catalog.prices', $3, $4, $5)`,
+          [actor.sub, actor.role, body.packSizeId, JSON.stringify({ listPrice: oldPrice }), JSON.stringify({ listPrice: retailPrice })]
+        );
+      } else {
+        const current = await client.query<{ list_price: string }>(
+          "select list_price from catalog.prices where pack_size_id = $1 and is_current",
+          [body.packSizeId]
+        );
+        if (!current.rows[0]) throw new ApiError("NOT_FOUND");
+        retailPrice = current.rows[0].list_price;
+        effectiveAt = new Date();
+      }
+
+      let tierPrices: { bronze: string; silver: string; gold: string } | undefined;
+      if (body.tierPrices) {
+        // AC-02/SP-02 (04-database-design.md §5 comment: "AC-02 (S17+) is the
+        // sole writer of values" — this route). NEVER exposed to a customer
+        // (NFR-SP-003); catalog.tier_prices has no is_current concept, a
+        // straight upsert per (pack_size_id, tier) is the whole model (0052).
+        for (const [tier, price] of Object.entries(body.tierPrices) as Array<["bronze" | "silver" | "gold", string]>) {
+          await client.query(
+            `insert into catalog.tier_prices (pack_size_id, tier, unit_price) values ($1, $2, $3)
+             on conflict (pack_size_id, tier) do update set unit_price = excluded.unit_price, updated_at = now()`,
+            [body.packSizeId, tier, price]
+          );
+        }
+        tierPrices = body.tierPrices;
+        await publishEvent(client, {
+          name: "catalog.price.changed",
+          actorSub: actor.sub,
+          actorRole: actor.role,
+          payload: { pack_size_id: body.packSizeId, tier_prices: body.tierPrices }
+        });
+        await client.query(
+          `insert into audit.audit_log (actor_id, actor_role, action, resource, resource_id, after)
+           values ($1, $2, 'tier_price_changed', 'catalog.tier_prices', $3, $4)`,
+          [actor.sub, actor.role, body.packSizeId, JSON.stringify(body.tierPrices)]
+        );
+      }
+
+      return { retailPrice, tierPrices, effectiveAt };
     });
 
     return reply.code(200).send(
       priceUpdateResponse.parse({
         packSizeId: body.packSizeId,
-        retailPrice: row.list_price,
-        effectiveAt: row.effective_at.toISOString()
+        retailPrice: result.retailPrice,
+        ...(result.tierPrices ? { tierPrices: result.tierPrices } : {}),
+        effectiveAt: result.effectiveAt.toISOString()
       })
     );
   });

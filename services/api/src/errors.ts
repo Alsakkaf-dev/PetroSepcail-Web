@@ -125,6 +125,44 @@ export const ERROR_REGISTRY = {
     status: 403,
     messageKey: "error.review_edit_window_closed",
     message: "This review can no longer be edited or deleted."
+  },
+  // 30-supplier-portal/05-api-specification.md §9 (SP-01/02/03, S14).
+  CREDIT_LIMIT_EXCEEDED: {
+    status: 409,
+    messageKey: "error.credit_limit_exceeded",
+    message: "This order would exceed the supplier's credit limit."
+  },
+  NO_CREDIT_LIMIT: {
+    status: 409,
+    messageKey: "error.no_credit_limit",
+    message: "This supplier has no active credit limit set."
+  },
+  TIER_PRICE_MISSING: {
+    status: 409,
+    messageKey: "error.tier_price_missing",
+    message: "No tier price is configured for this item."
+  },
+  // 30-supplier-portal/05-api-specification.md §9 (SP-05, S15).
+  INVOICE_NOT_OPEN: {
+    status: 409,
+    messageKey: "error.invoice_not_open",
+    message: "This invoice is already paid or written off."
+  },
+  PROOF_ALREADY_SUBMITTED: {
+    status: 409,
+    messageKey: "error.proof_already_submitted",
+    message: "A payment proof for this invoice is already pending verification."
+  },
+  CUSTODY_MISMATCH: {
+    status: 409,
+    messageKey: "error.custody_mismatch",
+    message: "This remittance does not match any held custody."
+  },
+  // 40-admin-center/05-api-specification.md §4 (AC-05, S18).
+  INVALID_REASON_CODE: {
+    status: 422,
+    messageKey: "error.invalid_reason_code",
+    message: "This reason code is invalid, or a required note is missing."
   }
 } as const;
 

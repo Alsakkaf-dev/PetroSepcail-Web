@@ -70,12 +70,9 @@ export const packSizeAdminRow = z.object({
 export const packSizeUpsertResponse = packSizeAdminRow;
 export type PackSizeUpsertResponse = z.infer<typeof packSizeUpsertResponse>;
 
-// EP-AC-012 · PUT /admin/catalog/prices · auth(admin)
-// SPEC-GAP: `tierPrices` (bronze/silver/gold) writes `catalog.tier_prices`,
-// a table SP-02 (30-supplier-portal, S14) owns and hasn't been created yet —
-// out of this session's scope (S07 = SF-01/SF-02/AC-02 only). Accepted here
-// so the contract matches the frozen spec shape, but the route rejects a
-// request that actually sets it until SP-02 lands.
+// EP-AC-012 · PUT /admin/catalog/prices · auth(admin) — retailPrice and/or
+// tierPrices (bronze/silver/gold, catalog.tier_prices, SP-02/S14); at least
+// one of the two must be present.
 export const priceUpdateRequest = z.object({
   packSizeId: z.string().uuid(),
   retailPrice: z.string().optional(),
@@ -86,6 +83,7 @@ export type PriceUpdateRequest = z.infer<typeof priceUpdateRequest>;
 export const priceUpdateResponse = z.object({
   packSizeId: z.string().uuid(),
   retailPrice: z.string(),
+  tierPrices: z.object({ bronze: z.string(), silver: z.string(), gold: z.string() }).optional(),
   effectiveAt: z.string().datetime()
 });
 export type PriceUpdateResponse = z.infer<typeof priceUpdateResponse>;

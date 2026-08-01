@@ -21,7 +21,11 @@ export const placeOrderRequest = z.object({
   slot: z.enum(["same_day", "next_am", "next_pm"]),
   paymentMethod: z.enum(["cod", "bank_transfer"]),
   fulfillmentType: z.enum(["home_delivery", "pickup_point"]).optional(),
-  pickupLocationId: z.string().uuid().optional()
+  pickupLocationId: z.string().uuid().optional(),
+  // LE-07 (S19/S20): points to redeem at placement, stacking with any
+  // applied coupon; server re-caps via loyalty.quote_redemption, never
+  // trusts this number directly (NFR-LE-003).
+  pointsToRedeem: z.number().int().nonnegative().optional()
 });
 export type PlaceOrderRequest = z.infer<typeof placeOrderRequest>;
 

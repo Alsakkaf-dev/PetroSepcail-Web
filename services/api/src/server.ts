@@ -11,7 +11,14 @@ import { registerRequestContext } from "./gateway/requestContext.js";
 import { metrics } from "./metrics.js";
 import { registerAccountRoutes } from "./routes/account.js";
 import { registerAddressRoutes } from "./routes/addresses.js";
+import { registerAdminAnalyticsRoutes } from "./routes/adminAnalytics.js";
 import { registerAdminCatalogRoutes } from "./routes/adminCatalog.js";
+import { registerAdminCreditRoutes } from "./routes/adminCredit.js";
+import { registerAdminFinanceRoutes } from "./routes/adminFinance.js";
+import { registerAdminFleetRoutes } from "./routes/adminFleet.js";
+import { registerAdminGovernanceRoutes } from "./routes/adminGovernance.js";
+import { registerAdminInterventionRoutes } from "./routes/adminInterventions.js";
+import { registerAdminPromotionRoutes } from "./routes/adminPromotions.js";
 import { registerAdminOrderRoutes } from "./routes/adminOrders.js";
 import { registerAdminUserRoutes } from "./routes/adminUsers.js";
 import { registerAuthRoutes } from "./routes/auth.js";
@@ -23,10 +30,15 @@ import { registerDriverDeliveryRoutes } from "./routes/driverDelivery.js";
 import { registerDriverShiftRoutes } from "./routes/driverShift.js";
 import { registerOrderRoutes } from "./routes/orders.js";
 import { registerI18nRoutes } from "./routes/i18n.js";
+import { registerLoyaltyRoutes } from "./routes/loyalty.js";
 import { registerMeRoutes } from "./routes/me.js";
 import { registerMediaRoutes } from "./routes/media.js";
 import { registerNotificationRoutes } from "./routes/notifications.js";
 import { registerStorefrontFullRoutes } from "./routes/storefrontFull.js";
+import { registerSupplierRoutes } from "./routes/supplier.js";
+import { registerSupplierInvoicingRoutes } from "./routes/supplierInvoicing.js";
+import { registerSupplierStatementRoutes } from "./routes/supplierStatement.js";
+import { registerSupplierTrackingRoutes } from "./routes/supplierTracking.js";
 
 // TC-PC10-004: reasons the login handler (routes/auth.ts) can reject a
 // credential-verification attempt. Counted centrally here, in the one place
@@ -98,9 +110,21 @@ export async function buildServer(): Promise<FastifyInstance> {
   registerAccountRoutes(app);
   registerAdminUserRoutes(app);
   registerAdminOrderRoutes(app);
+  registerAdminAnalyticsRoutes(app);
+  registerAdminCreditRoutes(app);
+  registerAdminInterventionRoutes(app);
+  registerAdminGovernanceRoutes(app);
+  registerAdminFinanceRoutes(app);
+  registerAdminFleetRoutes(app);
+  registerAdminPromotionRoutes(app);
+  registerLoyaltyRoutes(app);
   registerDriverDeliveryRoutes(app);
   registerDriverShiftRoutes(app);
   registerStorefrontFullRoutes(app);
+  registerSupplierRoutes(app);
+  registerSupplierInvoicingRoutes(app);
+  registerSupplierStatementRoutes(app);
+  registerSupplierTrackingRoutes(app);
 
   // D-09 error envelope {error:{code,message,details}} — the single
   // translation point from thrown errors to the wire format every EP-PC
