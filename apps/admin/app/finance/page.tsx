@@ -2,8 +2,8 @@
 
 import type { AdminCustodyResponse, ReceivablesResponse, VerificationQueueResponse } from "@petrospecial/contracts";
 import { useEffect, useState } from "react";
-import { authedFetch } from "../../lib/authClient.js";
-import { LoginGate } from "../../lib/LoginGate.js";
+import { authedFetch } from "../../lib/authClient";
+import { LoginGate } from "../../lib/LoginGate";
 
 // AC-08 (S18). SCR-AC08-001. Receivables/aging = SP-03's own
 // credit.v_exposure/v_receivables_aging verbatim (NFR-AC-007); the custody
