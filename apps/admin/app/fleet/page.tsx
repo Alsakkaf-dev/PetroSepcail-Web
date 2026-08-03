@@ -2,8 +2,8 @@
 
 import type { FleetAlertsResponse, FleetKpisResponse } from "@petrospecial/contracts";
 import { useEffect, useState } from "react";
-import { authedFetch } from "../../lib/authClient.js";
-import { LoginGate } from "../../lib/LoginGate.js";
+import { authedFetch } from "../../lib/authClient";
+import { LoginGate } from "../../lib/LoginGate";
 
 // AC-09 (S18). SCR-AC09-001. No live map yet (would need a MapLibre/OSM tile
 // integration — DEFERRED-DECISIONS.md Section 3's own vendor-free default
