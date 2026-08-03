@@ -2,8 +2,8 @@
 
 import type { FulfillmentAnalyticsResponse, SalesAnalyticsResponse } from "@petrospecial/contracts";
 import { useEffect, useState } from "react";
-import { authedFetch, getToken } from "../../lib/authClient.js";
-import { LoginGate } from "../../lib/LoginGate.js";
+import { authedFetch, getToken } from "../../lib/authClient";
+import { LoginGate } from "../../lib/LoginGate";
 
 function apiUrl(path: string): string {
   const base = process.env.NEXT_PUBLIC_API_URL;
