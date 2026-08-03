@@ -2,8 +2,8 @@
 
 import type { AuditLogResponse, VerifyChainResponse } from "@petrospecial/contracts";
 import { useEffect, useState } from "react";
-import { authedFetch } from "../../lib/authClient.js";
-import { LoginGate } from "../../lib/LoginGate.js";
+import { authedFetch } from "../../lib/authClient";
+import { LoginGate } from "../../lib/LoginGate";
 
 // AC-07 (S18). SCR-AC07-001. Read-only + verify-chain. An `admin` sees only
 // their own entries; `super_admin` sees all (the API itself enforces this,
