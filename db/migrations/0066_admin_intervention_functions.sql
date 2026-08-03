@@ -61,7 +61,7 @@ grant execute on function orders.admin_force_cancel(uuid, uuid, text, text) to a
 create function orders.admin_edit_address(p_order_id uuid, p_admin uuid, p_address jsonb, p_reason_code text)
 returns void
 language plpgsql security definer
-set search_path = pg_catalog, orders, audit
+set search_path = pg_catalog, public, orders, audit
 as $$
 declare v_before jsonb; v_status order_status;
 begin
