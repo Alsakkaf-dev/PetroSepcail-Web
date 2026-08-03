@@ -119,7 +119,7 @@ grant execute on function credit.submit_payment_proof(uuid, uuid, numeric, text,
 create function credit.apply_verified_payment(p_proof_id uuid, p_verified_by uuid, p_matched_bank_ref text default null)
 returns jsonb
 language plpgsql security definer
-set search_path = pg_catalog, credit
+set search_path = pg_catalog, public, credit
 as $$
 declare
   v_proof record;
