@@ -184,12 +184,17 @@ async function queryFacet(
 }
 
 async function queryAllFacets(client: PoolClient, filters: Filters, vatRate: number) {
-  const [family, grade, application, packSize] = await Promise.all([
-    queryFacet(client, filters, vatRate, "family", "f.code"),
-    queryFacet(client, filters, vatRate, "grade", "s.grade"),
-    queryFacet(client, filters, vatRate, "application", "s.application"),
-    queryFacet(client, filters, vatRate, "packSize", "p.size_label")
-  ]);
+  // Sequential, not Promise.all: these all run on the same pooled client/
+  // transaction, and pg's wire protocol only ever executes one query at a
+  // time per connection — firing concurrent client.query() calls on one
+  // client doesn't parallelize anything, it just queues them behind node-
+  // postgres's own deprecation warning ("Calling client.query() when the
+  // client is already executing a query is deprecated") and risks the
+  // occasional real failure under load.
+  const family = await queryFacet(client, filters, vatRate, "family", "f.code");
+  const grade = await queryFacet(client, filters, vatRate, "grade", "s.grade");
+  const application = await queryFacet(client, filters, vatRate, "application", "s.application");
+  const packSize = await queryFacet(client, filters, vatRate, "packSize", "p.size_label");
   return { family, grade, application, packSize };
 }
 
@@ -399,25 +404,27 @@ export function registerCatalogRoutes(app: FastifyInstance): void {
       const sku = skuRes.rows[0];
       if (!sku) return null;
 
-      const [contentRes, certRes, mediaRes, reviewRes] = await Promise.all([
-        client.query<{ block: string; ordinal: number; body_ar: string; body_en: string }>(
-          "select block, ordinal, body_ar, body_en from catalog.sku_content where sku_id = $1 order by block, ordinal",
-          [sku.id]
-        ),
-        client.query<{ mark: string; caption_ar: string; caption_en: string }>(
-          "select mark, caption_ar, caption_en from catalog.certifications where sku_id = $1",
-          [sku.id]
-        ),
-        client.query<{ object_key: string; alt_ar: string | null; alt_en: string | null }>(
-          `select m.object_key, sm.alt_ar, sm.alt_en from catalog.sku_media sm
-           join core.media_objects m on m.id = sm.media_id
-           where sm.sku_id = $1 order by sm.sort`,
-          [sku.id]
-        ),
-        // orders.reviews doesn't exist until S08/SF-08 (S13) — rating is a
-        // structural placeholder (0/null) until that schema lands.
-        Promise.resolve({ rows: [{ avg: null, count: 0 }] })
-      ]);
+      // Sequential, not Promise.all: same shared-client/single-connection
+      // reasoning as queryAllFacets above — concurrent client.query() calls
+      // on one pooled client don't parallelize (pg is one-query-at-a-time
+      // per connection) and trigger node-postgres's own deprecation warning.
+      const contentRes = await client.query<{ block: string; ordinal: number; body_ar: string; body_en: string }>(
+        "select block, ordinal, body_ar, body_en from catalog.sku_content where sku_id = $1 order by block, ordinal",
+        [sku.id]
+      );
+      const certRes = await client.query<{ mark: string; caption_ar: string; caption_en: string }>(
+        "select mark, caption_ar, caption_en from catalog.certifications where sku_id = $1",
+        [sku.id]
+      );
+      const mediaRes = await client.query<{ object_key: string; alt_ar: string | null; alt_en: string | null }>(
+        `select m.object_key, sm.alt_ar, sm.alt_en from catalog.sku_media sm
+         join core.media_objects m on m.id = sm.media_id
+         where sm.sku_id = $1 order by sm.sort`,
+        [sku.id]
+      );
+      // orders.reviews doesn't exist until S08/SF-08 (S13) — rating is a
+      // structural placeholder (0/null) until that schema lands.
+      const reviewRes = { rows: [{ avg: null, count: 0 }] };
 
       const blocksByType = (block: string) =>
         contentRes.rows.filter((r) => r.block === block).map((r) => ({ ar: r.body_ar, en: r.body_en }));
