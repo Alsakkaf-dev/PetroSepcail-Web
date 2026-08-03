@@ -2,8 +2,8 @@
 
 import type { AdminSupplierListResponse } from "@petrospecial/contracts";
 import { useEffect, useState } from "react";
-import { authedFetch } from "../../lib/authClient.js";
-import { LoginGate } from "../../lib/LoginGate.js";
+import { authedFetch } from "../../lib/authClient";
+import { LoginGate } from "../../lib/LoginGate";
 
 // AC-03 (S17). SCR-AC03-001. A dual-control request (>SAR 100,000) returns
 // status "pending_dual_control" instead of applying — this screen surfaces
