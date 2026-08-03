@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { clearToken, getToken, login } from "./authClient.js";
+import { clearToken, getToken, login } from "./authClient";
 
 // Shared login gate for every new admin page — see authClient.ts's own note.
 export function LoginGate({ children }: { children: React.ReactNode }) {
