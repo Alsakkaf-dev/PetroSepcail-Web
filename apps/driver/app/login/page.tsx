@@ -35,7 +35,12 @@ function LoginPageInner() {
       await login(email, password);
       router.push(`/shift?lang=${locale}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t(locale, "errorGeneric"));
+      // authClient collapses every transport-level fetch failure into this
+      // one code so it can be said in the driver's language here, instead of
+      // surfacing the browser's raw "Failed to fetch".
+      const message = err instanceof Error ? err.message : "";
+      if (message === "NETWORK_UNREACHABLE") setError(t(locale, "errorNetwork"));
+      else setError(message || t(locale, "errorGeneric"));
     } finally {
       setBusy(false);
     }
