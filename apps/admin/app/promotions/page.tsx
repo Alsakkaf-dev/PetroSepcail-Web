@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { authedFetch } from "../../lib/authClient.js";
-import { LoginGate } from "../../lib/LoginGate.js";
+import { authedFetch } from "../../lib/authClient";
+import { LoginGate } from "../../lib/LoginGate";
 
 // AC-04 (S17, wired to real loyalty.admin_create_coupon/create_eligibility_rule
 // in S20 — see routes/adminPromotions.ts). Campaigns (EP-AC-031) stay a thin
