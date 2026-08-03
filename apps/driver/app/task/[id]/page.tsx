@@ -6,6 +6,16 @@ import type { TaskDetailResponse } from "@petrospecial/contracts";
 import { authedFetch } from "../../../lib/authClient";
 import { t } from "../../../lib/locale";
 import { useLocale } from "../../../lib/useLocale";
+import { uploadFile } from "../../../lib/uploadFile";
+
+const FAIL_REASONS = ["recipient_absent", "address_wrong", "refused", "unreachable", "other"] as const;
+const REASON_LABEL_KEY: Record<(typeof FAIL_REASONS)[number], "reasonRecipientAbsent" | "reasonAddressWrong" | "reasonRefused" | "reasonUnreachable" | "reasonOther"> = {
+  recipient_absent: "reasonRecipientAbsent",
+  address_wrong: "reasonAddressWrong",
+  refused: "reasonRefused",
+  unreachable: "reasonUnreachable",
+  other: "reasonOther"
+};
 
 // EP-DL-011/012/013/020 (DL-01/DL-04, S10) — task detail + the driver's
 // available actions for it. Only the 4 EP-DL-020 transitions this session's
@@ -34,8 +44,13 @@ function TaskPageInner() {
   const [detail, setDetail] = useState<TaskDetailResponse | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [otpInput, setOtpInput] = useState("");
   const [photoMediaId, setPhotoMediaId] = useState("");
+  const [collectorKind, setCollectorKind] = useState<"customer" | "supplier">("customer");
+  const [codCollected, setCodCollected] = useState("");
+  const [failReason, setFailReason] = useState<(typeof FAIL_REASONS)[number]>("recipient_absent");
+  const [failNote, setFailNote] = useState("");
 
   function load() {
     authedFetch<TaskDetailResponse>(`/api/v1/driver/tasks/${params.id}`)
@@ -75,6 +90,21 @@ function TaskPageInner() {
     }
   }
 
+  async function pickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setError(null);
+    try {
+      const mediaId = await uploadFile(file, "pod_photo");
+      setPhotoMediaId(mediaId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t(locale, "errorGeneric"));
+    } finally {
+      setUploading(false);
+    }
+  }
+
   async function capturePod() {
     setBusy(true);
     setError(null);
@@ -84,11 +114,57 @@ function TaskPageInner() {
         body: JSON.stringify({
           photoMediaId,
           otp: otpInput || undefined,
-          collectorKind: "customer",
+          collectorKind,
+          codCollectedAmount: codCollected ? Number(codCollected) : undefined,
           clientActionId: `${params.id}-pod-${Date.now()}`
         })
       });
       load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t(locale, "errorGeneric"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function regenerateOtp() {
+    setBusy(true);
+    setError(null);
+    try {
+      await authedFetch(`/api/v1/driver/tasks/${params.id}/otp/regenerate`, { method: "POST" });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t(locale, "errorGeneric"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function failDelivery() {
+    setBusy(true);
+    setError(null);
+    try {
+      await authedFetch(`/api/v1/driver/tasks/${params.id}/fail`, {
+        method: "POST",
+        body: JSON.stringify({
+          reasonCode: failReason,
+          note: failNote || undefined,
+          clientActionId: `${params.id}-fail-${Date.now()}`
+        })
+      });
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t(locale, "errorGeneric"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function returnToHub() {
+    setBusy(true);
+    setError(null);
+    try {
+      await authedFetch(`/api/v1/driver/tasks/${params.id}/return-to-hub`, { method: "POST" });
+      router.push(`/manifest?lang=${locale}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : t(locale, "errorGeneric"));
     } finally {
@@ -143,17 +219,65 @@ function TaskPageInner() {
 
       {detail.task.status === "arrived" && (
         <div>
-          {/* Photo upload widget (EP-PC-050/051 presigned-URL flow) is not
-              wired into this form yet — pasting an already-uploaded media id
-              is a deliberate placeholder, not the real driver-facing UX. */}
-          <input placeholder="Photo media ID" value={photoMediaId} onChange={(e) => setPhotoMediaId(e.target.value)} />
+          <h2>{t(locale, "uploadPhoto")}</h2>
+          <input type="file" accept="image/jpeg,image/webp,image/png" capture="environment" disabled={uploading} onChange={pickPhoto} />
+          {uploading && <p>{t(locale, "uploading")}</p>}
+          {photoMediaId && <p>✓ {photoMediaId}</p>}
+
           {detail.otpRequired && (
-            <input placeholder="OTP" value={otpInput} onChange={(e) => setOtpInput(e.target.value)} />
+            <div>
+              <input placeholder="OTP" value={otpInput} onChange={(e) => setOtpInput(e.target.value)} />
+              <button type="button" disabled={busy} onClick={regenerateOtp}>
+                {t(locale, "regenerateOtp")}
+              </button>
+            </div>
           )}
-          <button disabled={busy || !photoMediaId} onClick={capturePod}>
-            {t(locale, "arrived")} → POD
+
+          <label>
+            {t(locale, "collectorKind")}
+            <select value={collectorKind} onChange={(e) => setCollectorKind(e.target.value as "customer" | "supplier")}>
+              <option value="customer">{t(locale, "collectorCustomer")}</option>
+              <option value="supplier">{t(locale, "collectorSupplier")}</option>
+            </select>
+          </label>
+
+          {detail.codAmount && (
+            <label>
+              {t(locale, "codCollected")}
+              <input type="number" min={0} step="0.01" value={codCollected} onChange={(e) => setCodCollected(e.target.value)} />
+            </label>
+          )}
+
+          <button disabled={busy || uploading || !photoMediaId} onClick={capturePod}>
+            {t(locale, "submitPod")}
           </button>
         </div>
+      )}
+
+      {detail.task.status !== "delivered" && detail.task.status !== "confirmed" && detail.task.status !== "failed" && (
+        <details>
+          <summary>{t(locale, "failTask")}</summary>
+          <label>
+            {t(locale, "reasonCode")}
+            <select value={failReason} onChange={(e) => setFailReason(e.target.value as (typeof FAIL_REASONS)[number])}>
+              {FAIL_REASONS.map((r) => (
+                <option key={r} value={r}>
+                  {t(locale, REASON_LABEL_KEY[r])}
+                </option>
+              ))}
+            </select>
+          </label>
+          <input placeholder={t(locale, "note")} value={failNote} onChange={(e) => setFailNote(e.target.value)} />
+          <button type="button" disabled={busy} onClick={failDelivery}>
+            {t(locale, "submit")}
+          </button>
+        </details>
+      )}
+
+      {detail.task.status === "failed" && (
+        <button disabled={busy} onClick={returnToHub}>
+          {t(locale, "returnToHub")}
+        </button>
       )}
     </main>
   );

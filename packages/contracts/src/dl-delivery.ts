@@ -136,6 +136,7 @@ export const routeLeg = z.object({
   geometry: z.string()
 });
 export const routeResponse = z.object({ legs: z.array(routeLeg).nullable(), totalDurationS: z.number().nullable() });
+export type RouteResponse = z.infer<typeof routeResponse>;
 
 // --- DL-05/09/06 (S12): POD, exceptions, audits, KPIs ----------------------
 
@@ -168,11 +169,13 @@ export const returnToHubResponse = z.object({ status: z.literal("returned") });
 export const auditListResponse = z.object({
   items: z.array(z.object({ auditId: z.string().uuid(), status: z.enum(["open", "closed", "exception"]), openedAt: z.string().datetime() }))
 });
+export type AuditListResponse = z.infer<typeof auditListResponse>;
 export const auditCountRequest = z.object({ counted: z.array(z.object({ packSizeId: z.string().uuid(), qty: z.number().int() })) });
 export const auditCountResponse = z.object({
   variance: z.array(varianceLine),
   status: z.enum(["closed", "exception"])
 });
+export type AuditCountResponse = z.infer<typeof auditCountResponse>;
 
 // EP-DL-080 · GET /driver/kpis · auth(driver)
 export const driverKpisResponse = z.object({
@@ -182,6 +185,7 @@ export const driverKpisResponse = z.object({
   reconAccuracyPct: z.number().nullable(),
   custodyOnTimePct: z.number().nullable()
 });
+export type DriverKpisResponse = z.infer<typeof driverKpisResponse>;
 
 // Pulled-forward AC-05 stand-in (SPEC-GAP): the real fulfillment console
 // (warehouse "pick complete" action) is AC-05, S18. orders.mark_ready_for_pickup

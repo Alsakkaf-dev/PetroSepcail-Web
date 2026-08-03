@@ -1,12 +1,20 @@
 "use client";
 
-import type { AddressRow, CheckoutQuoteResponse } from "@petrospecial/contracts";
+import type { AddressRow, CartResponse, CheckoutQuoteResponse } from "@petrospecial/contracts";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { authedFetch } from "../../lib/authClient";
 import { dirFor, otherLocale, slotLabel, t } from "../../lib/locale";
 import { useLocale } from "../../lib/useLocale";
+
+interface PointsBalanceResponse {
+  balance: number;
+}
+interface RedemptionQuoteResponse {
+  allowedPoints: number;
+  discountSar: string;
+}
 
 // useLocale() (useSearchParams) requires a Suspense boundary in the Next.js
 // App Router static-export path, or `next build` fails at prerender.
@@ -30,6 +38,11 @@ function CheckoutPageInner() {
   const [paymentMethod, setPaymentMethod] = useState<"cod" | "bank_transfer">("cod");
   const [error, setError] = useState<string | null>(null);
   const [placing, setPlacing] = useState(false);
+  const [cartTotal, setCartTotal] = useState<number | null>(null);
+  const [pointsBalance, setPointsBalance] = useState(0);
+  const [pointsToRedeem, setPointsToRedeem] = useState("");
+  const [redemption, setRedemption] = useState<RedemptionQuoteResponse | null>(null);
+  const [redeemBusy, setRedeemBusy] = useState(false);
 
   useEffect(() => {
     authedFetch<{ items: AddressRow[] }>("/api/v1/me/addresses")
@@ -39,7 +52,33 @@ function CheckoutPageInner() {
         else setShowNewAddress(true);
       })
       .catch((err) => setError(err instanceof Error ? err.message : "failed"));
+    authedFetch<CartResponse>("/api/v1/cart")
+      .then((res) => setCartTotal(Number(res.totals.total)))
+      .catch(() => {});
+    authedFetch<PointsBalanceResponse>("/api/v1/loyalty/points/balance")
+      .then((res) => setPointsBalance(res.balance))
+      .catch(() => {});
   }, []);
+
+  // EP-X-003 (LE-07, S19) — a live preview only; the server re-caps via
+  // loyalty.quote_redemption at order placement too, never trusting the
+  // client's own number (NFR-LE-003).
+  async function previewRedemption() {
+    const requested = Number(pointsToRedeem);
+    if (!requested || requested <= 0 || cartTotal === null) return;
+    setRedeemBusy(true);
+    try {
+      const res = await authedFetch<RedemptionQuoteResponse>("/api/v1/loyalty/redemption/quote", {
+        method: "POST",
+        body: JSON.stringify({ pointsRequested: requested, orderTotal: cartTotal })
+      });
+      setRedemption(res);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "failed");
+    } finally {
+      setRedeemBusy(false);
+    }
+  }
 
   async function addAddress(e: React.FormEvent) {
     e.preventDefault();
@@ -88,7 +127,13 @@ function CheckoutPageInner() {
       const res = await authedFetch<{ orderId: string }>("/api/v1/orders", {
         method: "POST",
         headers: { "idempotency-key": `store-${cart.cartId}-${Date.now()}` },
-        body: JSON.stringify({ cartId: cart.cartId, addressId, slot, paymentMethod })
+        body: JSON.stringify({
+          cartId: cart.cartId,
+          addressId,
+          slot,
+          paymentMethod,
+          pointsToRedeem: redemption ? redemption.allowedPoints : undefined
+        })
       });
       router.push(`/orders/${res.orderId}?lang=${locale}`);
     } catch (err) {
@@ -170,6 +215,40 @@ function CheckoutPageInner() {
                 </label>
               ))}
             </div>
+          )}
+        </section>
+      )}
+
+      {quote && pointsBalance > 0 && (
+        <section style={{ marginBottom: 24 }}>
+          <h2>{t(locale, "redeemPointsLabel")}</h2>
+          <p style={{ fontSize: 13, color: "var(--muted)" }}>
+            {t(locale, "pointsAvailableLabel")} <span className="ps-ltr">{pointsBalance} {t(locale, "pointsUnitShort")}</span>
+          </p>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              type="number"
+              min={0}
+              max={pointsBalance}
+              value={pointsToRedeem}
+              onChange={(e) => {
+                setPointsToRedeem(e.target.value);
+                setRedemption(null);
+              }}
+              style={{ width: 100 }}
+              className="ps-ltr"
+            />
+            <button type="button" disabled={redeemBusy} onClick={previewRedemption}>
+              {t(locale, "applyPointsAction")}
+            </button>
+          </div>
+          {redemption && (
+            <p>
+              {t(locale, "pointsDiscountLabel")}{" "}
+              <span className="ps-ltr">
+                {redemption.allowedPoints} {t(locale, "pointsUnitShort")} = -{redemption.discountSar} {t(locale, "sar")}
+              </span>
+            </p>
           )}
         </section>
       )}

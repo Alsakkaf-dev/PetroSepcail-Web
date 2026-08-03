@@ -40,7 +40,20 @@ export function registerAccountRoutes(app: FastifyInstance): void {
         "select count(*) from core.addresses where identity_id = $1",
         [actor.sub]
       );
-      return { orders: orders.rows, addressCount: Number(addressCount.rows[0]!.count) };
+      const points = await client.query<{ balance: string }>(
+        "select coalesce(sum(points), 0) as balance from loyalty.points_ledger where user_id = $1",
+        [actor.sub]
+      );
+      const returns = await client.query<{ count: string }>(
+        "select count(*) from orders.returns where user_id = $1 and status = 'requested'",
+        [actor.sub]
+      );
+      return {
+        orders: orders.rows,
+        addressCount: Number(addressCount.rows[0]!.count),
+        pointsBalance: Number(points.rows[0]?.balance ?? 0),
+        openReturns: Number(returns.rows[0]?.count ?? 0)
+      };
     });
 
     return reply.code(200).send(
@@ -51,26 +64,37 @@ export function registerAccountRoutes(app: FastifyInstance): void {
           total: o.total,
           placedAt: o.placed_at.toISOString()
         })),
-        pointsBalance: 0, // FR-SF10-004 — LE-01 doesn't exist until S19, see /account/loyalty
+        pointsBalance: result.pointsBalance,
         addressCount: result.addressCount,
-        openReturns: 0 // SF-07 (returns) not built yet
+        openReturns: result.openReturns
       })
     );
   });
 
-  // EP-SF-081 · GET /account/loyalty · auth — read-through LE-01 stub
-  // (contract-honoring seam, same precedent as SF-03/S08's coupon stub).
+  // EP-SF-081 · GET /account/loyalty · auth — real LE-01 read (loyalty.points_ledger,
+  // 0069/S19); this stayed a hardcoded-zero stub for one extra session after LE-01
+  // shipped (found and fixed here, same class of "shipped code silently missing
+  // its own documented event/wiring" bug as this codebase's other corrective fixes).
   app.get("/api/v1/account/loyalty", async (request, reply) => {
     const actor = requireActor(request);
-    const rate = await withRlsTransaction(actor, async (client) => {
-      const res = await client.query<{ get_setting: string }>("select core.get_setting('redeem_rate') as get_setting");
-      return Number(res.rows[0]?.get_setting ?? 0.05);
+    const result = await withRlsTransaction(actor, async (client) => {
+      const rateRes = await client.query<{ get_setting: string }>("select core.get_setting('redeem_rate') as get_setting");
+      const rate = Number(rateRes.rows[0]?.get_setting ?? 0.05);
+      const balanceRes = await client.query<{ balance: string }>(
+        "select coalesce(sum(points), 0) as balance from loyalty.points_ledger where user_id = $1",
+        [actor.sub]
+      );
+      const entriesRes = await client.query<{ points: number; kind: string; created_at: Date }>(
+        "select points, kind, created_at from loyalty.points_ledger where user_id = $1 order by created_at desc limit 10",
+        [actor.sub]
+      );
+      return { balance: Number(balanceRes.rows[0]?.balance ?? 0), rate, entries: entriesRes.rows };
     });
     return reply.code(200).send(
       loyaltyOverviewResponse.parse({
-        balance: 0,
-        redeemRate: { points: 100, sar: 100 * rate },
-        entries: []
+        balance: result.balance,
+        redeemRate: { points: 100, sar: 100 * result.rate },
+        entries: result.entries.map((e) => ({ delta: e.points, reason: e.kind, at: e.created_at.toISOString() }))
       })
     );
   });

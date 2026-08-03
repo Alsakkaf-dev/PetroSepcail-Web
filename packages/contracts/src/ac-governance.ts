@@ -80,6 +80,7 @@ export const interventionListItem = z.object({
   createdAt: z.string().datetime()
 });
 export const interventionListResponse = z.object({ items: z.array(interventionListItem), nextCursor: z.string().nullable() });
+export type InterventionListResponse = z.infer<typeof interventionListResponse>;
 
 export const forceCancelRequest = z.object({ reasonCode: z.string().min(1), note: z.string().optional() });
 export const forceCancelResponse = z.object({ status: z.literal("cancelled") });
@@ -119,6 +120,7 @@ export const receivableItem = z.object({
   aging: z.object({ b0_30: z.string(), b31_60: z.string(), b61_90: z.string(), b90plus: z.string() })
 });
 export const receivablesResponse = z.object({ items: z.array(receivableItem), nextCursor: z.string().nullable() });
+export type ReceivablesResponse = z.infer<typeof receivablesResponse>;
 
 export const verificationQueueItem = z.object({
   kind: z.enum(["bank_transfer", "custody_remittance"]),
@@ -128,6 +130,7 @@ export const verificationQueueItem = z.object({
   submittedAt: z.string().datetime()
 });
 export const verificationQueueResponse = z.object({ items: z.array(verificationQueueItem) });
+export type VerificationQueueResponse = z.infer<typeof verificationQueueResponse>;
 
 export const custodyRemittanceVerifyRequest = z.object({ amount: z.number().positive() });
 export const custodyRemittanceVerifyResponse = z.object({ status: z.literal("remitted") });
@@ -142,6 +145,7 @@ export const custodyHolder = z.object({
   remittedTotal: z.string()
 });
 export const adminCustodyResponse = z.object({ holders: z.array(custodyHolder) });
+export type AdminCustodyResponse = z.infer<typeof adminCustodyResponse>;
 
 // --- AC-09 Fleet oversight --------------------------------------------------------
 

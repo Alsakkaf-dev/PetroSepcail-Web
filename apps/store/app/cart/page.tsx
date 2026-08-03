@@ -1,6 +1,6 @@
 "use client";
 
-import type { CartResponse } from "@petrospecial/contracts";
+import type { ApplyCouponResponse, CartResponse } from "@petrospecial/contracts";
 import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
 import { LoginForm } from "../../components/LoginForm";
@@ -23,6 +23,9 @@ function CartPageInner() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [cart, setCart] = useState<CartResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [couponInput, setCouponInput] = useState("");
+  const [couponBusy, setCouponBusy] = useState(false);
+  const [couponMessage, setCouponMessage] = useState<string | null>(null);
 
   useEffect(() => {
     setLoggedIn(!!getToken());
@@ -49,6 +52,39 @@ function CartPageInner() {
   async function removeLine(lineId: string) {
     await authedFetch(`/api/v1/cart/lines/${lineId}`, { method: "DELETE" });
     refresh();
+  }
+
+  // EP-SF-014/015 (LE-02, S19) — a coupon is validated live against the
+  // real loyalty engine here; the same code is re-validated server-side
+  // again at order placement (routes/checkout.ts), never trusted twice.
+  async function applyCoupon() {
+    if (!couponInput.trim()) return;
+    setCouponBusy(true);
+    setCouponMessage(null);
+    try {
+      const res = await authedFetch<ApplyCouponResponse>("/api/v1/cart/coupon", {
+        method: "POST",
+        body: JSON.stringify({ code: couponInput.trim() })
+      });
+      if (!res.valid) setCouponMessage(res.reason);
+      refresh();
+    } catch (err) {
+      setCouponMessage(err instanceof Error ? err.message : "failed");
+    } finally {
+      setCouponBusy(false);
+    }
+  }
+
+  async function removeCoupon() {
+    setCouponBusy(true);
+    try {
+      await authedFetch("/api/v1/cart/coupon", { method: "DELETE" });
+      setCouponInput("");
+      setCouponMessage(null);
+      refresh();
+    } finally {
+      setCouponBusy(false);
+    }
   }
 
   return (
@@ -112,6 +148,30 @@ function CartPageInner() {
             ))}
           </div>
 
+          <div style={{ margin: "16px 0" }}>
+            {cart.coupon ? (
+              <p>
+                {t(locale, "couponAppliedPrefix")} <span className="ps-ltr">{cart.coupon.code}</span>{" "}
+                <button type="button" disabled={couponBusy} onClick={removeCoupon}>
+                  {t(locale, "removeCoupon")}
+                </button>
+              </p>
+            ) : (
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  value={couponInput}
+                  onChange={(e) => setCouponInput(e.target.value)}
+                  placeholder={t(locale, "couponCodePlaceholder")}
+                  className="ps-ltr"
+                />
+                <button type="button" disabled={couponBusy} onClick={applyCoupon}>
+                  {couponBusy ? t(locale, "couponApplying") : t(locale, "applyCoupon")}
+                </button>
+              </div>
+            )}
+            {couponMessage && <p style={{ color: "#b91c1c", fontSize: 13 }}>{couponMessage}</p>}
+          </div>
+
           <div style={{ marginTop: 24, padding: 16, background: "var(--bg-warm)", borderRadius: 8 }}>
             <p>
               {t(locale, "subtotal")} <span className="ps-ltr">{cart.totals.subtotal} {t(locale, "sar")}</span>
@@ -119,6 +179,11 @@ function CartPageInner() {
             <p>
               {t(locale, "vat")} <span className="ps-ltr">{cart.totals.vat} {t(locale, "sar")}</span>
             </p>
+            {Number(cart.totals.discount) > 0 && (
+              <p>
+                {t(locale, "discountLabel")} <span className="ps-ltr">-{cart.totals.discount} {t(locale, "sar")}</span>
+              </p>
+            )}
             <p style={{ fontWeight: 700 }}>
               {t(locale, "total")} <span className="ps-ltr">{cart.totals.total} {t(locale, "sar")}</span>
             </p>

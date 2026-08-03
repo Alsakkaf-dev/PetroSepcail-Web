@@ -15,10 +15,19 @@ export default function AdminHome() {
           <Link href="/suppliers-credit">Suppliers &amp; Credit (AC-03)</Link>
         </li>
         <li>
+          <Link href="/promotions">Promotions &amp; Loyalty (AC-04)</Link>
+        </li>
+        <li>
+          <Link href="/interventions">Interventions (AC-05)</Link>
+        </li>
+        <li>
           <Link href="/users">User Management (AC-06)</Link>
         </li>
         <li>
           <Link href="/audit">Audit Log (AC-07)</Link>
+        </li>
+        <li>
+          <Link href="/finance">Finance &amp; Receivables (AC-08)</Link>
         </li>
         <li>
           <Link href="/fleet">Fleet Oversight (AC-09)</Link>

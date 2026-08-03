@@ -71,6 +71,13 @@ const STRINGS: Record<Locale, Record<string, string>> = {
     freeDeliveryHintPrefix: "أضف",
     freeDeliveryHintSuffix: "أخرى للحصول على توصيل مجاني",
     proceedToCheckout: "إتمام الشراء",
+    // LE-02 coupon (cart)
+    couponCodePlaceholder: "كود الخصم",
+    applyCoupon: "تطبيق",
+    removeCoupon: "إزالة",
+    couponApplying: "جارٍ التحقق...",
+    couponAppliedPrefix: "تم تطبيق الكود",
+    discountLabel: "الخصم:",
     // SF-04 checkout
     checkoutTitle: "إتمام الشراء",
     addressLabel: "العنوان",
@@ -92,6 +99,12 @@ const STRINGS: Record<Locale, Record<string, string>> = {
     cardComingSoon: "الدفع بالبطاقة قريبًا",
     placingOrder: "جارٍ التأكيد...",
     confirmOrder: "تأكيد الطلب",
+    // LE-07 redeem-at-checkout
+    redeemPointsLabel: "استخدام النقاط",
+    pointsAvailableLabel: "الرصيد المتاح:",
+    pointsUnitShort: "نقطة",
+    applyPointsAction: "تطبيق",
+    pointsDiscountLabel: "خصم النقاط:",
     // SF-05 orders
     myOrders: "طلباتي",
     loginToViewOrders: "سجّل الدخول لعرض طلباتك",
@@ -163,6 +176,13 @@ const STRINGS: Record<Locale, Record<string, string>> = {
     freeDeliveryHintPrefix: "Add",
     freeDeliveryHintSuffix: "more for free delivery",
     proceedToCheckout: "Checkout",
+    // LE-02 coupon (cart)
+    couponCodePlaceholder: "Coupon code",
+    applyCoupon: "Apply",
+    removeCoupon: "Remove",
+    couponApplying: "Checking...",
+    couponAppliedPrefix: "Coupon applied",
+    discountLabel: "Discount:",
     // SF-04 checkout
     checkoutTitle: "Checkout",
     addressLabel: "Address",
@@ -184,6 +204,12 @@ const STRINGS: Record<Locale, Record<string, string>> = {
     cardComingSoon: "Card payment coming soon",
     placingOrder: "Placing order...",
     confirmOrder: "Confirm order",
+    // LE-07 redeem-at-checkout
+    redeemPointsLabel: "Use points",
+    pointsAvailableLabel: "Available balance:",
+    pointsUnitShort: "pts",
+    applyPointsAction: "Apply",
+    pointsDiscountLabel: "Points discount:",
     // SF-05 orders
     myOrders: "My orders",
     loginToViewOrders: "Sign in to view your orders",
