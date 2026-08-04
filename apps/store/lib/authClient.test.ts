@@ -1,6 +1,14 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { authedFetch, clearToken, isSessionEnded, login, NETWORK_ERROR, SESSION_EXPIRED } from "./authClient";
+import {
+  authedFetch,
+  clearToken,
+  isSessionEnded,
+  login,
+  NETWORK_ERROR,
+  ROLE_SELECTION_REQUIRED,
+  SESSION_EXPIRED
+} from "./authClient";
 
 // Regression guard for the "Add to cart -> Failed" outage: the storefront kept
 // only the 1-hour access token and threw away the 30-day refresh token, so an
@@ -36,6 +44,15 @@ describe("store authClient session handling", () => {
 
     expect(window.localStorage.getItem("ps-store-token")).toBe("access-1");
     expect(window.localStorage.getItem("ps-store-refresh")).toBe("refresh-1");
+  });
+
+  it("does not open a half-session when login answers role_selection_required", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(200, { status: "role_selection_required", roles: ["customer", "driver"] })
+    );
+
+    await expect(login("staff@example.com", "pw")).rejects.toThrow(ROLE_SELECTION_REQUIRED);
+    expect(window.localStorage.getItem("ps-store-token")).toBeNull();
   });
 
   it("refreshes and retries once when the access token has expired", async () => {

@@ -24,6 +24,8 @@ const REFRESH_KEY = "ps-store-refresh";
 // password", which is actively misleading for an expired session.
 export const SESSION_EXPIRED = "SESSION_EXPIRED";
 export const NOT_LOGGED_IN = "NOT_LOGGED_IN";
+// This identity holds several roles; the storefront cannot pick one for them.
+export const ROLE_SELECTION_REQUIRED = "ROLE_SELECTION_REQUIRED";
 // Transport-level fetch failure (DNS, TLS, refused, blocked, offline).
 export const NETWORK_ERROR = "NETWORK_UNREACHABLE";
 
@@ -63,7 +65,16 @@ export function clearToken(): void {
   window.localStorage.removeItem(REFRESH_KEY);
 }
 
-type AuthBody = { accessToken?: string; refreshToken?: string; error?: { message?: string } };
+type AuthBody = {
+  accessToken?: string;
+  refreshToken?: string;
+  // EP-PC-003 answers 200 with this instead of a token when the identity
+  // holds more than one role grant and the request didn't name one. The
+  // storefront has no role picker, so it says so plainly rather than
+  // reporting a token it never received as some other kind of failure.
+  status?: string;
+  error?: { message?: string };
+};
 
 async function fetchOrNetworkError(url: string, init: RequestInit): Promise<Response> {
   try {
@@ -87,6 +98,7 @@ export async function login(email: string, password: string): Promise<string> {
   });
   const body = await readJson(res);
   if (!res.ok) throw new Error(body.error?.message ?? `Login failed: ${res.status}`);
+  if (body.status === "role_selection_required") throw new Error(ROLE_SELECTION_REQUIRED);
   if (!body.accessToken || !body.refreshToken) throw new Error(NETWORK_ERROR);
   setSession(body.accessToken, body.refreshToken);
   return body.accessToken;
