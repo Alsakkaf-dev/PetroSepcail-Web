@@ -1,25 +1,37 @@
-import type { Metadata } from "next";
-import Link from "next/link";
+import type { Metadata, Viewport } from "next";
+import { getLocale, htmlLangAttrs } from "@petrospecial/app-shell/src/server";
+import { LocaleProvider } from "@petrospecial/app-shell/src/client";
+import { t } from "@petrospecial/i18n";
+import { StoreHeader } from "../components/StoreHeader";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "PetroSpecial — Store",
-  description: "PetroSpecial customer storefront"
+  title: "PetroSpecial — بتروسبيشل",
+  description: "زيوت ومواد تشحيم سعودية الصنع — بتروسبيشل"
+};
+
+export const viewport: Viewport = {
+  themeColor: "#16265c",
+  width: "device-width",
+  initialScale: 1
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // Was hardcoded lang="en" dir="ltr" above a nav of four hardcoded English
+  // links that dropped ?lang= — so clicking "Catalog" silently reset an
+  // Arabic reader to Arabic-in-an-English-document.
+  const locale = getLocale();
+
   return (
-    <html lang="en" dir="ltr">
+    <html {...htmlLangAttrs(locale)}>
       <body>
-        <nav style={{ display: "flex", gap: 16, padding: 12, borderBottom: "1px solid var(--line)" }}>
-          <Link href="/">PetroSpecial</Link>
-          <Link href="/catalog">Catalog</Link>
-          <Link href="/search">Search</Link>
-          <Link href="/cart" style={{ marginInlineStart: "auto" }}>
-            Cart
-          </Link>
-        </nav>
-        {children}
+        <a className="ps-skip-link" href="#main">
+          {t(locale, "common.skipToContent")}
+        </a>
+        <LocaleProvider locale={locale}>
+          <StoreHeader />
+          {children}
+        </LocaleProvider>
       </body>
     </html>
   );

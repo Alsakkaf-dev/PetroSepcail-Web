@@ -1,6 +1,4 @@
-html,
-body {
-  margin: 0;
-  padding: 0;
-  font-family: system-ui, sans-serif;
-}
+/* PC-08 (D-08): one import, one deterministic cascade. Everything visual —
+ * tokens, brand faces, reset, focus ring, bidi isolation, components — comes
+ * from the design system. App-specific rules go in ./app.css, never here. */
+@import "@petrospecial/ui/src/styles.css";

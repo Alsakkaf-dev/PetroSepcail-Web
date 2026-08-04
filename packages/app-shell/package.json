@@ -1,18 +1,17 @@
 {
-  "name": "@petrospecial/supplier",
+  "name": "@petrospecial/app-shell",
   "private": true,
   "version": "0.0.0",
+  "type": "module",
+  "main": "src/index.ts",
   "scripts": {
-    "dev": "next dev -p 3003",
-    "build": "next build",
-    "start": "next start -p 3003",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@petrospecial/app-shell": "*",
-    "@petrospecial/contracts": "*",
     "@petrospecial/i18n": "*",
-    "@petrospecial/ui": "*",
+    "@petrospecial/ui": "*"
+  },
+  "peerDependencies": {
     "next": "^14.2.35",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
@@ -21,6 +20,9 @@
     "@types/node": "^20.14.11",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
+    "next": "^14.2.35",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "typescript": "^5.5.4"
   }
 }

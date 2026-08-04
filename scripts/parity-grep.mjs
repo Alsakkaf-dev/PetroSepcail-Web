@@ -17,13 +17,29 @@ import path from "node:path";
 
 const SCAN_ROOTS = [
   "apps/store/app",
+  "apps/store/components",
   "apps/admin/app",
   "apps/driver/app",
+  // apps/supplier was absent from this list entirely — 15 routes that were
+  // never parity-checked. components/ is scanned alongside app/ in the two
+  // apps that have one; it is app source by any reading, and only escaped
+  // because the original list was written before either directory existed.
+  //
+  // lib/ stays out, deliberately. apps/driver/lib/authClient.ts carries a
+  // hardcoded production API base as a documented fix for a real outage (the
+  // committed localhost value was baked into a production bundle and broke
+  // driver login), and apps/*/lib/api.ts comments name localhost while
+  // explaining why it must never be used. Scanning lib/ would fail the build
+  // on both.
+  "apps/supplier/app",
+  "apps/supplier/components",
   "services/api/src",
   "services/realtime/src",
   "services/zatca-sim/src",
   "workers/src",
   "packages/ui/src",
+  "packages/i18n/src",
+  "packages/app-shell/src",
   "packages/contracts/src"
 ];
 

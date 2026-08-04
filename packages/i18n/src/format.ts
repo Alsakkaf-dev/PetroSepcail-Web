@@ -1,0 +1,126 @@
+// Presentation-only formatters. Nothing here computes a value.
+//
+// Every money, VAT, exposure, points and discount figure on every screen is
+// server-resolved (NFR-SP-005: "the UI never computes a price, VAT, or
+// exposure figure"). These functions take what the API already returned and
+// decide how it looks — they never add, multiply, or re-derive it. That is
+// why the money helpers accept the API's decimal *string* and never a number
+// they were asked to sum.
+
+import { bcp47, type Locale } from "./locale";
+
+/** Asia/Riyadh, always — the platform has one operational timezone. */
+export const TIMEZONE = "Asia/Riyadh";
+
+/**
+ * Western digits in both locales.
+ *
+ * FR-PC07-003 leaves "Arabic-Indic or Western digits" open behind a
+ * [BUSINESS-CONFIRM] setting. Western is the conservative default: the
+ * marketing site already sets every numeral in Montserrat and isolates it LTR
+ * (`.ltr, .phone, time, code`), and SAR amounts, IBANs, VAT numbers, order
+ * references and ZATCA UUIDs are all read against systems that print Western
+ * digits. Recorded in DEFERRED-DECISIONS §4.
+ */
+const NUMERIC_LOCALE = "en-US";
+
+const SAR_SYMBOL: Record<Locale, string> = { ar: "ر.س", en: "SAR" };
+
+function groupDecimal(value: string, fractionDigits: number): string {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return value;
+  return new Intl.NumberFormat(NUMERIC_LOCALE, {
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits
+  }).format(n);
+}
+
+/**
+ * Money, exactly as the two locales write it:
+ *   ar -> `57.50 ر.س`
+ *   en -> `SAR 57.50`
+ *
+ * Always render inside a bidi isolate (the `.ps-ltr` class, or the <Money>
+ * component which applies it) — an amount next to Arabic text reorders
+ * without one.
+ */
+export function money(locale: Locale, amount: string | number): string {
+  const raw = String(amount);
+  // A non-numeric value is a placeholder the caller chose deliberately — the
+  // k>=5 privacy suppression renders "—", and a pending figure may render "".
+  // Affixing a currency to it would read as a real amount of nothing.
+  if (!Number.isFinite(Number(raw))) return raw;
+  const formatted = groupDecimal(raw, 2);
+  return locale === "ar" ? `${formatted} ${SAR_SYMBOL.ar}` : `${SAR_SYMBOL.en} ${formatted}`;
+}
+
+/** A count with no currency — quantities, parcels, open invoices. */
+export function count(value: string | number): string {
+  return groupDecimal(String(value), 0);
+}
+
+/** Loyalty points. Whole numbers by definition (partial reversals floor). */
+export function points(value: string | number): string {
+  return groupDecimal(String(value), 0);
+}
+
+/** A server-supplied percentage, e.g. a tier discount or an on-time rate. */
+export function percent(locale: Locale, value: string | number, fractionDigits = 0): string {
+  const formatted = groupDecimal(String(value), fractionDigits);
+  return locale === "ar" ? `${formatted}٪` : `${formatted}%`;
+}
+
+function dateFormat(locale: Locale, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  return new Intl.DateTimeFormat(bcp47(locale), { timeZone: TIMEZONE, ...options });
+}
+
+/** `4 Aug 2026` / `٤ أغسطس ٢٠٢٦` — Riyadh calendar day. */
+export function date(locale: Locale, iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return dateFormat(locale, { day: "numeric", month: "short", year: "numeric" }).format(d);
+}
+
+/** Date + 24h time, Riyadh. Used on timelines, audit rows and ledgers. */
+export function dateTime(locale: Locale, iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return dateFormat(locale, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  }).format(d);
+}
+
+/** Time only, Riyadh — delivery slots, ETAs. */
+export function time(locale: Locale, iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return dateFormat(locale, { hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
+}
+
+/**
+ * Shorten an opaque id for display.
+ *
+ * No screen may render a raw UUID as a user-facing label. Where the API gives
+ * a name, show the name; where it does not, show this plus a copy control, so
+ * the value is still reportable to support without pretending to be a
+ * human-readable reference.
+ */
+export function shortId(id: string, visible = 8): string {
+  if (id.length <= visible) return id;
+  return `${id.slice(0, visible)}…`;
+}
+
+/**
+ * Mask all but the last four characters of an account identifier (IBAN on the
+ * supplier profile, per SCR-SP01-003 "IBAN masked").
+ */
+export function maskTail(value: string, visible = 4): string {
+  const trimmed = value.replace(/\s+/g, "");
+  if (trimmed.length <= visible) return trimmed;
+  return `${"•".repeat(Math.max(4, trimmed.length - visible))}${trimmed.slice(-visible)}`;
+}

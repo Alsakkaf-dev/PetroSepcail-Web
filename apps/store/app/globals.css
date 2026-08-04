@@ -1,18 +1,4 @@
-/* PC-08 (D-08): every style here references a token from packages/ui, no
- * literal hex/px duplicating what the design system already defines. */
-@import "@petrospecial/ui/src/tokens/tokens.generated.css";
-@import "@petrospecial/ui/src/tokens/base.css";
-
-html,
-body {
-  margin: 0;
-  padding: 0;
-  background: var(--bg);
-  color: var(--ink);
-  font-family: var(--font-body);
-}
-
-a {
-  color: var(--blue-600);
-}
-
+/* PC-08 (D-08): one import, one deterministic cascade. Everything visual —
+ * tokens, brand faces, reset, focus ring, bidi isolation, components — comes
+ * from the design system. App-specific rules go in ./app.css, never here. */
+@import "@petrospecial/ui/src/styles.css";
