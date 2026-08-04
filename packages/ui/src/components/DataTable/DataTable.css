@@ -1,0 +1,315 @@
+/* DataTable, DataList and Pagination — the replacements for the 17 raw
+ * <table> elements across the four apps.
+ *
+ * Everything here is a logical property, so a table reads start-to-end in
+ * both directions with one stylesheet: `text-align: start`, `padding-inline`,
+ * `border-inline-start`. There is no `left` or `right` in this file. */
+
+.ps-datatable {
+  display: flex;
+  flex-direction: column;
+  gap: var(--d-4);
+}
+
+/* Wide content scrolls inside its own box; the page body never scrolls
+ * sideways. */
+.ps-datatable__scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+
+.ps-datatable__table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-300);
+}
+
+.ps-datatable__caption {
+  text-align: start;
+  font-weight: 700;
+  color: var(--ink);
+  padding: var(--d-3) var(--d-4);
+  border-block-end: 1px solid var(--line-soft);
+}
+
+.ps-datatable__head th {
+  text-align: start;
+  padding: var(--d-3) var(--d-4);
+  border-block-end: 2px solid var(--line);
+  background: var(--bg-warm);
+  color: var(--muted);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.ps-datatable__head--sticky th {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 2;
+}
+
+.ps-datatable__th--end {
+  text-align: end;
+}
+
+/* A whole-header sort control, so the target is the header rather than a
+ * small glyph beside it. */
+.ps-datatable__sort {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--d-2);
+  min-block-size: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+}
+
+.ps-datatable__sort:hover {
+  color: var(--blue-600);
+}
+
+.ps-datatable__cell {
+  padding: var(--d-3) var(--d-4);
+  border-block-end: 1px solid var(--line-soft);
+  color: var(--ink);
+  vertical-align: top;
+}
+
+.ps-datatable__cell--end {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.ps-datatable__cell--primary {
+  font-weight: 700;
+}
+
+.ps-datatable__row:hover {
+  background: var(--bg-warm);
+}
+
+.ps-datatable__footer {
+  display: flex;
+  justify-content: center;
+}
+
+/* ---- the phone layout --------------------------------------------------
+ * Each row becomes a card and each cell carries its own column label. The
+ * ARIA roles are declared in the component precisely because flattening a
+ * table with `display: block` otherwise strips its semantics — one DOM tree
+ * serves both layouts, rather than a table plus a duplicate list of cards
+ * that a screen reader would read twice. */
+@media (max-width: 48em) {
+  .ps-datatable__scroll {
+    border: 0;
+    background: none;
+    overflow-x: visible;
+  }
+
+  .ps-datatable__table,
+  .ps-datatable__table tbody,
+  .ps-datatable__row,
+  .ps-datatable__cell {
+    display: block;
+    inline-size: 100%;
+  }
+
+  /* Column headers have no place in a stacked card — the labels come back
+     per cell, below. Kept out of the accessibility tree's way rather than
+     removed, since the roles still describe a table. */
+  .ps-datatable__head {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .ps-datatable__row {
+    margin-block-end: var(--d-3);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+
+  .ps-datatable__cell {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--d-3);
+    padding: var(--d-2) var(--d-3);
+  }
+
+  .ps-datatable__cell::before {
+    content: attr(data-label);
+    flex: none;
+    color: var(--muted);
+    font-weight: 700;
+    font-size: var(--fs-200);
+  }
+
+  .ps-datatable__cell--primary {
+    background: var(--bg-warm);
+    font-size: var(--fs-400);
+  }
+
+  .ps-datatable__cell--end {
+    text-align: end;
+  }
+}
+
+/* ---- DataList ---------------------------------------------------------- */
+
+.ps-datalist {
+  display: flex;
+  flex-direction: column;
+  gap: var(--d-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ps-datalist__item {
+  padding: var(--d-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.2s, box-shadow 0.3s;
+}
+
+.ps-datalist__item:hover {
+  border-color: var(--gold);
+  box-shadow: var(--shadow-md);
+}
+
+.ps-datalist__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--d-2);
+}
+
+.ps-datalist__title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--fs-500);
+  color: var(--blue);
+  min-inline-size: 0;
+}
+
+.ps-datalist__link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.ps-datalist__link:hover {
+  text-decoration: underline;
+}
+
+.ps-datalist__fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr));
+  gap: var(--d-2) var(--d-4);
+  margin-block-start: var(--d-3);
+}
+
+.ps-datalist__field {
+  min-inline-size: 0;
+}
+
+.ps-datalist__label {
+  color: var(--muted);
+  font-size: var(--fs-200);
+  font-weight: 700;
+}
+
+.ps-datalist__value {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--fs-300);
+}
+
+.ps-datalist__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--d-2);
+  margin-block-start: var(--d-3);
+}
+
+/* ---- Pagination -------------------------------------------------------- */
+
+.ps-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--d-2);
+}
+
+.ps-pagination__pages {
+  display: flex;
+  align-items: center;
+  gap: var(--d-1);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ps-pagination__item {
+  display: flex;
+  align-items: center;
+  gap: var(--d-1);
+}
+
+.ps-pagination__arrow,
+.ps-pagination__page {
+  display: grid;
+  place-items: center;
+  min-inline-size: 44px;
+  min-block-size: 44px;
+  padding-inline: var(--d-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 700;
+  transition: border-color 0.2s, background-color 0.2s;
+}
+
+.ps-pagination__arrow:hover:not(:disabled),
+.ps-pagination__page:hover {
+  border-color: var(--gold);
+  background: var(--bg-tint);
+}
+
+.ps-pagination__arrow:disabled {
+  color: var(--muted);
+  background: var(--bg-warm);
+}
+
+.ps-pagination__page--current {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: var(--surface);
+}
+
+.ps-pagination__gap {
+  color: var(--muted);
+}
+
+.ps-pagination__status {
+  inline-size: 100%;
+  text-align: center;
+  color: var(--muted);
+  font-size: var(--fs-300);
+}

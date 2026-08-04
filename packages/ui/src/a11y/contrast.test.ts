@@ -91,7 +91,11 @@ describe("TC-PC08-003 WCAG AA contrast on token pairs actually used as text", ()
     ["info badge: blue-600 on bg-tint", T.blue600, T.bgTint],
     ["progress badge: blue-600 on chip blue", T.blue600, T.chipBlue],
     ["neutral badge: ink on line-soft", T.ink, T.lineSoft],
-    ["blue badge: blue on bg-tint", T.blue, T.bgTint]
+    ["blue badge: blue on bg-tint", T.blue, T.bgTint],
+    // Reversed-out surfaces: the current page in Pagination, and the tick
+    // inside a checked checkbox. Both put --surface on a solid brand blue.
+    ["surface on blue (current page)", T.surface, T.blue],
+    ["surface on blue-600 (checked control)", T.surface, T.blue600]
   ] as const)("%s meets 4.5:1", (_label, fg, bg) => {
     expect(contrastRatio(fg, bg)).toBeGreaterThanOrEqual(WCAG_AA_NORMAL_TEXT);
     expect(meetsAA(fg, bg)).toBe(true);
