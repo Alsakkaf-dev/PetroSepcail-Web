@@ -70,8 +70,16 @@ export function percent(locale: Locale, value: string | number, fractionDigits =
   return locale === "ar" ? `${formatted}٪` : `${formatted}%`;
 }
 
+/**
+ * `-u-nu-latn` is not cosmetic. Plain `ar-SA` formats dates with Arabic-Indic
+ * digits (`٤ أغسطس ٢٠٢٦`) while every number above formats with Western ones,
+ * so a manifest would have shown `١٣:٣٠` next to `57.50 ر.س` on the same row.
+ * The digit decision is made once, at the top of this file, and this is the
+ * one place that would otherwise quietly opt out of it.
+ */
 function dateFormat(locale: Locale, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
-  return new Intl.DateTimeFormat(bcp47(locale), { timeZone: TIMEZONE, ...options });
+  const tag = locale === "ar" ? "ar-SA-u-nu-latn" : bcp47(locale);
+  return new Intl.DateTimeFormat(tag, { timeZone: TIMEZONE, ...options });
 }
 
 /** `4 Aug 2026` / `٤ أغسطس ٢٠٢٦` — Riyadh calendar day. */

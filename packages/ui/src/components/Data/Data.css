@@ -1,0 +1,147 @@
+/* Data-display primitives: money, timestamps, opaque ids, family coding.
+ *
+ * Between them these are what stop a raw UUID, a bidi-scrambled amount or a
+ * bare enum value reaching a screen. */
+
+/* ---- Money ------------------------------------------------------------- */
+
+.ps-money {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* No `direction` and no Latin face here on purpose: the Arabic form is
+ * `57.50 ر.س`, whose currency mark is Arabic script. <bdi> isolates it from
+ * the surrounding text and lets it resolve by its own content — forcing LTR
+ * would put ر.س on the wrong side of the figure. */
+.ps-money--strong {
+  font-weight: 800;
+  font-size: var(--fs-500);
+  color: var(--ink);
+}
+
+.ps-money--muted {
+  color: var(--muted);
+  font-size: var(--fs-300);
+}
+
+.ps-money__struck {
+  color: var(--muted);
+  text-decoration-thickness: 1px;
+}
+
+/* ---- DateTime ---------------------------------------------------------- */
+
+/* Isolated, not forced. `4 أغسطس 2026، 13:30` is Arabic text carrying Western
+ * digits; the marketing site's blanket `time { direction: ltr }` would set an
+ * Arabic month name in Montserrat and flip it to the wrong side. */
+.ps-datetime {
+  unicode-bidi: isolate;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- IdDisplay --------------------------------------------------------- */
+
+.ps-id {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--d-2);
+  min-inline-size: 0;
+}
+
+.ps-id__label {
+  color: var(--muted);
+  font-size: var(--fs-300);
+}
+
+.ps-id__name {
+  font-weight: 700;
+}
+
+.ps-id__value {
+  font-size: var(--fs-300);
+  padding-block: 0.1rem;
+  padding-inline: 0.4rem;
+  border-radius: var(--r-sm);
+  background: var(--bg-warm);
+  border: 1px solid var(--line-soft);
+  color: var(--ink);
+}
+
+/* With a resolved name present, the id is a supporting detail rather than
+ * the label — it recedes instead of competing. */
+.ps-id__value--secondary {
+  background: none;
+  border-color: transparent;
+  color: var(--muted);
+  padding-inline: 0;
+}
+
+/* ---- CopyButton -------------------------------------------------------- */
+
+.ps-copy-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--d-2);
+  min-inline-size: 44px;
+  min-block-size: 44px;
+  padding-inline: var(--d-2);
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--muted);
+  font-size: var(--fs-300);
+  transition: color 0.2s, background-color 0.2s, border-color 0.2s;
+}
+
+.ps-copy-button:hover {
+  color: var(--blue-600);
+  background: var(--bg-tint);
+  border-color: var(--line);
+}
+
+.ps-copy-button--copied {
+  color: var(--success);
+}
+
+/* ---- FamilyAccent ------------------------------------------------------ */
+
+.ps-family {
+  --ps-family-color: var(--line);
+}
+
+.ps-family--special {
+  --ps-family-color: var(--f-special);
+}
+
+.ps-family--petro {
+  --ps-family-color: var(--f-petro);
+}
+
+.ps-family--raval {
+  --ps-family-color: var(--f-raval);
+}
+
+/* A logical border, so the stripe sits on the reading-start edge in both
+ * directions with no second rule and no mirrored stylesheet. */
+.ps-family--bar {
+  display: block;
+  border-inline-start: 4px solid var(--ps-family-color);
+  padding-inline-start: var(--d-3);
+}
+
+.ps-family--chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding-block: 0.3rem;
+  padding-inline: 0.7rem;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--ps-family-color);
+  color: var(--ps-family-color);
+  background: var(--surface);
+  font-weight: 700;
+  font-size: var(--fs-200);
+  white-space: nowrap;
+}

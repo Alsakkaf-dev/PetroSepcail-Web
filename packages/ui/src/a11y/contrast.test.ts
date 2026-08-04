@@ -17,6 +17,7 @@ const T = {
   surface: "#ffffff",
   bgWarm: "#f7f4ec",
   bgTint: "#fff8e1",
+  lineSoft: "#f3efe4",
   blue: "#16265c",
   blue600: "#1e3a8a",
   gold: "#ffc800",
@@ -30,6 +31,10 @@ const T = {
   dangerBg: "#fdeceb",
   warn: "#8a5a0b",
   warnBg: "#fbf1e0",
+  // The cool wash behind a "progress" badge and the marketing site's own
+  // .chip--blue. No token holds it; asserted here so it can't drift into
+  // something a --blue-600 label stops being legible on.
+  chipBlue: "#e8edfb",
   // Family coding — never used as status, and only --f-special clears AA as
   // text on every surface. Asserted below so that stays a deliberate fact.
   fSpecial: "#1e3a8a",
@@ -74,7 +79,19 @@ describe("TC-PC08-003 WCAG AA contrast on token pairs actually used as text", ()
     // separation is carried by heading and label, never by color alone, but
     // both still have to be legible where they are used as text.
     ["blue on bg-warm (debt panel heading)", T.blue, T.bgWarm],
-    ["f-special on surface (family label)", T.fSpecial, T.surface]
+    // The family chip sets its own --surface background precisely so all
+    // three family colours can be used as its label text. On the warm recess
+    // --f-petro does not hold, which is asserted separately below.
+    ["f-special on surface (family chip)", T.fSpecial, T.surface],
+    ["f-petro on surface (family chip)", T.fPetro, T.surface],
+    ["f-raval on surface (family chip)", T.fRaval, T.surface],
+    // Badge tones. A badge sets its label at --fs-200, the smallest step on
+    // the ramp, so every one of these has to clear normal-text AA — large-text
+    // AA would be the wrong bar entirely.
+    ["info badge: blue-600 on bg-tint", T.blue600, T.bgTint],
+    ["progress badge: blue-600 on chip blue", T.blue600, T.chipBlue],
+    ["neutral badge: ink on line-soft", T.ink, T.lineSoft],
+    ["blue badge: blue on bg-tint", T.blue, T.bgTint]
   ] as const)("%s meets 4.5:1", (_label, fg, bg) => {
     expect(contrastRatio(fg, bg)).toBeGreaterThanOrEqual(WCAG_AA_NORMAL_TEXT);
     expect(meetsAA(fg, bg)).toBe(true);

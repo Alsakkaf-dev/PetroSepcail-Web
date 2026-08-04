@@ -10,7 +10,10 @@ export * from "./a11y/contrast";
 export * from "./icons";
 
 export * from "./components/Layout";
+export * from "./components/Data";
+export * from "./components/Feedback";
 
+export * from "./components/Skeleton/Skeleton";
 export * from "./components/Badge/Badge";
 export * from "./components/Button/Button";
 export * from "./components/Card/Card";

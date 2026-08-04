@@ -1,0 +1,150 @@
+/* Banner, InlineError, Progress. The three surfaces a screen uses to say
+ * "here is something you need to know" without opening a dialog. */
+
+/* ---- Banner ------------------------------------------------------------ */
+
+.ps-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--d-3);
+  padding: var(--d-4);
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+  /* A logical border, so the tone stripe sits on the reading-start edge in
+     both directions. */
+  border-inline-start-width: 4px;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.ps-banner__icon {
+  display: flex;
+  flex: none;
+  padding-block-start: 0.1rem;
+}
+
+.ps-banner__body {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.ps-banner__title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--fs-400);
+  margin-block-end: var(--d-1);
+}
+
+.ps-banner__text {
+  font-size: var(--fs-300);
+  color: var(--ink);
+}
+
+.ps-banner__action {
+  flex: none;
+  margin-inline-start: auto;
+  align-self: center;
+}
+
+/* Body text stays --ink in every tone. The tint and the icon carry the tone;
+ * --flame and --gold are accents here and never foreground text, which is
+ * what a11y/contrast.test.ts asserts about them on purpose. */
+.ps-banner--info {
+  background: var(--bg-tint);
+  border-inline-start-color: var(--info);
+}
+
+.ps-banner--info .ps-banner__icon {
+  color: var(--info);
+}
+
+.ps-banner--success {
+  background: var(--success-bg);
+  border-inline-start-color: var(--success);
+}
+
+.ps-banner--success .ps-banner__icon {
+  color: var(--success);
+}
+
+.ps-banner--warn {
+  background: var(--warn-bg);
+  border-inline-start-color: var(--warn);
+}
+
+.ps-banner--warn .ps-banner__icon {
+  color: var(--warn);
+}
+
+.ps-banner--danger {
+  background: var(--danger-bg);
+  border-inline-start-color: var(--danger);
+}
+
+.ps-banner--danger .ps-banner__icon {
+  color: var(--danger);
+}
+
+@media (max-width: 40em) {
+  .ps-banner {
+    flex-wrap: wrap;
+  }
+
+  .ps-banner__action {
+    margin-inline-start: 0;
+    inline-size: 100%;
+  }
+}
+
+/* ---- InlineError ------------------------------------------------------- */
+
+.ps-inline-error {
+  display: flex;
+  align-items: center;
+  gap: var(--d-2);
+  margin-block-start: var(--d-1);
+  color: var(--danger);
+  font-size: var(--fs-300);
+  font-weight: 600;
+}
+
+/* ---- Progress ---------------------------------------------------------- */
+
+.ps-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--d-1);
+}
+
+.ps-progress__track {
+  block-size: 0.6rem;
+  inline-size: 100%;
+  border-radius: var(--r-pill);
+  background: var(--bg-warm);
+  overflow: hidden;
+}
+
+/* Grows from the reading-start edge, and the transition is covered by the
+ * global reduced-motion guard in base.css. */
+.ps-progress__fill {
+  block-size: 100%;
+  border-radius: var(--r-pill);
+  transition: inline-size 0.45s var(--ease-out);
+}
+
+.ps-progress--gold .ps-progress__fill {
+  background: var(--gold-metal);
+}
+
+.ps-progress--success .ps-progress__fill {
+  background: var(--success);
+}
+
+.ps-progress--info .ps-progress__fill {
+  background: var(--info);
+}
+
+.ps-progress__hint {
+  font-size: var(--fs-300);
+  color: var(--muted);
+}

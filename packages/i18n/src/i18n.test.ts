@@ -107,6 +107,18 @@ describe("PC-07 formatting", () => {
     expect(date("en", "not-a-date")).toBe("not-a-date");
   });
 
+  it("writes Arabic dates with Western digits, like every other numeral", () => {
+    // Plain `ar-SA` would give `٤ أغسطس ٢٠٢٦` and `١٣:٣٠`, which would have
+    // sat next to `57.50 ر.س` on the same manifest row. The digit decision is
+    // made once, at the top of format.ts, and dates follow it.
+    const stamp = dateTime("ar", "2026-08-04T10:30:00Z");
+    expect(stamp).toContain("2026");
+    expect(stamp).toContain("13:30");
+    expect(stamp).not.toMatch(/[٠-٩]/);
+    // Still Arabic: the month name is translated, only the digits are Latin.
+    expect(stamp).toMatch(/[؀-ۿ]/);
+  });
+
   it("shortens ids and masks account tails", () => {
     expect(shortId("3f7a1b2c-9d4e-4f88-b1a2-000000000000")).toBe("3f7a1b2c…");
     expect(shortId("abc")).toBe("abc");

@@ -8,6 +8,9 @@
     "typecheck": "tsc --noEmit",
     "tokens:generate": "node ../../scripts/generate-ui-tokens.mjs"
   },
+  "dependencies": {
+    "@petrospecial/i18n": "*"
+  },
   "peerDependencies": {
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

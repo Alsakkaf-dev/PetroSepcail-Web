@@ -32,3 +32,41 @@
   background: var(--bg-tint);
   border-inline-start: 3px solid var(--flame);
 }
+
+/* ---- D-04 status tones -------------------------------------------------
+ * Each pairs a tint with a foreground that clears 4.5:1 on it, asserted in
+ * a11y/contrast.test.ts. Colour is never the only signal — StatusBadge also
+ * renders a per-tone glyph and the D-04 label itself. */
+
+.ps-badge--info {
+  background: var(--bg-tint);
+  border: 1px solid var(--line);
+  color: var(--info);
+}
+
+/* "In motion" — the cool tint the marketing site already uses for its blue
+   chip (.chip--blue), so a progress badge and a family chip read as one
+   system. No token holds this wash; the brand stylesheet spells it out too. */
+.ps-badge--progress {
+  background: #e8edfb;
+  border: 1px solid rgba(30, 58, 138, 0.25);
+  color: var(--blue-600);
+}
+
+.ps-badge--success {
+  background: var(--success-bg);
+  border: 1px solid rgba(20, 108, 67, 0.25);
+  color: var(--success);
+}
+
+.ps-badge--warn {
+  background: var(--warn-bg);
+  border: 1px solid rgba(138, 90, 11, 0.25);
+  color: var(--warn);
+}
+
+.ps-badge--danger {
+  background: var(--danger-bg);
+  border: 1px solid rgba(165, 28, 28, 0.25);
+  color: var(--danger);
+}
