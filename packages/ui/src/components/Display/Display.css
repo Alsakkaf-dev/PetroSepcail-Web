@@ -1,0 +1,282 @@
+/* StatCard, KpiTile, Timeline, Stepper — the components that present a
+ * record rather than collect input. Logical properties throughout: the
+ * timeline rail sits on the reading-start edge in both directions with one
+ * rule, not two. */
+
+/* ---- StatCard / KpiTile ------------------------------------------------ */
+
+.ps-stat {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--d-1);
+  padding: var(--d-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+}
+
+.ps-stat--link {
+  transition: transform 0.3s var(--ease-out), box-shadow 0.3s var(--ease-out), border-color 0.2s;
+}
+
+.ps-stat--link:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--gold);
+}
+
+.ps-stat__label {
+  color: var(--muted);
+  font-size: var(--fs-300);
+  font-weight: 700;
+  /* Read first by a screen reader, drawn second. The value leads visually
+     because that is what the eye came for; the label leads in the DOM
+     because a number with no name is not information. Two elements, one
+     tile, both orders complete. */
+  order: 2;
+}
+
+.ps-stat__value {
+  order: 1;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--fs-700);
+  line-height: var(--lh-tight);
+  color: var(--blue);
+  font-variant-numeric: tabular-nums;
+}
+
+.ps-stat__caption {
+  order: 3;
+  color: var(--muted);
+  font-size: var(--fs-200);
+}
+
+/* Behind the figure, never competing with it. */
+.ps-stat__icon {
+  position: absolute;
+  inset-block-start: var(--d-3);
+  inset-inline-end: var(--d-3);
+  color: var(--line);
+}
+
+.ps-stat--gold .ps-stat__value {
+  color: var(--gold-700);
+}
+
+.ps-stat--blue .ps-stat__value {
+  color: var(--blue-600);
+}
+
+.ps-stat--success .ps-stat__value {
+  color: var(--success);
+}
+
+.ps-stat--warn .ps-stat__value {
+  color: var(--warn);
+}
+
+.ps-stat--danger .ps-stat__value {
+  color: var(--danger);
+}
+
+.ps-kpi__trend {
+  order: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--d-1);
+  font-size: var(--fs-200);
+  font-weight: 700;
+}
+
+.ps-kpi__trend--up {
+  color: var(--success);
+}
+
+.ps-kpi__trend--down {
+  color: var(--danger);
+}
+
+.ps-kpi__trend--flat {
+  color: var(--muted);
+}
+
+.ps-kpi__as-of {
+  order: 5;
+  color: var(--muted);
+  font-size: var(--fs-200);
+  margin-block-start: var(--d-2);
+  padding-block-start: var(--d-2);
+  border-block-start: 1px solid var(--line-soft);
+}
+
+/* Suppressed under the k>=5 privacy floor. The dash is the value; the
+ * explanation sits beside it so nobody reads it as "zero". */
+.ps-kpi__value--suppressed {
+  color: var(--muted);
+}
+
+.ps-kpi__suppressed {
+  order: 4;
+  color: var(--muted);
+  font-size: var(--fs-200);
+  font-style: italic;
+}
+
+/* ---- Timeline ---------------------------------------------------------- */
+
+.ps-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ps-timeline__entry {
+  position: relative;
+  display: flex;
+  gap: var(--d-3);
+  padding-block-end: var(--d-4);
+}
+
+/* The connecting rail, drawn from the marker down. Positioned with a logical
+ * offset, so it runs down the start edge in both directions. */
+.ps-timeline__entry:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  inset-block: 1.9rem 0;
+  inset-inline-start: 0.9rem;
+  inline-size: 2px;
+  background: var(--line);
+}
+
+.ps-timeline__marker {
+  display: grid;
+  place-items: center;
+  flex: none;
+  inline-size: 1.9rem;
+  block-size: 1.9rem;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  background: var(--surface);
+  color: var(--muted);
+  z-index: 1;
+}
+
+.ps-timeline__entry--done .ps-timeline__marker {
+  border-color: var(--success);
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.ps-timeline__entry--current .ps-timeline__marker {
+  border-color: var(--gold);
+  background: var(--bg-tint);
+  color: var(--gold-700);
+}
+
+.ps-timeline__entry--failed .ps-timeline__marker {
+  border-color: var(--danger);
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.ps-timeline__body {
+  min-inline-size: 0;
+}
+
+.ps-timeline__title {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.ps-timeline__entry--pending .ps-timeline__title {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.ps-timeline__time {
+  color: var(--muted);
+  font-size: var(--fs-300);
+}
+
+.ps-timeline__detail {
+  margin-block-start: var(--d-2);
+  font-size: var(--fs-300);
+  color: var(--ink);
+}
+
+/* ---- Stepper ----------------------------------------------------------- */
+
+.ps-stepper__status {
+  color: var(--muted);
+  font-size: var(--fs-300);
+  margin-block-end: var(--d-2);
+}
+
+.ps-stepper__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--d-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ps-stepper__step {
+  display: flex;
+  align-items: center;
+  gap: var(--d-2);
+  min-inline-size: 0;
+  color: var(--muted);
+}
+
+.ps-stepper__marker {
+  display: grid;
+  place-items: center;
+  flex: none;
+  inline-size: 2rem;
+  block-size: 2rem;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  background: var(--surface);
+  font-weight: 700;
+  font-size: var(--fs-300);
+}
+
+.ps-stepper__step--done .ps-stepper__marker {
+  border-color: var(--success);
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.ps-stepper__step--current {
+  color: var(--ink);
+}
+
+.ps-stepper__step--current .ps-stepper__marker {
+  border-color: var(--gold);
+  background: var(--gold-metal);
+  color: var(--ink);
+}
+
+.ps-stepper__text {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+}
+
+.ps-stepper__label {
+  font-weight: 700;
+}
+
+.ps-stepper__hint {
+  font-size: var(--fs-200);
+  color: var(--muted);
+}

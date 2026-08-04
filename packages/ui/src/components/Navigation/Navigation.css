@@ -1,0 +1,153 @@
+/* Tabs, Segmented, Breadcrumb. Every target is at least 44px and every
+ * offset is logical, so a tab strip and a breadcrumb trail run start-to-end
+ * in both directions from one stylesheet. */
+
+/* ---- Tabs -------------------------------------------------------------- */
+
+.ps-tabs__list {
+  display: flex;
+  gap: var(--d-1);
+  border-block-end: 2px solid var(--line);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ps-tabs__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--d-2);
+  min-block-size: 44px;
+  padding-inline: var(--d-4);
+  border: 0;
+  /* The selected marker overlaps the list's own rule, so the two read as one
+     line rather than as two stacked borders. */
+  border-block-end: 3px solid transparent;
+  margin-block-end: -2px;
+  background: none;
+  color: var(--muted);
+  font-weight: 700;
+  white-space: nowrap;
+  transition: color 0.2s, border-color 0.2s, background-color 0.2s;
+}
+
+.ps-tabs__tab:hover:not(:disabled) {
+  color: var(--blue-600);
+  background: var(--bg-tint);
+}
+
+.ps-tabs__tab--selected {
+  color: var(--blue);
+  border-block-end-color: var(--gold);
+}
+
+.ps-tabs__tab:disabled {
+  color: var(--line);
+}
+
+.ps-tabs__badge {
+  display: inline-grid;
+  place-items: center;
+  min-inline-size: 1.5rem;
+  padding-inline: 0.4rem;
+  border-radius: var(--r-pill);
+  background: var(--bg-warm);
+  color: var(--ink);
+  font-size: var(--fs-200);
+  font-variant-numeric: tabular-nums;
+}
+
+.ps-tabs__tab--selected .ps-tabs__badge {
+  background: var(--gold);
+  color: var(--ink);
+}
+
+.ps-tabs__panel {
+  padding-block-start: var(--d-4);
+}
+
+/* The panel is focusable so a keyboard user can reach content that isn't
+ * itself focusable; it must not then draw a ring on every mouse click. */
+.ps-tabs__panel:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ---- Segmented --------------------------------------------------------- */
+
+.ps-segmented {
+  display: inline-flex;
+  padding: var(--d-1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--bg-warm);
+}
+
+.ps-segmented--block {
+  display: flex;
+  inline-size: 100%;
+}
+
+.ps-segmented__option {
+  flex: 1;
+  min-block-size: 44px;
+  padding-inline: var(--d-4);
+  border: 0;
+  border-radius: var(--r-pill);
+  background: none;
+  color: var(--muted);
+  font-weight: 700;
+  white-space: nowrap;
+  transition: background-color 0.2s, color 0.2s, box-shadow 0.2s;
+}
+
+.ps-segmented__option:hover:not(:disabled) {
+  color: var(--blue-600);
+}
+
+.ps-segmented__option--selected {
+  background: var(--surface);
+  color: var(--blue);
+  box-shadow: var(--shadow-sm);
+}
+
+.ps-segmented__option:disabled {
+  color: var(--line);
+}
+
+/* ---- Breadcrumb -------------------------------------------------------- */
+
+.ps-breadcrumb__list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--d-1);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: var(--fs-300);
+}
+
+.ps-breadcrumb__item {
+  display: flex;
+  align-items: center;
+  gap: var(--d-1);
+  min-inline-size: 0;
+}
+
+.ps-breadcrumb__separator {
+  color: var(--line);
+}
+
+.ps-breadcrumb__link {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.ps-breadcrumb__link:hover {
+  color: var(--gold-700);
+  text-decoration: underline;
+}
+
+.ps-breadcrumb__current {
+  color: var(--ink);
+  font-weight: 700;
+}
