@@ -14,12 +14,16 @@ describe("TextField", () => {
     expect(screen.getByText("We never share it")).toHaveAttribute("id", input.getAttribute("aria-describedby"));
   });
 
-  it("marks aria-invalid and shows the error instead of the hint", () => {
-    render(<TextField label="Email" hint="hidden while invalid" error="IDENTITY_EXISTS" />);
+  it("marks aria-invalid and keeps the hint beside the error", () => {
+    // The hint used to be hidden whenever an error was present. It is exactly
+    // the moment the hint is most useful — it says what the field wants,
+    // while the error says what was wrong with what arrived.
+    render(<TextField label="Email" hint="Use your work address" error="IDENTITY_EXISTS" />);
     const input = screen.getByLabelText("Email");
     expect(input).toHaveAttribute("aria-invalid", "true");
     expect(screen.getByRole("alert")).toHaveTextContent("IDENTITY_EXISTS");
-    expect(screen.queryByText("hidden while invalid")).not.toBeInTheDocument();
+    expect(screen.getByText("Use your work address")).toBeInTheDocument();
+    expect(input.getAttribute("aria-describedby")?.split(" ")).toHaveLength(2);
   });
 
   it("applies the LTR-force class for phone/email-style fields", () => {

@@ -44,10 +44,12 @@
 @import "./components/EmptyState/EmptyState.css";
 @import "./components/ErrorState/ErrorState.css";
 @import "./components/Feedback/Feedback.css";
+/* Form.css also carries the shared .ps-field shell TextField used to own —
+ * every control in the system labels, hints and errors through it now. */
+@import "./components/Form/Form.css";
 @import "./components/Header/Header.css";
 @import "./components/LanguageToggle/LanguageToggle.css";
 @import "./components/LoadingState/LoadingState.css";
 @import "./components/Skeleton/Skeleton.css";
 @import "./components/Table/Table.css";
-@import "./components/TextField/TextField.css";
 @import "./components/Toast/Toast.css";

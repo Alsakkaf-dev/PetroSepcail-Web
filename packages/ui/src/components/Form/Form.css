@@ -1,0 +1,390 @@
+/* Form controls. Every target is at least 44px, every control is a real
+ * native element where one exists, and every error is wired to its field
+ * through aria-describedby rather than floating near it.
+ *
+ * .ps-field / .ps-field__* are shared with TextField, which was here first —
+ * the shell was extracted so Select, Textarea and the rest label, hint and
+ * error identically instead of each inventing it again. */
+
+/* ---- shared field shell ------------------------------------------------ */
+
+.ps-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+/* A fieldset carries the group's name in its legend, which is the only way a
+ * radio group gets one — but it also arrives with browser chrome nobody
+ * wants. */
+fieldset.ps-field {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-inline-size: 0;
+}
+
+.ps-field__label {
+  font-weight: 700;
+  font-size: var(--fs-300);
+  color: var(--ink);
+}
+
+.ps-field__required {
+  color: var(--danger);
+  margin-inline-start: 0.2rem;
+}
+
+.ps-field__input {
+  min-block-size: 44px;
+  padding-block: 0.65rem;
+  padding-inline: 1rem;
+  border: 2px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--fs-400);
+  transition: border-color 0.2s;
+}
+
+.ps-field__input:disabled {
+  background: var(--bg-warm);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.ps-field--invalid .ps-field__input {
+  border-color: var(--danger);
+}
+
+.ps-field__hint {
+  font-size: var(--fs-200);
+  color: var(--muted);
+}
+
+/* --danger, not --flame. Flame is an alert accent and a background; the
+ * contrast suite asserts it fails AA as foreground text deliberately, and an
+ * error message is the last place to be illegible. */
+.ps-field__error {
+  display: flex;
+  align-items: center;
+  gap: var(--d-2);
+  font-size: var(--fs-200);
+  font-weight: 700;
+  color: var(--danger);
+}
+
+/* ---- Select ------------------------------------------------------------ */
+
+.ps-select {
+  position: relative;
+  display: block;
+}
+
+.ps-select__control {
+  inline-size: 100%;
+  min-block-size: 44px;
+  padding-block: 0.65rem;
+  /* Room for the chevron on the end side — logical, so it swaps with the
+     document direction and the text never runs under the icon. */
+  padding-inline: 1rem 2.6rem;
+  border: 2px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--fs-400);
+  appearance: none;
+  transition: border-color 0.2s;
+}
+
+.ps-select__control:disabled {
+  background: var(--bg-warm);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.ps-field--invalid .ps-select__control {
+  border-color: var(--danger);
+}
+
+.ps-select__chevron {
+  position: absolute;
+  inset-inline-end: 1rem;
+  inset-block-start: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+}
+
+/* ---- Textarea ---------------------------------------------------------- */
+
+.ps-textarea {
+  resize: vertical;
+  min-block-size: 6rem;
+  line-height: var(--lh-ar);
+}
+
+.ps-textarea__counter {
+  align-self: flex-end;
+  font-size: var(--fs-200);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Checkbox / Radio -------------------------------------------------- */
+
+.ps-choice__row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--d-3);
+  /* The whole row is the target, not the 1.15rem box inside it. */
+  min-block-size: 44px;
+  padding-block: var(--d-2);
+  cursor: pointer;
+}
+
+/* The real input stays in the accessibility tree and keeps native keyboard
+ * behaviour; it is only visually replaced by the drawn box. Not
+ * display:none, which would remove it from the tab order entirely. */
+.ps-choice__input {
+  position: absolute;
+  opacity: 0;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: 0;
+}
+
+.ps-choice__box {
+  display: grid;
+  place-items: center;
+  flex: none;
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  margin-block-start: 0.15rem;
+  border: 2px solid var(--line);
+  background: var(--surface);
+  color: transparent;
+  transition: border-color 0.2s, background-color 0.2s, color 0.2s;
+}
+
+.ps-choice__box--check {
+  border-radius: var(--r-sm);
+}
+
+.ps-choice__box--radio {
+  border-radius: 50%;
+}
+
+.ps-choice__dot {
+  inline-size: 0.7rem;
+  block-size: 0.7rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.ps-choice__input:checked + .ps-choice__box {
+  border-color: var(--blue-600);
+  color: var(--blue-600);
+}
+
+.ps-choice__input:checked + .ps-choice__box--check {
+  background: var(--blue-600);
+  color: var(--surface);
+}
+
+/* The input is visually hidden, so its focus ring has to be drawn on the box
+ * it stands behind — otherwise a keyboard user sees nothing at all. */
+.ps-choice__input:focus-visible + .ps-choice__box {
+  outline: 3px solid var(--blue-600);
+  outline-offset: 3px;
+}
+
+.ps-choice__input:disabled + .ps-choice__box {
+  background: var(--bg-warm);
+  border-color: var(--line-soft);
+}
+
+.ps-choice__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-inline-size: 0;
+}
+
+.ps-choice__label {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.ps-choice__description {
+  font-size: var(--fs-300);
+  color: var(--muted);
+}
+
+.ps-choice--invalid .ps-choice__box {
+  border-color: var(--danger);
+}
+
+/* ---- RadioGroup -------------------------------------------------------- */
+
+.ps-radio-group__options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--d-2);
+}
+
+.ps-radio {
+  padding-inline: var(--d-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  transition: border-color 0.2s, background-color 0.2s;
+}
+
+.ps-radio:hover {
+  border-color: var(--gold);
+}
+
+/* A disabled option stays visible and readable — "Online payment · قريباً"
+ * has to be understood, not hidden. Muted, not invisible. */
+.ps-radio--disabled {
+  background: var(--bg-warm);
+  cursor: not-allowed;
+}
+
+.ps-radio--disabled .ps-choice__label,
+.ps-radio--disabled .ps-choice__description {
+  color: var(--muted);
+}
+
+.ps-radio--disabled:hover {
+  border-color: var(--line);
+}
+
+.ps-radio__trailing {
+  margin-inline-start: auto;
+  align-self: center;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.ps-radio__lock {
+  align-self: center;
+  color: var(--muted);
+}
+
+/* ---- Switch ------------------------------------------------------------ */
+
+.ps-switch__control {
+  display: flex;
+  align-items: center;
+  gap: var(--d-3);
+  min-block-size: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: start;
+}
+
+.ps-switch__track {
+  position: relative;
+  flex: none;
+  display: block;
+  inline-size: 3rem;
+  block-size: 1.75rem;
+  border-radius: var(--r-pill);
+  background: var(--line);
+  transition: background-color 0.2s;
+}
+
+/* Travels along the inline axis, so it slides toward the reading-end edge in
+ * both directions without a mirrored rule. */
+.ps-switch__thumb {
+  position: absolute;
+  inset-block-start: 0.19rem;
+  inset-inline-start: 0.19rem;
+  inline-size: 1.37rem;
+  block-size: 1.37rem;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  transition: inset-inline-start 0.2s var(--ease-out);
+}
+
+.ps-switch__control[aria-checked="true"] .ps-switch__track {
+  background: var(--success);
+}
+
+.ps-switch__control[aria-checked="true"] .ps-switch__thumb {
+  inset-inline-start: 1.44rem;
+}
+
+.ps-switch__label {
+  font-weight: 600;
+}
+
+.ps-switch__description {
+  font-size: var(--fs-300);
+  color: var(--muted);
+  margin-block-start: var(--d-1);
+}
+
+.ps-switch--disabled .ps-switch__label {
+  color: var(--muted);
+}
+
+/* ---- QtyStepper -------------------------------------------------------- */
+
+.ps-qty {
+  display: inline-flex;
+  align-items: stretch;
+  border: 2px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.ps-qty__button {
+  display: grid;
+  place-items: center;
+  inline-size: 44px;
+  min-block-size: 44px;
+  border: 0;
+  background: none;
+  color: var(--blue);
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.ps-qty__button:hover:not(:disabled) {
+  background: var(--bg-tint);
+  color: var(--gold-700);
+}
+
+.ps-qty__button:disabled {
+  color: var(--muted);
+}
+
+.ps-qty__input {
+  inline-size: 3.5rem;
+  min-block-size: 44px;
+  border: 0;
+  border-inline: 1px solid var(--line);
+  background: none;
+  text-align: center;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+/* The native spinners duplicate the two buttons either side of the field and
+ * are far too small to hit on a phone. */
+.ps-qty__input::-webkit-outer-spin-button,
+.ps-qty__input::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.ps-qty__input[type="number"] {
+  appearance: textfield;
+}

@@ -12,6 +12,7 @@ export * from "./icons";
 export * from "./components/Layout";
 export * from "./components/Data";
 export * from "./components/Feedback";
+export * from "./components/Form";
 
 export * from "./components/Skeleton/Skeleton";
 export * from "./components/Badge/Badge";

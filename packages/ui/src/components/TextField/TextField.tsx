@@ -1,8 +1,9 @@
 "use client";
 
-import { forwardRef, useId } from "react";
+import { forwardRef } from "react";
 import type { InputHTMLAttributes } from "react";
 import { cx } from "../../utils/cx";
+import { describedBy, FieldShell, useFieldIds } from "../Form/Field";
 
 export interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "size"> {
   label: string;
@@ -14,47 +15,36 @@ export interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElemen
   forceLtr?: boolean;
 }
 
-/** PC-08 core set. Label/hint/error states per PC-08 §3's universal states;
- * error text stays `--ink` with a `--flame` accent border/icon slot, since
- * `--flame` alone fails AA for normal-size text (see a11y/contrast.test.ts). */
+/** PC-08 core set — single-line input.
+ *
+ * Shares the label/hint/error shell with every other control in the system,
+ * so the four of them cannot drift apart. The hint now stays visible beside
+ * an error rather than being replaced by it: hiding the format hint at
+ * exactly the moment someone got the format wrong is backwards. */
 export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextField(
   { label, hint, error, forceLtr = false, id, className, required, ...rest },
   ref
 ) {
-  const autoId = useId();
-  const inputId = id ?? autoId;
-  const hintId = hint ? `${inputId}-hint` : undefined;
-  const errorId = error ? `${inputId}-error` : undefined;
-
+  const ids = useFieldIds(id);
   return (
-    <div className={cx("ps-field", error && "ps-field--invalid", className)}>
-      <label htmlFor={inputId} className="ps-field__label">
-        {label}
-        {required ? (
-          <span className="ps-field__required" aria-hidden="true">
-            *
-          </span>
-        ) : null}
-      </label>
+    <FieldShell
+      label={label}
+      htmlFor={ids.inputId}
+      required={required}
+      hint={hint}
+      error={error}
+      ids={ids}
+      className={className}
+    >
       <input
         ref={ref}
-        id={inputId}
+        id={ids.inputId}
         className={cx("ps-field__input", forceLtr && "ps-ltr")}
         aria-invalid={Boolean(error) || undefined}
-        aria-describedby={cx(hintId, errorId) || undefined}
+        aria-describedby={describedBy(ids, hint, error)}
         required={required}
         {...rest}
       />
-      {hint && !error ? (
-        <p id={hintId} className="ps-field__hint">
-          {hint}
-        </p>
-      ) : null}
-      {error ? (
-        <p id={errorId} className="ps-field__error" role="alert">
-          {error}
-        </p>
-      ) : null}
-    </div>
+    </FieldShell>
   );
 });
