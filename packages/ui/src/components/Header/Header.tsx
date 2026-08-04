@@ -1,7 +1,8 @@
+"use client";
+
 import { useId, useState } from "react";
 import type { ReactNode } from "react";
 import { cx } from "../../utils/cx";
-import "./Header.css";
 
 export interface HeaderNavItem {
   label: string;

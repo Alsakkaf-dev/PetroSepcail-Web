@@ -1,7 +1,8 @@
+"use client";
+
 import { forwardRef, useId } from "react";
 import type { InputHTMLAttributes } from "react";
 import { cx } from "../../utils/cx";
-import "./TextField.css";
 
 export interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "size"> {
   label: string;

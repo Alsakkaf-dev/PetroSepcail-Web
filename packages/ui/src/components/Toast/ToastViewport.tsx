@@ -1,6 +1,7 @@
+"use client";
+
 import { cx } from "../../utils/cx";
 import { useToast } from "./ToastContext";
-import "./Toast.css";
 
 export interface ToastViewportProps {
   dismissLabel?: string;

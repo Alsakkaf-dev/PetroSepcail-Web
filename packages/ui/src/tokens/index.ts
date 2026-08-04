@@ -2,8 +2,6 @@
 // component needs a token value in an inline style rather than a CSS class
 // (e.g. runtime-selected product-family color). Prefer a CSS class + the
 // `var(--token)` form in *.css files for everything else — see README.md.
-import "./tokens.generated.css";
-import "./base.css";
 
 export const token = {
   bg: "var(--bg)",

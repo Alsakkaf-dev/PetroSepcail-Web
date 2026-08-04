@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { cx } from "../../utils/cx";
-import "./EmptyState.css";
 
 export interface EmptyStateProps {
   /** Illustration slot — an <svg> or <img>; kept generic so each consuming

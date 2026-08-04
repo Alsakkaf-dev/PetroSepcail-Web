@@ -1,6 +1,7 @@
+"use client";
+
 import { Button } from "../Button/Button";
 import { cx } from "../../utils/cx";
-import "./ErrorState.css";
 
 export interface ErrorStateProps {
   /** Localized message resolved from the PC-04 §8 error registry — never a

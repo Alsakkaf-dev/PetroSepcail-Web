@@ -1,6 +1,5 @@
 import type { HTMLAttributes, ReactNode } from "react";
 import { cx } from "../../utils/cx";
-import "./Card.css";
 
 export interface CardProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;

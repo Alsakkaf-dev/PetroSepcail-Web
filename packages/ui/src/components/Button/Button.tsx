@@ -1,7 +1,8 @@
+"use client";
+
 import { forwardRef } from "react";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cx } from "../../utils/cx";
-import "./Button.css";
 
 export type ButtonVariant = "gold" | "ghost" | "dark" | "danger";
 export type ButtonSize = "sm" | "md" | "lg";

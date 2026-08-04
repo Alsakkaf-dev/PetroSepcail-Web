@@ -20,7 +20,11 @@
   --blue: #16265c;
   --blue-600: #1e3a8a;
   --ink: #121417;
-  --muted: #6b7280;
+  /* Secondary text. Darkened from #6b7280, which cleared 4.5:1 on --surface
+     and --bg but dropped to 4.40:1 on --bg-warm and 4.23:1 on the status
+     tints — i.e. it failed WCAG AA on the recessed panels it is most used
+     on. This value clears 4.5:1 on every surface in the system. */
+  --muted: #646b78;
   --flame: #f15a24;
 
   /* Product family coding */
@@ -30,6 +34,20 @@
   --f-petro-cap: #4e3a12;
   --f-raval: #b91c1c;
   --f-raval-cap: #22252b;
+
+  /* Semantic status — distinct from the family colors on purpose. A family
+     color carries "which product line"; a status color carries "what happened".
+     Reusing one as the other is what made every app render --f-raval as its
+     error red. Each foreground clears 4.5:1 on --surface, --bg and --bg-warm
+     (--f-petro does not: 4.48 on --bg-warm), so these are safe as body text
+     where --gold/--gold-700/--flame deliberately are not. */
+  --success: #146c43;
+  --success-bg: #eaf6ef;
+  --danger: #a51c1c;
+  --danger-bg: #fdeceb;
+  --warn: #8a5a0b;
+  --warn-bg: #fbf1e0;
+  --info: var(--blue-600);
 
   /* Type */
   --font-display: "Cairo", "Tajawal", system-ui, sans-serif;
@@ -52,6 +70,13 @@
   --section-pad: clamp(4rem, 2.8rem + 4.5vw, 7.5rem);
   --container: min(1200px, 92vw);
   --container-wide: min(1360px, 94vw);
+
+  /* Density — the application ramp, alongside --sp-* (the brochure ramp).
+     A marketing section breathes at --sp-6; a table row an accountant scans
+     200 of must not. Same system, two densities, so app UI never inherits
+     brochure air. */
+  --d-1: .25rem; --d-2: .5rem; --d-3: .75rem;
+  --d-4: 1rem; --d-5: 1.5rem; --d-6: 2rem;
 
   /* Shape & depth */
   --r-sm: 10px; --r-md: 16px; --r-lg: 26px; --r-pill: 999px;

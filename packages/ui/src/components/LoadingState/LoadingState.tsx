@@ -1,5 +1,4 @@
 import { cx } from "../../utils/cx";
-import "./LoadingState.css";
 
 export interface LoadingStateProps {
   /** Number of skeleton rows/lines to render. */

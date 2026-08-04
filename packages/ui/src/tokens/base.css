@@ -23,7 +23,152 @@
   font-family: var(--font-latin);
 }
 
+/* ---- document baseline ------------------------------------------------
+ * Previously each app repeated its own `html, body { font-family… }` block —
+ * and driver/supplier had no tokens at all, so they rendered in system-ui
+ * with no reset, no focus ring and no reduced-motion guard. This is that
+ * baseline, defined once.
+ *
+ * color-scheme: light is deliberate, not an oversight. The brand defines no
+ * dark palette (DEFERRED-DECISIONS §4 item 13), so declaring light stops the
+ * browser auto-darkening form controls, scrollbars and spellcheck underlines
+ * into a half-dark surface the design never accounts for. */
+:root {
+  color-scheme: light;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  /* --lh-ar is 1.85 for Arabic and 1.7 under html[lang="en"]. Arabic needs
+   * the extra leading for its ascenders/descenders; the token already knows,
+   * as long as <html lang> is actually set from the locale. */
+  line-height: var(--lh-ar);
+  font-size: var(--fs-400);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  line-height: var(--lh-tight);
+  /* Stops a heading orphaning its last word — matters most in Arabic, where
+   * a single trailing word reads as a broken line. */
+  text-wrap: balance;
+}
+
+p {
+  margin: 0;
+}
+
+/* Latin faces are loaded for exactly the weights the tokens use, so a
+ * synthesised bold never appears next to a real one. */
+b,
+strong {
+  font-weight: 700;
+}
+
+a {
+  color: var(--blue-600);
+  text-underline-offset: 0.18em;
+}
+
+/* Controls do not inherit type by default; without this every input, select
+ * and button in all four apps falls back to the browser's own UI font. */
+button,
+input,
+optgroup,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+  margin: 0;
+}
+
+button {
+  cursor: pointer;
+}
+
+:disabled {
+  cursor: not-allowed;
+}
+
+/* Media never overflows its column, and always reserves its own aspect box. */
+img,
+svg,
+video,
+canvas {
+  max-inline-size: 100%;
+  block-size: auto;
+}
+
+/* Tables are laid out by components; this only stops the browser's default
+ * doubled borders leaking through before a component's own rules apply. */
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+/* ---- utilities used across every app ---------------------------------- */
+
+/* Readable measure. Opt-in rather than a blanket rule on <p>, so it applies
+ * to running prose and never to a table cell or a form field. */
+.ps-prose {
+  max-inline-size: 68ch;
+}
+
+/* Screen-reader-only text that stays in the accessibility tree. */
+.ps-visually-hidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Keyboard users land here first on every page. */
+.ps-skip-link {
+  position: absolute;
+  inset-block-start: -100%;
+  inset-inline-start: var(--sp-3);
+  z-index: 300;
+  padding: var(--d-3) var(--d-4);
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow-md);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.ps-skip-link:focus {
+  inset-block-start: var(--sp-3);
+}
+
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
   *,
   *::before,
   *::after {

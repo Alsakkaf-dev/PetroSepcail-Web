@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { cx } from "../../utils/cx";
-import "./Badge.css";
 
 export type BadgeVariant = "neutral" | "gold" | "blue" | "flame";
 

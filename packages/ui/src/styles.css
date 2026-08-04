@@ -1,0 +1,44 @@
+/* The single stylesheet entry every app imports.
+ *
+ *   apps/<app>/app/globals.css:  @import "@petrospecial/ui/src/styles.css";
+ *
+ * Why one aggregate instead of each component side-effect-importing its own
+ * .css (the previous arrangement):
+ *
+ * 1. Deterministic cascade. Component CSS pulled in through JS imports lands
+ *    in whatever order the bundler happens to resolve the module graph, so a
+ *    base rule could out-order a component rule non-reproducibly. Here the
+ *    order is written down: tokens -> fonts -> base -> components -> app.
+ * 2. It keeps CSS out of the JS module graph entirely, which sidesteps the
+ *    edge cases around importing stylesheets from a transpiled workspace
+ *    package into the Next App Router.
+ * 3. packages/ui stays framework-agnostic — the components are plain React
+ *    and their tests run in vitest/jsdom with no bundler CSS handling at all.
+ *
+ * Adding a component: add its .css here, in the section it belongs to.
+ */
+
+/* 1. Tokens — generated from assets/css/styles.css. Never hand-edit; run
+ *    `npm run tokens:generate -w @petrospecial/ui`. */
+@import "./tokens/tokens.generated.css";
+
+/* 2. Brand faces. After tokens (which name the families), before base (which
+ *    is the first thing to actually use them). */
+@import "./tokens/fonts.css";
+
+/* 3. Reset, document baseline, focus ring, bidi isolation, utilities. */
+@import "./tokens/base.css";
+
+/* 4. Components, alphabetical within each group. */
+@import "./components/Badge/Badge.css";
+@import "./components/Button/Button.css";
+@import "./components/Card/Card.css";
+@import "./components/Dialog/Dialog.css";
+@import "./components/EmptyState/EmptyState.css";
+@import "./components/ErrorState/ErrorState.css";
+@import "./components/Header/Header.css";
+@import "./components/LanguageToggle/LanguageToggle.css";
+@import "./components/LoadingState/LoadingState.css";
+@import "./components/Table/Table.css";
+@import "./components/TextField/TextField.css";
+@import "./components/Toast/Toast.css";

@@ -1,9 +1,10 @@
+"use client";
+
 import type { ReactNode } from "react";
 import { cx } from "../../utils/cx";
 import { EmptyState } from "../EmptyState/EmptyState";
 import { LoadingState } from "../LoadingState/LoadingState";
 import { ErrorState } from "../ErrorState/ErrorState";
-import "./Table.css";
 
 export interface TableColumn<T> {
   key: string;

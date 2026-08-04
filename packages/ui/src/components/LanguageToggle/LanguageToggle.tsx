@@ -1,6 +1,7 @@
+"use client";
+
 import { cx } from "../../utils/cx";
 import type { Locale } from "../../utils/locale";
-import "./LanguageToggle.css";
 
 export interface LanguageToggleProps {
   locale: Locale;
