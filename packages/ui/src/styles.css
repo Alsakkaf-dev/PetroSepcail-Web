@@ -54,6 +54,7 @@
 @import "./components/LanguageToggle/LanguageToggle.css";
 @import "./components/LoadingState/LoadingState.css";
 @import "./components/Navigation/Navigation.css";
+@import "./components/Overlay/Overlay.css";
 @import "./components/Skeleton/Skeleton.css";
 @import "./components/Status/Status.css";
 @import "./components/Table/Table.css";

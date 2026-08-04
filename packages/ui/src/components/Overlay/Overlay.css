@@ -1,0 +1,109 @@
+/* Sheet — the panel that slides in over the page. Dialog keeps its own
+ * stylesheet; the two share their focus handling, not their looks. */
+
+.ps-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  background: rgba(18, 20, 23, 0.5);
+}
+
+.ps-sheet {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  max-block-size: 100%;
+}
+
+/* Slides up from the bottom: the phone default, because the top of a
+ * six-inch screen is not reachable one-handed and a filter sheet is used
+ * one-handed. */
+.ps-sheet--block-end {
+  margin-block-start: auto;
+  inline-size: 100%;
+  max-block-size: 85vh;
+  border-start-start-radius: var(--r-lg);
+  border-start-end-radius: var(--r-lg);
+}
+
+/* Logical placements, so `inline-start` is the left edge in English and the
+ * right edge in Arabic without a second rule. */
+.ps-sheet--inline-start,
+.ps-sheet--inline-end {
+  block-size: 100%;
+  inline-size: min(24rem, 92vw);
+}
+
+.ps-sheet--inline-start {
+  margin-inline-end: auto;
+}
+
+.ps-sheet--inline-end {
+  margin-inline-start: auto;
+}
+
+.ps-sheet__header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--d-3);
+  padding: var(--d-4);
+  border-block-end: 1px solid var(--line);
+}
+
+/* The drag handle a phone user expects to see on a bottom sheet. Decorative:
+ * the sheet is closed with the button, Escape, or the backdrop. */
+.ps-sheet--block-end .ps-sheet__grip {
+  position: absolute;
+  inset-block-start: var(--d-2);
+  inset-inline: 0;
+  margin-inline: auto;
+  inline-size: 2.5rem;
+  block-size: 4px;
+  border-radius: var(--r-pill);
+  background: var(--line);
+}
+
+.ps-sheet__title {
+  font-family: var(--font-display);
+  font-size: var(--fs-600);
+  color: var(--ink);
+  min-inline-size: 0;
+}
+
+.ps-sheet__close {
+  display: grid;
+  place-items: center;
+  inline-size: 44px;
+  block-size: 44px;
+  flex: none;
+  margin-inline-start: auto;
+  border: 0;
+  border-radius: 50%;
+  background: var(--bg-warm);
+  color: var(--ink);
+}
+
+.ps-sheet__close:hover {
+  background: var(--bg-tint);
+}
+
+.ps-sheet__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--d-4);
+}
+
+/* Sticky, because a filter sheet whose apply button scrolls away is a filter
+ * sheet nobody finishes. */
+.ps-sheet__footer {
+  position: sticky;
+  inset-block-end: 0;
+  display: flex;
+  gap: var(--d-2);
+  padding: var(--d-4);
+  border-block-start: 1px solid var(--line);
+  background: var(--surface);
+}

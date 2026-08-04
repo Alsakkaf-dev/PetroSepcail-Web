@@ -7,6 +7,8 @@ import { Checkbox } from "./Checkbox";
 import { RadioGroup } from "./RadioGroup";
 import { Switch } from "./Switch";
 import { QtyStepper } from "./QtyStepper";
+import { FileUpload } from "./FileUpload";
+import { Keypad } from "./Keypad";
 import { structuralSignature, withDocumentDirection } from "../../testing/domSnapshot";
 
 afterEach(cleanup);
@@ -181,5 +183,73 @@ describe("QtyStepper", () => {
 
   it("renders identical DOM structure across RTL/ar and LTR/en (TC-PC08-002)", () => {
     parity(() => <QtyStepper label="l" value={5} onChange={() => {}} increaseLabel="+" decreaseLabel="-" />);
+  });
+});
+
+describe("FileUpload", () => {
+  it("keeps a real file input behind the drop zone", () => {
+    render(<FileUpload label="إثبات التحويل" onFiles={() => {}} browseLabel="اختر ملفاً" />);
+    const input = screen.getByLabelText(/إثبات التحويل/);
+    expect(input).toHaveAttribute("type", "file");
+    // Drag-and-drop is an addition; the visible browse control is the route
+    // a keyboard user and a driver on a phone both take.
+    expect(screen.getByText("اختر ملفاً")).toBeInTheDocument();
+  });
+
+  it("lists what was picked, with a way to take it back", () => {
+    const onRemove = vi.fn();
+    const file = new File(["x"], "receipt.pdf", { type: "application/pdf" });
+    render(
+      <FileUpload
+        label="l"
+        onFiles={() => {}}
+        files={[file]}
+        onRemove={onRemove}
+        browseLabel="b"
+        removeLabel="إزالة"
+      />
+    );
+    expect(screen.getByText("receipt.pdf")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "إزالة receipt.pdf" }));
+    expect(onRemove).toHaveBeenCalledWith(0);
+  });
+
+  it("renders identical DOM structure across RTL/ar and LTR/en (TC-PC08-002)", () => {
+    const file = new File(["x"], "a.pdf");
+    parity(() => (
+      <FileUpload label="l" onFiles={() => {}} files={[file]} onRemove={() => {}} browseLabel="b" hint="h" />
+    ));
+  });
+});
+
+describe("Keypad", () => {
+  it("appends digits up to its length and no further", () => {
+    const onChange = vi.fn();
+    const { rerender } = render(
+      <Keypad label="رمز التسليم" value="123" onChange={onChange} deleteLabel="حذف" />
+    );
+    fireEvent.click(screen.getByRole("button", { name: "4" }));
+    expect(onChange).toHaveBeenCalledWith("1234");
+    onChange.mockClear();
+    rerender(<Keypad label="رمز التسليم" value="1234" onChange={onChange} deleteLabel="حذف" />);
+    fireEvent.click(screen.getByRole("button", { name: "5" }));
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("deletes the last digit", () => {
+    const onChange = vi.fn();
+    render(<Keypad label="l" value="12" onChange={onChange} deleteLabel="حذف" />);
+    fireEvent.click(screen.getByRole("button", { name: "حذف" }));
+    expect(onChange).toHaveBeenCalledWith("1");
+  });
+
+  it("carries the value on a labelled input, not on four unlabelled boxes", () => {
+    const { container } = render(<Keypad label="رمز التسليم" value="12" onChange={() => {}} deleteLabel="d" />);
+    expect(screen.getByLabelText("رمز التسليم")).toHaveValue("12");
+    expect(container.querySelector(".ps-keypad__cells")).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("renders identical DOM structure across RTL/ar and LTR/en (TC-PC08-002)", () => {
+    parity(() => <Keypad label="l" value="12" onChange={() => {}} deleteLabel="d" status="s" error="e" />);
   });
 });

@@ -388,3 +388,211 @@ fieldset.ps-field {
 .ps-qty__input[type="number"] {
   appearance: textfield;
 }
+
+/* ---- FileUpload -------------------------------------------------------- */
+
+.ps-upload {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--d-2);
+  padding: var(--d-5) var(--d-4);
+  border: 2px dashed var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg-warm);
+  text-align: center;
+  transition: border-color 0.2s, background-color 0.2s;
+}
+
+.ps-upload--dragging {
+  border-color: var(--gold);
+  background: var(--bg-tint);
+}
+
+.ps-upload--disabled {
+  opacity: 0.6;
+}
+
+.ps-upload__icon {
+  color: var(--muted);
+}
+
+.ps-upload__drop {
+  color: var(--muted);
+  font-size: var(--fs-300);
+}
+
+/* A label styled as a button: it drives the real input, so the control keeps
+ * its native keyboard behaviour and its place in the tab order. */
+.ps-upload__browse {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: 44px;
+  padding-inline: var(--d-4);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  border: 2px solid var(--line);
+  color: var(--blue);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ps-upload__browse:hover {
+  border-color: var(--gold);
+}
+
+/* Not display:none — the input has to stay focusable, and its focus ring is
+ * what tells a keyboard user where they are. */
+.ps-upload__input {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  opacity: 0;
+}
+
+.ps-upload__input:focus-visible + * ,
+.ps-upload__input:focus-visible ~ .ps-upload__browse {
+  outline: 3px solid var(--blue-600);
+  outline-offset: 3px;
+}
+
+.ps-upload__files {
+  display: flex;
+  flex-direction: column;
+  gap: var(--d-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ps-upload__file {
+  display: flex;
+  align-items: center;
+  gap: var(--d-2);
+  padding: var(--d-2) var(--d-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  font-size: var(--fs-300);
+}
+
+.ps-upload__file-name {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ps-upload__file-size {
+  color: var(--muted);
+  margin-inline-start: auto;
+  white-space: nowrap;
+}
+
+.ps-upload__remove {
+  display: grid;
+  place-items: center;
+  inline-size: 44px;
+  min-block-size: 44px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  border-radius: var(--r-sm);
+}
+
+.ps-upload__remove:hover {
+  color: var(--danger);
+  background: var(--danger-bg);
+}
+
+/* ---- Keypad ------------------------------------------------------------
+ * Sized for a driver's thumb in daylight, not for a desktop form. */
+
+.ps-keypad {
+  display: flex;
+  flex-direction: column;
+  gap: var(--d-3);
+  align-items: center;
+}
+
+.ps-keypad__label {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.ps-keypad__cells {
+  display: flex;
+  gap: var(--d-2);
+  /* An OTP is a technical string: it reads left to right in both languages. */
+  direction: ltr;
+}
+
+.ps-keypad__cell {
+  display: grid;
+  place-items: center;
+  inline-size: 3.25rem;
+  block-size: 3.75rem;
+  border: 2px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--fs-700);
+  color: var(--ink);
+}
+
+.ps-keypad__cell--filled {
+  border-color: var(--gold);
+  background: var(--bg-tint);
+}
+
+.ps-keypad--invalid .ps-keypad__cell {
+  border-color: var(--danger);
+}
+
+.ps-keypad__status {
+  color: var(--muted);
+  font-size: var(--fs-300);
+}
+
+.ps-keypad__keys {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--d-2);
+  inline-size: min(20rem, 100%);
+  direction: ltr;
+}
+
+.ps-keypad__key {
+  min-block-size: 3.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--fs-600);
+  box-shadow: var(--shadow-sm);
+  transition: background-color 0.15s, transform 0.15s;
+}
+
+.ps-keypad__key:active:not(:disabled) {
+  transform: translateY(1px) scale(0.99);
+  background: var(--bg-tint);
+}
+
+.ps-keypad__key:disabled {
+  color: var(--muted);
+  background: var(--bg-warm);
+  box-shadow: none;
+}
+
+.ps-keypad__key--delete {
+  color: var(--blue);
+}
+
+.ps-keypad__gap {
+  display: block;
+}
