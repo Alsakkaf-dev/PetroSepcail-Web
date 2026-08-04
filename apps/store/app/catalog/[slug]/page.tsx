@@ -2,7 +2,8 @@ import type { PackSizesResponse, ProductDetailResponse, RelatedProductsResponse 
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { apiGet } from "../../../lib/api";
-import { dirFor, otherLocale, parseLocale, t } from "../../../lib/locale";
+import { dirFor, otherLocale, t } from "../../../lib/locale";
+import { getLocale } from "@petrospecial/app-shell/src/server";
 import { AddToCartButton } from "../../../components/AddToCartButton";
 
 export const dynamic = "force-dynamic";
@@ -12,9 +13,6 @@ interface PageProps {
   searchParams: Record<string, string | string[] | undefined>;
 }
 
-function first(v: string | string[] | undefined): string | undefined {
-  return Array.isArray(v) ? v[0] : v;
-}
 
 function BlockList({ items, locale }: { items: Array<{ ar: string; en: string }>; locale: "ar" | "en" }) {
   return (
@@ -27,7 +25,7 @@ function BlockList({ items, locale }: { items: Array<{ ar: string; en: string }>
 }
 
 export default async function ProductDetailPage({ params, searchParams }: PageProps) {
-  const locale = parseLocale(first(searchParams.lang));
+  const locale = getLocale(searchParams as { lang?: string | string[] });
   const detail = await apiGet<ProductDetailResponse>(`/api/v1/catalog/products/${params.slug}`);
   if (!detail) notFound();
 

@@ -1,7 +1,8 @@
 import type { CatalogProductsResponse, FamiliesListResponse, ProductCard } from "@petrospecial/contracts";
 import Link from "next/link";
 import { apiGet } from "../../lib/api";
-import { dirFor, otherLocale, parseLocale, t } from "../../lib/locale";
+import { dirFor, otherLocale, t } from "../../lib/locale";
+import { getLocale } from "@petrospecial/app-shell/src/server";
 
 export const dynamic = "force-dynamic"; // always-fresh catalog reads (no cache-bust plumbing yet — see S07 handover)
 
@@ -58,7 +59,7 @@ function ProductCardView({ item, locale }: { item: ProductCard; locale: "ar" | "
 }
 
 export default async function CatalogPage({ searchParams }: PageProps) {
-  const locale = parseLocale(first(searchParams.lang));
+  const locale = getLocale(searchParams as { lang?: string | string[] });
   const family = first(searchParams.family);
   const application = first(searchParams.application);
   const cursor = first(searchParams.cursor);

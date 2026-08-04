@@ -1,7 +1,8 @@
 import type { SearchProductsResponse } from "@petrospecial/contracts";
 import Link from "next/link";
 import { apiGet } from "../../lib/api";
-import { dirFor, otherLocale, parseLocale, t } from "../../lib/locale";
+import { dirFor, otherLocale, t } from "../../lib/locale";
+import { getLocale } from "@petrospecial/app-shell/src/server";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,7 @@ function first(v: string | string[] | undefined): string | undefined {
 }
 
 export default async function SearchPage({ searchParams }: PageProps) {
-  const locale = parseLocale(first(searchParams.lang));
+  const locale = getLocale(searchParams as { lang?: string | string[] });
   const q = first(searchParams.q) ?? "";
 
   const results = q
