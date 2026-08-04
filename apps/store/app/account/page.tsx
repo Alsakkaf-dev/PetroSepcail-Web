@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
 import { LoginForm } from "../../components/LoginForm";
-import { authedFetch, getToken } from "../../lib/authClient";
+import { authedFetch, getToken, isSessionEnded } from "../../lib/authClient";
 import { dirFor, otherLocale, t } from "../../lib/locale";
 import { useLocale } from "../../lib/useLocale";
 
@@ -71,7 +71,12 @@ function AccountPageInner() {
         setLoyalty(loyaltyRes);
         setConsents(consentsRes.items);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "failed"));
+      .catch((err) => {
+        // Expired session -> back to the sign-in form, not an error message
+        // beside a hidden one.
+        if (isSessionEnded(err)) return setLoggedIn(false);
+        setError(err instanceof Error ? err.message : "failed");
+      });
   }, [loggedIn]);
 
   async function saveProfile(e: React.FormEvent) {

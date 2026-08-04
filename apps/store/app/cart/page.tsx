@@ -2,9 +2,9 @@
 
 import type { ApplyCouponResponse, CartResponse } from "@petrospecial/contracts";
 import Link from "next/link";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { LoginForm } from "../../components/LoginForm";
-import { authedFetch, getToken } from "../../lib/authClient";
+import { authedFetch, getToken, isSessionEnded } from "../../lib/authClient";
 import { dirFor, otherLocale, t } from "../../lib/locale";
 import { useLocale } from "../../lib/useLocale";
 
@@ -31,27 +31,51 @@ function CartPageInner() {
     setLoggedIn(!!getToken());
   }, []);
 
-  async function refresh() {
+  // A session that could not be renewed puts the page back into its
+  // logged-out state so the sign-in form reappears. Showing the API's
+  // "Incorrect email or password." next to a hidden login form — which is
+  // what an expired token used to produce here — left the customer with
+  // nothing to click. Only calls state setters, so it is stable for the
+  // whole mount and safe as an effect dependency.
+  const handleError = useCallback((err: unknown) => {
+    if (isSessionEnded(err)) {
+      setLoggedIn(false);
+      setCart(null);
+      setError(null);
+      return;
+    }
+    setError(err instanceof Error ? err.message : "failed");
+  }, []);
+
+  const refresh = useCallback(async () => {
     try {
       const data = await authedFetch<CartResponse>("/api/v1/cart");
       setCart(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "failed");
+      handleError(err);
     }
-  }
+  }, [handleError]);
 
   useEffect(() => {
     if (loggedIn) refresh();
-  }, [loggedIn]);
+  }, [loggedIn, refresh]);
 
   async function updateQty(lineId: string, qty: number) {
-    await authedFetch(`/api/v1/cart/lines/${lineId}`, { method: "PATCH", body: JSON.stringify({ qty }) });
-    refresh();
+    try {
+      await authedFetch(`/api/v1/cart/lines/${lineId}`, { method: "PATCH", body: JSON.stringify({ qty }) });
+      refresh();
+    } catch (err) {
+      handleError(err);
+    }
   }
 
   async function removeLine(lineId: string) {
-    await authedFetch(`/api/v1/cart/lines/${lineId}`, { method: "DELETE" });
-    refresh();
+    try {
+      await authedFetch(`/api/v1/cart/lines/${lineId}`, { method: "DELETE" });
+      refresh();
+    } catch (err) {
+      handleError(err);
+    }
   }
 
   // EP-SF-014/015 (LE-02, S19) — a coupon is validated live against the
@@ -69,7 +93,8 @@ function CartPageInner() {
       if (!res.valid) setCouponMessage(res.reason);
       refresh();
     } catch (err) {
-      setCouponMessage(err instanceof Error ? err.message : "failed");
+      if (isSessionEnded(err)) handleError(err);
+      else setCouponMessage(err instanceof Error ? err.message : "failed");
     } finally {
       setCouponBusy(false);
     }
@@ -82,6 +107,8 @@ function CartPageInner() {
       setCouponInput("");
       setCouponMessage(null);
       refresh();
+    } catch (err) {
+      handleError(err);
     } finally {
       setCouponBusy(false);
     }

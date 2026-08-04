@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
 import { LoginForm } from "../../components/LoginForm";
-import { authedFetch, getToken } from "../../lib/authClient";
+import { authedFetch, getToken, isSessionEnded } from "../../lib/authClient";
 import { dirFor, localeDateString, orderStatusLabel, otherLocale, t } from "../../lib/locale";
 import { useLocale } from "../../lib/useLocale";
 
@@ -42,7 +42,12 @@ function OrdersListPageInner() {
     if (!loggedIn) return;
     authedFetch<{ items: OrderListItem[] }>("/api/v1/orders")
       .then((res) => setItems(res.items))
-      .catch((err) => setError(err instanceof Error ? err.message : "failed"));
+      .catch((err) => {
+        // Expired session -> back to the sign-in form, not an error message
+        // beside a hidden one.
+        if (isSessionEnded(err)) return setLoggedIn(false);
+        setError(err instanceof Error ? err.message : "failed");
+      });
   }, [loggedIn]);
 
   return (
