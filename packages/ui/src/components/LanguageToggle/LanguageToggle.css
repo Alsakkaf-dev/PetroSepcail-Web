@@ -1,21 +1,34 @@
+/* Matches .lang-toggle in assets/css/styles.css — gold border, globe mark,
+ * gold-tinted hover lift — with one deliberate difference: the 44px tap
+ * target the marketing site's version doesn't carry. */
 .ps-lang-toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 0.45rem;
   min-inline-size: 44px;
   min-block-size: 44px;
-  padding-inline: 0.9rem;
-  border: 2px solid var(--line);
+  padding-inline: 1.05rem;
+  border: 2px solid var(--gold);
   border-radius: var(--r-pill);
   background: var(--surface);
   color: var(--blue);
   font-weight: 700;
   font-size: var(--fs-300);
   font-family: var(--font-latin);
+  transition: background-color 0.25s, box-shadow 0.25s, transform 0.25s;
 }
 
 .ps-lang-toggle:hover {
-  border-color: var(--gold);
+  background: var(--bg-tint);
+  box-shadow: var(--shadow-gold);
+  transform: translateY(-1px);
+}
+
+.ps-lang-toggle .ps-icon {
+  color: var(--gold-600);
+  inline-size: 1.05em;
+  block-size: 1.05em;
 }
 
 .ps-lang-toggle__label {

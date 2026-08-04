@@ -1,0 +1,34 @@
+ISC License
+
+Copyright (c) for portions of Lucide are held by Cole Bemis 2013-2022 as part
+of Feather (MIT). All other copyright (c) for Lucide are held by Lucide
+Contributors 2022.
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE.
+
+---
+
+Source: the Lucide project (lucide.dev, source at github.com/lucide-icons/lucide),
+`icons/*.svg`. Vendored, not installed. No runtime dependency, no CDN — per the standing
+vendor constraint in DEFERRED-DECISIONS Section 3. Each glyph in glyphs.tsx
+carries its upstream Lucide icon name in a comment so a future upgrade is a
+mechanical diff against that file.
+
+Changes made to the upstream artwork:
+  * The `xmlns`, `width`, `height`, `stroke-width`, `stroke-linecap` and
+    `stroke-linejoin` attributes are dropped from each glyph — the shared
+    <Icon> wrapper supplies them once, and an xmlns URI would fail
+    parity-grep. Only the geometry elements are vendored.
+  * stroke-width is set to 1.8 (Lucide ships 2) to match the hand-written
+    inline SVGs already in assets/ and index.html, so the marketing site and
+    the applications read as one company.

@@ -1,0 +1,438 @@
+/* Layout primitives. Every offset in this file is a logical property —
+ * inline-start/inline-end, margin-inline, padding-block — so RTL mirroring
+ * happens in the browser rather than in a second set of rules. There is no
+ * `left` or `right` anywhere here, and there must never be: the structural
+ * parity test (testing/domSnapshot.ts) proves components don't branch their
+ * markup on direction, and this file is the other half of that promise.
+ *
+ * Spacing comes from the density ramp (--d-1..--d-6), not the brochure ramp
+ * (--sp-*). Section is the one place that opens up to --section-pad, and only
+ * when asked. */
+
+/* ---- shared gap utility ------------------------------------------------
+ * One definition consumed by Stack, Cluster and Grid, so the three ramps can
+ * never drift apart. */
+
+.ps-gap-none {
+  gap: 0;
+}
+
+.ps-gap-xs {
+  gap: var(--d-1);
+}
+
+.ps-gap-sm {
+  gap: var(--d-2);
+}
+
+.ps-gap-md {
+  gap: var(--d-3);
+}
+
+.ps-gap-lg {
+  gap: var(--d-4);
+}
+
+.ps-gap-xl {
+  gap: var(--d-5);
+}
+
+.ps-gap-2xl {
+  gap: var(--d-6);
+}
+
+/* ---- Container --------------------------------------------------------- */
+
+.ps-container {
+  margin-inline: auto;
+  inline-size: 100%;
+}
+
+.ps-container--standard {
+  max-inline-size: var(--container);
+}
+
+.ps-container--wide {
+  max-inline-size: var(--container-wide);
+}
+
+/* A single readable column: forms, auth cards, legal copy. 46rem matches the
+ * marketing site's own .section-head measure. */
+.ps-container--narrow {
+  max-inline-size: 46rem;
+}
+
+/* ---- Page -------------------------------------------------------------- */
+
+.ps-page {
+  display: block;
+  margin-inline: auto;
+  inline-size: 100%;
+}
+
+/* <main> is focusable so the skip link actually moves focus (WebKit), but a
+ * mouse click on the page body must not draw a ring around the whole
+ * document. Scoped to :not(:focus-visible) so the keyboard ring survives —
+ * a blanket `outline: none` here would out-order base.css's :focus-visible
+ * rule and silently delete it for every screen. */
+.ps-page:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.ps-page--standard {
+  max-inline-size: var(--container);
+}
+
+.ps-page--wide {
+  max-inline-size: var(--container-wide);
+}
+
+.ps-page--narrow {
+  max-inline-size: 46rem;
+}
+
+.ps-page--flush {
+  max-inline-size: none;
+}
+
+.ps-page--air-app {
+  padding-block: var(--d-5) var(--sp-7);
+  padding-inline: var(--d-4);
+}
+
+.ps-page--air-brochure {
+  padding-block: 0 var(--section-pad);
+}
+
+@media (min-width: 48em) {
+  .ps-page--air-app {
+    padding-block-start: var(--d-6);
+    padding-inline: var(--d-5);
+  }
+}
+
+/* ---- Section ----------------------------------------------------------- */
+
+.ps-section {
+  position: relative;
+}
+
+.ps-section__body {
+  position: relative;
+  z-index: 1;
+}
+
+.ps-section--air-app {
+  padding-block: var(--d-5);
+}
+
+.ps-section--air-brochure {
+  padding-block: var(--section-pad);
+}
+
+.ps-section--air-none {
+  padding-block: 0;
+}
+
+.ps-section--warm {
+  background: var(--bg-warm);
+}
+
+.ps-section--tint {
+  background: linear-gradient(180deg, var(--bg-tint), var(--bg-warm) 130%);
+}
+
+/* The gold aurora. Copied value-for-value from .bg-mesh in
+ * assets/css/styles.css — the rgba() washes are the brand gold and brand
+ * blue at low alpha, which no token can express as a single value. */
+.ps-section--mesh {
+  background:
+    radial-gradient(46rem 30rem at 85% -8%, rgba(255, 200, 0, 0.16), transparent 60%),
+    radial-gradient(38rem 26rem at -6% 22%, rgba(255, 214, 82, 0.13), transparent 62%),
+    radial-gradient(30rem 22rem at 55% 115%, rgba(22, 38, 92, 0.07), transparent 65%),
+    var(--bg);
+}
+
+.ps-section--mesh-soft {
+  background:
+    radial-gradient(42rem 26rem at 108% 12%, rgba(255, 200, 0, 0.1), transparent 62%),
+    radial-gradient(34rem 22rem at -8% 88%, rgba(255, 214, 82, 0.09), transparent 60%),
+    var(--bg);
+}
+
+.ps-section__decor {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Oil-pour contours and topographic ellipses — the two signature motifs,
+ * carried as data URIs exactly as the marketing site carries them. */
+.ps-section__decor--viscosity {
+  overflow: clip;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 640' preserveAspectRatio='none'%3E%3Cg fill='none' stroke='%23e0b100' stroke-width='1.4'%3E%3Cpath stroke-opacity='.16' d='M-40 520C240 430 420 610 720 500s470-180 780-90'/%3E%3Cpath stroke-opacity='.12' d='M-40 560C260 480 460 640 760 540s450-150 720-70'/%3E%3Cpath stroke-opacity='.09' d='M-40 600C280 530 500 670 800 580s420-120 680-50'/%3E%3Cpath stroke-opacity='.07' d='M-40 120C300 40 520 190 820 100s400-90 660-30'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 100% 100%;
+}
+
+.ps-section__decor--contours {
+  opacity: 0.5;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 600'%3E%3Cg fill='none' stroke='%23d8cfae' stroke-opacity='.35'%3E%3Cellipse cx='300' cy='300' rx='260' ry='215'/%3E%3Cellipse cx='300' cy='300' rx='205' ry='165'/%3E%3Cellipse cx='300' cy='300' rx='150' ry='118'/%3E%3Cellipse cx='300' cy='300' rx='96' ry='72'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 42rem 42rem;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* ---- Eyebrow / Divider / SectionHead ----------------------------------- */
+
+.ps-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-weight: 700;
+  font-size: var(--fs-300);
+  color: var(--gold-700);
+  letter-spacing: 0.02em;
+  margin-block-end: var(--d-2);
+}
+
+/* Grows from the start edge — the gradient runs to the gold end, and the
+ * whole rule flips with the document because it is an inline-flex sibling,
+ * not a positioned decoration. */
+.ps-eyebrow::before {
+  content: "";
+  inline-size: 2.2rem;
+  block-size: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, var(--gold));
+}
+
+.ps-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  inline-size: min(220px, 40%);
+  margin-block: var(--d-3) var(--d-4);
+  color: var(--gold-600);
+}
+
+.ps-divider::before,
+.ps-divider::after {
+  content: "";
+  flex: 1;
+  block-size: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold-600), transparent);
+}
+
+.ps-divider svg {
+  inline-size: 0.65rem;
+  block-size: 0.65rem;
+  flex: none;
+}
+
+.ps-divider--center {
+  margin-inline: auto;
+}
+
+.ps-divider--line {
+  inline-size: 100%;
+  color: var(--line);
+}
+
+.ps-divider--line::before,
+.ps-divider--line::after {
+  background: var(--line);
+}
+
+.ps-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--d-3);
+  margin-block-end: var(--d-5);
+}
+
+.ps-section-head__main {
+  max-inline-size: 46rem;
+}
+
+.ps-section-head__title {
+  font-size: var(--fs-700);
+  color: var(--blue);
+}
+
+.ps-section-head__lead {
+  color: var(--muted);
+  font-size: var(--fs-400);
+}
+
+.ps-section-head__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--d-2);
+  margin-inline-start: auto;
+}
+
+.ps-section-head--center {
+  justify-content: center;
+  text-align: center;
+}
+
+.ps-section-head--center .ps-section-head__main {
+  margin-inline: auto;
+}
+
+.ps-section-head--center .ps-section-head__actions {
+  margin-inline: auto;
+}
+
+/* ---- Stack ------------------------------------------------------------- */
+
+.ps-stack {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+}
+
+.ps-stack--stretch {
+  align-items: stretch;
+}
+
+.ps-stack--start {
+  align-items: flex-start;
+}
+
+.ps-stack--center {
+  align-items: center;
+}
+
+.ps-stack--end {
+  align-items: flex-end;
+}
+
+/* ---- Cluster ----------------------------------------------------------- */
+
+.ps-cluster {
+  display: flex;
+  flex-wrap: wrap;
+  min-inline-size: 0;
+}
+
+.ps-cluster--nowrap {
+  flex-wrap: nowrap;
+}
+
+.ps-cluster--align-center {
+  align-items: center;
+}
+
+.ps-cluster--align-start {
+  align-items: flex-start;
+}
+
+.ps-cluster--align-end {
+  align-items: flex-end;
+}
+
+.ps-cluster--align-baseline {
+  align-items: baseline;
+}
+
+.ps-cluster--justify-start {
+  justify-content: flex-start;
+}
+
+.ps-cluster--justify-center {
+  justify-content: center;
+}
+
+.ps-cluster--justify-end {
+  justify-content: flex-end;
+}
+
+.ps-cluster--justify-between {
+  justify-content: space-between;
+}
+
+/* ---- Grid -------------------------------------------------------------- */
+
+.ps-grid {
+  display: grid;
+}
+
+.ps-grid--2 {
+  grid-template-columns: repeat(auto-fit, minmax(min(21rem, 100%), 1fr));
+}
+
+.ps-grid--3 {
+  grid-template-columns: repeat(auto-fit, minmax(min(17rem, 100%), 1fr));
+}
+
+.ps-grid--4 {
+  grid-template-columns: repeat(auto-fit, minmax(min(13rem, 100%), 1fr));
+}
+
+/* ---- Rail -------------------------------------------------------------- */
+
+.ps-rail {
+  display: grid;
+  gap: var(--d-5);
+  align-items: start;
+}
+
+/* One column on a phone, in source order: rail first, then main. No `order`
+ * or `grid-column` juggling in the stacked layout on purpose — reordering
+ * visually without reordering the DOM hands keyboard and screen-reader users
+ * a different sequence from everyone else. Filters above results is also the
+ * right reading order anyway. */
+.ps-rail__side {
+  min-inline-size: 0;
+}
+
+.ps-rail__main {
+  min-inline-size: 0;
+}
+
+@media (min-width: 60em) {
+  /* Grid columns resolve from the document direction, so column 1 is the
+     left column in English and the right column in Arabic — `start` and
+     `end` need no second rule and no mirrored stylesheet. */
+  .ps-rail--start.ps-rail--standard {
+    grid-template-columns: 18rem minmax(0, 1fr);
+  }
+
+  .ps-rail--start.ps-rail--narrow {
+    grid-template-columns: 14rem minmax(0, 1fr);
+  }
+
+  /* The one place source order and visual order diverge, deliberately: an
+     order summary or a "details" rail reads correctly in either sequence,
+     and putting it last in the DOM keeps the main column first for anyone
+     tabbing or listening. */
+  .ps-rail--end.ps-rail--standard {
+    grid-template-columns: minmax(0, 1fr) 18rem;
+  }
+
+  .ps-rail--end.ps-rail--narrow {
+    grid-template-columns: minmax(0, 1fr) 14rem;
+  }
+
+  .ps-rail--end .ps-rail__side {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .ps-rail--end .ps-rail__main {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .ps-rail--sticky .ps-rail__side {
+    position: sticky;
+    inset-block-start: calc(var(--header-h) + var(--d-4));
+    max-block-size: calc(100vh - var(--header-h) - var(--d-6));
+    overflow-y: auto;
+  }
+}

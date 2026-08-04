@@ -7,6 +7,10 @@ export * from "./utils/cx";
 export * from "./utils/locale";
 export * from "./a11y/contrast";
 
+export * from "./icons";
+
+export * from "./components/Layout";
+
 export * from "./components/Badge/Badge";
 export * from "./components/Button/Button";
 export * from "./components/Card/Card";

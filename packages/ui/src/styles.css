@@ -29,7 +29,13 @@
 /* 3. Reset, document baseline, focus ring, bidi isolation, utilities. */
 @import "./tokens/base.css";
 
-/* 4. Components, alphabetical within each group. */
+/* 4. Icons and layout primitives. Ahead of the components, because a
+ *    component may style an icon or a primitive inside itself and should
+ *    win when it does. */
+@import "./icons/Icon.css";
+@import "./components/Layout/Layout.css";
+
+/* 5. Components, alphabetical within each group. */
 @import "./components/Badge/Badge.css";
 @import "./components/Button/Button.css";
 @import "./components/Card/Card.css";

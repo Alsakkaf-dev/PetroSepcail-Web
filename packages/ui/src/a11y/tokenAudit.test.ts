@@ -15,6 +15,8 @@ describe("TC-PC08-001 token literal audit", () => {
       repoRoot,
       [
         "packages/ui/src/components",
+        // The icon system carries its own stylesheet outside components/.
+        "packages/ui/src/icons",
         "apps/store",
         "apps/admin",
         "apps/driver",

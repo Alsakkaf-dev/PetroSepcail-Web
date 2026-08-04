@@ -2,6 +2,7 @@
 
 import { cx } from "../../utils/cx";
 import type { Locale } from "../../utils/locale";
+import { Icon } from "../../icons/Icon";
 
 export interface LanguageToggleProps {
   locale: Locale;
@@ -16,7 +17,9 @@ const LABEL: Record<Locale, string> = { ar: "عربي", en: "EN" };
 
 /** PC-08 core set — mirrors the live site's single toggle button: it always
  * shows the *target* language's label ("EN" while in Arabic, "عربي" while in
- * English) rather than a two-way segmented control. */
+ * English) rather than a two-way segmented control. The globe is the same
+ * mark the marketing site's own toggle carries; it is decorative here,
+ * because the button already has an accessible name. */
 export function LanguageToggle({ locale, onToggle, ariaLabel, className }: LanguageToggleProps) {
   const target = OTHER_LOCALE[locale];
   return (
@@ -26,6 +29,7 @@ export function LanguageToggle({ locale, onToggle, ariaLabel, className }: Langu
       aria-label={ariaLabel[locale]}
       onClick={() => onToggle(target)}
     >
+      <Icon name="globe" size="sm" />
       <span className="ps-lang-toggle__label">{LABEL[target]}</span>
     </button>
   );

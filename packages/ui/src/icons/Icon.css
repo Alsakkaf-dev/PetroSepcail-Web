@@ -1,0 +1,104 @@
+/* Icon system — see LICENSE-lucide.txt for the vendored artwork's licence.
+ *
+ * Every size is in `em`, so an icon tracks the type size of the line it sits
+ * on and a11y/contrast.test.ts's touch-target rule (no declared box between
+ * 20px and 43px) can never be tripped by an icon. A tap *target* is built by
+ * the button around the icon, never by the glyph itself. */
+
+.ps-icon {
+  /* Never squeezed by a flex row of text, never stretched by a grid cell. */
+  flex: none;
+  /* Optically centres against the x-height when inline with text. */
+  vertical-align: -0.125em;
+}
+
+.ps-icon--sm {
+  inline-size: 1em;
+  block-size: 1em;
+}
+
+.ps-icon--md {
+  inline-size: 1.15em;
+  block-size: 1.15em;
+}
+
+.ps-icon--lg {
+  inline-size: 1.5em;
+  block-size: 1.5em;
+}
+
+.ps-icon--xl {
+  inline-size: 1.9em;
+  block-size: 1.9em;
+}
+
+/* Only glyphs that point along the reading axis mirror. Doing it here rather
+ * than by swapping the glyph is what lets every component keep one markup
+ * tree in both directions (testing/domSnapshot.ts). */
+[dir="rtl"] .ps-icon--directional {
+  transform: scaleX(-1);
+}
+
+.ps-icon--spin {
+  animation: ps-icon-spin 0.9s linear infinite;
+  transform-origin: center;
+}
+
+@keyframes ps-icon-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---- oil-drop icon well ------------------------------------------------
+ * The brand's signature shape (--r-drop). Mirrors .pillar__icon in
+ * assets/css/styles.css so a card in the app and a card on the marketing
+ * site are the same object. */
+
+.ps-icon-well {
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-drop);
+  transition: transform 0.45s var(--ease-out);
+}
+
+.ps-icon-well--md {
+  inline-size: 4.2rem;
+  block-size: 4.2rem;
+}
+
+.ps-icon-well--sm {
+  inline-size: 3rem;
+  block-size: 3rem;
+}
+
+.ps-icon-well--gold {
+  background: linear-gradient(140deg, var(--bg-tint), #ffedad);
+  color: var(--gold-700);
+}
+
+.ps-icon-well--blue {
+  background: linear-gradient(140deg, #e8edfb, #d5ddf6);
+  color: var(--blue-600);
+}
+
+.ps-icon-well--success {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.ps-icon-well--danger {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.ps-icon-well--warn {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+
+/* The chip tilt from the marketing site's card hover. Guarded by the global
+ * reduced-motion rule in base.css. */
+.ps-card:hover .ps-icon-well {
+  transform: rotate(-6deg) scale(1.08);
+}
