@@ -1,0 +1,104 @@
+/* JsonView and DiffView — the two surfaces that have to show exactly what
+ * changed, before it changes and after it did. */
+
+.ps-json {
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.ps-json__label {
+  padding: var(--d-2) var(--d-3);
+  background: var(--bg-warm);
+  border-block-end: 1px solid var(--line);
+  color: var(--muted);
+  font-size: var(--fs-200);
+  font-weight: 700;
+}
+
+/* A <pre> rather than a tree: evidence should be selectable, copyable and
+ * findable with the browser's own search, and identical in a printout. */
+.ps-json__body {
+  margin: 0;
+  padding: var(--d-3);
+  max-block-size: 24rem;
+  overflow: auto;
+  font-size: var(--fs-200);
+  line-height: 1.6;
+  color: var(--ink);
+  white-space: pre;
+  tab-size: 2;
+}
+
+/* ---- DiffView ---------------------------------------------------------- */
+
+.ps-diff {
+  inline-size: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-300);
+}
+
+.ps-diff__caption {
+  text-align: start;
+  font-weight: 700;
+  color: var(--ink);
+  padding-block-end: var(--d-2);
+}
+
+.ps-diff th,
+.ps-diff td {
+  text-align: start;
+  padding: var(--d-2) var(--d-3);
+  border: 1px solid var(--line);
+  vertical-align: top;
+}
+
+.ps-diff thead th {
+  background: var(--bg-warm);
+  color: var(--muted);
+  font-size: var(--fs-200);
+}
+
+.ps-diff__field {
+  background: var(--bg-warm);
+  font-weight: 700;
+  color: var(--ink);
+  inline-size: 12rem;
+}
+
+/* Tint plus glyph, so the direction of a change survives greyscale and
+ * colour-vision deficiency both. */
+.ps-diff__before,
+.ps-diff__after {
+  display: table-cell;
+  color: var(--ink);
+}
+
+.ps-diff__before {
+  background: var(--danger-bg);
+}
+
+.ps-diff__after {
+  background: var(--success-bg);
+}
+
+.ps-diff__before > svg {
+  color: var(--danger);
+}
+
+.ps-diff__after > svg {
+  color: var(--success);
+}
+
+.ps-diff__empty {
+  color: var(--muted);
+  font-style: italic;
+}
+
+@media (max-width: 40em) {
+  .ps-diff__field {
+    inline-size: auto;
+  }
+}

@@ -1,0 +1,56 @@
+/* Scroll reveal and the count-up. One easing and one duration, both from the
+ * brand tokens — motion serves orientation and feedback, never decoration
+ * that someone has to wait through.
+ *
+ * base.css already collapses every animation and transition under
+ * prefers-reduced-motion. These rules are written so that guard leaves
+ * content *visible* rather than stuck at the start of an entrance: the
+ * components also stop observing entirely, so nothing depends on the CSS
+ * winning a specificity fight. */
+
+.ps-reveal {
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease-out), transform var(--dur) var(--ease-out);
+  will-change: opacity, transform;
+}
+
+.ps-reveal--up {
+  transform: translateY(28px);
+}
+
+/* Visual directions, deliberately not logical ones. A card entering from the
+ * left enters from the left in Arabic too — this is choreography, not
+ * reading order. */
+.ps-reveal--left {
+  transform: translateX(-28px);
+}
+
+.ps-reveal--right {
+  transform: translateX(28px);
+}
+
+.ps-reveal--scale {
+  transform: scale(0.96);
+}
+
+.ps-reveal--in {
+  opacity: 1;
+  transform: none;
+}
+
+.ps-stagger {
+  display: contents;
+}
+
+.ps-countup {
+  font-variant-numeric: tabular-nums;
+  unicode-bidi: isolate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ps-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}

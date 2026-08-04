@@ -36,6 +36,7 @@
 @import "./components/Layout/Layout.css";
 
 /* 5. Components, alphabetical within each group. */
+@import "./components/Audit/Audit.css";
 @import "./components/Badge/Badge.css";
 @import "./components/Button/Button.css";
 @import "./components/Card/Card.css";
@@ -53,6 +54,7 @@
 @import "./components/Header/Header.css";
 @import "./components/LanguageToggle/LanguageToggle.css";
 @import "./components/LoadingState/LoadingState.css";
+@import "./components/Motion/Motion.css";
 @import "./components/Navigation/Navigation.css";
 @import "./components/Overlay/Overlay.css";
 @import "./components/Skeleton/Skeleton.css";
