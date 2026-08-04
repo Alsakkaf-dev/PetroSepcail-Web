@@ -141,10 +141,22 @@ export async function authedFetch<T>(path: string, init?: RequestInit): Promise<
   const token = getToken();
   if (!token) throw new Error(NOT_LOGGED_IN);
 
+  // Only declare a JSON body when there is one. Announcing
+  // `content-type: application/json` on a bodyless request makes Fastify run
+  // its JSON parser over zero bytes and throw "Body cannot be empty when
+  // content-type is set to 'application/json'" — a 500 before the handler is
+  // ever reached. That is what broke every bodyless authed call in
+  // production: removing a cart line, removing a coupon, removing a wishlist
+  // item, cancelling an order, confirming receipt.
+  const hasBody = init?.body !== undefined && init?.body !== null;
   const send = (bearer: string) =>
     fetchOrNetworkError(apiUrl(path), {
       ...init,
-      headers: { ...init?.headers, authorization: `Bearer ${bearer}`, "content-type": "application/json" }
+      headers: {
+        ...init?.headers,
+        authorization: `Bearer ${bearer}`,
+        ...(hasBody ? { "content-type": "application/json" } : {})
+      }
     });
 
   // Request bodies here are always plain JSON strings, so replaying `init` on

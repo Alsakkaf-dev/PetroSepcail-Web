@@ -40,9 +40,19 @@ export async function login(email: string, password: string): Promise<string> {
 export async function authedFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getToken();
   if (!token) throw new Error("NOT_LOGGED_IN");
+  // Only declare a JSON body when there is one. On a bodyless request the
+  // header makes Fastify parse zero bytes and throw "Body cannot be empty
+  // when content-type is set to 'application/json'" — a 500 raised before
+  // the handler ever runs (supplier cart removal, order cancel, template
+  // delete all hit it).
+  const hasBody = init?.body !== undefined && init?.body !== null;
   const res = await fetch(apiUrl(path), {
     ...init,
-    headers: { ...init?.headers, authorization: `Bearer ${token}`, "content-type": "application/json" }
+    headers: {
+      ...init?.headers,
+      authorization: `Bearer ${token}`,
+      ...(hasBody ? { "content-type": "application/json" } : {})
+    }
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));

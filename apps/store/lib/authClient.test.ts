@@ -46,6 +46,30 @@ describe("store authClient session handling", () => {
     expect(window.localStorage.getItem("ps-store-refresh")).toBe("refresh-1");
   });
 
+  // Fastify 500s on `content-type: application/json` with an empty body, so a
+  // bodyless call must not claim to carry JSON. This broke Remove from cart,
+  // remove coupon, remove from wishlist, cancel order and confirm receipt.
+  it("omits the JSON content-type on a request with no body", async () => {
+    window.localStorage.setItem("ps-store-token", "access-1");
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(200, { totals: {} }));
+
+    await authedFetch("/api/v1/cart/lines/line-1", { method: "DELETE" });
+
+    const headers = fetchMock.mock.calls[0]?.[1]?.headers as Record<string, string>;
+    expect(headers["content-type"]).toBeUndefined();
+    expect(headers.authorization).toBe("Bearer access-1");
+  });
+
+  it("still declares the JSON content-type when a body is sent", async () => {
+    window.localStorage.setItem("ps-store-token", "access-1");
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(jsonResponse(201, { line: {} }));
+
+    await authedFetch("/api/v1/cart/lines", { method: "POST", body: JSON.stringify({ qty: 1 }) });
+
+    const headers = fetchMock.mock.calls[0]?.[1]?.headers as Record<string, string>;
+    expect(headers["content-type"]).toBe("application/json");
+  });
+
   it("does not open a half-session when login answers role_selection_required", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       jsonResponse(200, { status: "role_selection_required", roles: ["customer", "driver"] })
