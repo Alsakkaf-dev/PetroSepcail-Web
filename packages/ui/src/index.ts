@@ -15,7 +15,9 @@ export * from "./components/Feedback";
 export * from "./components/Form";
 export * from "./components/DataTable";
 export * from "./components/Display";
+export * from "./components/Finance";
 export * from "./components/Navigation";
+export * from "./components/Status";
 
 export * from "./components/Skeleton/Skeleton";
 export * from "./components/Badge/Badge";

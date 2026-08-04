@@ -1,0 +1,64 @@
+/* Countdown and the two driver connectivity badges — the components that
+ * tell someone how long they have and whether what they just did has left
+ * the device. */
+
+/* ---- Countdown --------------------------------------------------------- */
+
+.ps-countdown {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--d-2);
+  padding: var(--d-2) var(--d-3);
+  border-radius: var(--r-pill);
+  background: var(--bg-warm);
+  color: var(--ink);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.ps-countdown time {
+  unicode-bidi: isolate;
+}
+
+.ps-countdown--urgent {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+
+.ps-countdown--expired {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+/* ---- ConnectivityBadge / SyncQueueBadge -------------------------------- */
+
+.ps-connectivity,
+.ps-syncqueue {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--d-2);
+  padding: var(--d-2) var(--d-3);
+  border-radius: var(--r-pill);
+  font-size: var(--fs-300);
+  font-weight: 700;
+}
+
+.ps-connectivity--online {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.ps-connectivity--offline {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.ps-syncqueue--pending {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+
+.ps-syncqueue--synced {
+  background: var(--success-bg);
+  color: var(--success);
+}

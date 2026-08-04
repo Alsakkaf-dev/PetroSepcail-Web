@@ -1,0 +1,241 @@
+/* The three finance surfaces, credit headroom and receivables aging.
+ *
+ * D-14 rule (f): B2B debt, custody funds and goods custody are never summed
+ * and never merge. Each panel keeps its own border, its own heading and its
+ * own accent at every viewport — including stacked on a phone, which is the
+ * layout where three panels would otherwise read as one running total. */
+
+.ps-finance {
+  display: flex;
+  flex-direction: column;
+  gap: var(--d-3);
+  padding: var(--d-4);
+  border: 1px solid var(--line);
+  /* The accent is a logical border, so it sits on the reading-start edge in
+     both directions. It is a *marker*, never the separation itself — the
+     heading and the note carry that. */
+  border-inline-start: 5px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.ps-finance__header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--d-3);
+}
+
+.ps-finance__icon {
+  display: flex;
+  flex: none;
+  padding: var(--d-2);
+  border-radius: var(--r-drop);
+}
+
+.ps-finance__heading {
+  min-inline-size: 0;
+}
+
+.ps-finance__title {
+  font-size: var(--fs-600);
+}
+
+.ps-finance__subtitle {
+  color: var(--muted);
+  font-size: var(--fs-300);
+}
+
+.ps-finance__actions {
+  margin-inline-start: auto;
+}
+
+/* "ليست جزءاً مما عليك" — permanent, not a tooltip. A supplier holding
+ * customers' cash does not owe it, and the only reliable way to say so is to
+ * keep saying it. */
+.ps-finance__separation {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--d-2);
+  padding: var(--d-2) var(--d-3);
+  border-radius: var(--r-sm);
+  background: var(--bg-tint);
+  color: var(--ink);
+  font-size: var(--fs-300);
+  font-weight: 600;
+}
+
+.ps-finance--debt {
+  border-inline-start-color: var(--blue);
+}
+
+.ps-finance--debt .ps-finance__title {
+  color: var(--blue);
+}
+
+.ps-finance--debt .ps-finance__icon {
+  background: #e8edfb;
+  color: var(--blue-600);
+}
+
+.ps-finance--custody-funds {
+  border-inline-start-color: var(--f-petro);
+}
+
+.ps-finance--custody-funds .ps-finance__title {
+  color: var(--warn);
+}
+
+.ps-finance--custody-funds .ps-finance__icon {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+
+.ps-finance--goods-custody {
+  border-inline-start-color: var(--f-raval);
+}
+
+.ps-finance--goods-custody .ps-finance__title {
+  color: var(--danger);
+}
+
+.ps-finance--goods-custody .ps-finance__icon {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+/* ---- CreditHeadroom ---------------------------------------------------- */
+
+.ps-headroom {
+  display: flex;
+  flex-direction: column;
+  gap: var(--d-3);
+}
+
+.ps-headroom__figures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(9rem, 100%), 1fr));
+  gap: var(--d-3);
+  margin: 0;
+}
+
+.ps-headroom__figure dt {
+  color: var(--muted);
+  font-size: var(--fs-200);
+  font-weight: 700;
+}
+
+.ps-headroom__figure dd {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--fs-500);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.ps-headroom__figure--headroom dd {
+  color: var(--blue);
+}
+
+.ps-headroom__block {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--d-3);
+  padding: var(--d-3);
+  border-radius: var(--r-sm);
+  background: var(--danger-bg);
+  border-inline-start: 4px solid var(--danger);
+  color: var(--ink);
+}
+
+.ps-headroom__block > svg {
+  color: var(--danger);
+  flex: none;
+}
+
+.ps-headroom__block-message {
+  font-weight: 700;
+}
+
+.ps-headroom__block-shortfall {
+  font-size: var(--fs-300);
+  color: var(--ink);
+}
+
+/* ---- AgingBars --------------------------------------------------------- */
+
+.ps-aging {
+  display: flex;
+  flex-direction: column;
+  gap: var(--d-2);
+  margin: 0;
+}
+
+.ps-aging__row {
+  display: grid;
+  grid-template-columns: 5rem 1fr;
+  align-items: center;
+  gap: var(--d-3);
+}
+
+.ps-aging__label {
+  color: var(--muted);
+  font-size: var(--fs-200);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.ps-aging__value {
+  display: flex;
+  align-items: center;
+  gap: var(--d-3);
+  margin: 0;
+  min-inline-size: 0;
+}
+
+.ps-aging__amount {
+  flex: none;
+  min-inline-size: 7rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.ps-aging__track {
+  flex: 1;
+  block-size: 0.6rem;
+  border-radius: var(--r-pill);
+  background: var(--bg-warm);
+  overflow: hidden;
+}
+
+.ps-aging__bar {
+  display: block;
+  block-size: 100%;
+  border-radius: var(--r-pill);
+}
+
+/* Older money is darker as well as further down the list — the bucket label
+ * beside it is what actually says which is which. */
+.ps-aging__bar--0 {
+  background: var(--blue-600);
+}
+
+.ps-aging__bar--1 {
+  background: var(--warn);
+}
+
+.ps-aging__bar--2 {
+  background: var(--flame);
+}
+
+.ps-aging__bar--3 {
+  background: var(--danger);
+}
+
+@media (max-width: 40em) {
+  .ps-aging__row {
+    grid-template-columns: 1fr;
+    gap: var(--d-1);
+  }
+}
