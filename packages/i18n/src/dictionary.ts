@@ -134,6 +134,9 @@ const ar = {
   "auth.leadAdmin": "دخول مقيّد للمصرّح لهم فقط",
   "auth.adminMonitored": "كل إجراء في هذا المركز يُسجَّل في سجل التدقيق باسمك",
   "auth.needAccount": "ليس لديك حساب؟ تواصل معنا",
+  "auth.leadCart": "سجّل الدخول لعرض سلتك وإتمام الطلب",
+  "auth.leadOrders": "سجّل الدخول لعرض طلباتك وحالة التوصيل",
+  "auth.leadAccount": "سجّل الدخول لعرض حسابك ونقاط الولاء",
 
   // ---- brand & shell ---------------------------------------------------
   "brand.name": "بتروسبيشل",
@@ -262,6 +265,14 @@ const ar = {
   "orders.pendingVerification": "بانتظار التحقق",
   "orders.codDue": "المبلغ المستحق نقداً عند الاستلام",
   "orders.deliveryOtp": "رمز التسليم",
+  "orders.placedAt": "تاريخ الطلب",
+  "orders.items": "الأصناف",
+  "orders.qty": "الكمية",
+  "orders.paymentMethod": "طريقة الدفع",
+  "orders.deliverySlot": "موعد التوصيل",
+  "orders.bankRef": "رقم مرجع التحويل",
+  "orders.iban": "الآيبان",
+  "orders.accountHolder": "اسم صاحب الحساب",
 
   // ---- account & loyalty ----------------------------------------------
   "account.title": "حسابي",
@@ -552,6 +563,9 @@ const en: Record<StringKey, string> = {
   "auth.leadAdmin": "Restricted — authorised staff only",
   "auth.adminMonitored": "Every action in this console is recorded in the audit log against your name",
   "auth.needAccount": "No account yet? Get in touch",
+  "auth.leadCart": "Sign in to see your cart and check out",
+  "auth.leadOrders": "Sign in to see your orders and their delivery status",
+  "auth.leadAccount": "Sign in to see your account and loyalty points",
 
   // ---- brand & shell ---------------------------------------------------
   "brand.name": "PetroSpecial",
@@ -681,6 +695,14 @@ const en: Record<StringKey, string> = {
   "orders.pendingVerification": "Pending verification",
   "orders.codDue": "Cash due on delivery",
   "orders.deliveryOtp": "Delivery code",
+  "orders.placedAt": "Placed",
+  "orders.items": "Items",
+  "orders.qty": "Qty",
+  "orders.paymentMethod": "Payment method",
+  "orders.deliverySlot": "Delivery slot",
+  "orders.bankRef": "Bank reference",
+  "orders.iban": "IBAN",
+  "orders.accountHolder": "Account holder",
 
   // ---- account & loyalty ----------------------------------------------
   "account.title": "My account",

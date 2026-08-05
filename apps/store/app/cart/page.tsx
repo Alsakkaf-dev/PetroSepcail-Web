@@ -121,7 +121,7 @@ function CartPageInner() {
         <Link href={`/cart?lang=${otherLocale(locale)}`}>{t(locale, "switchLang")}</Link>
       </header>
 
-      {!loggedIn && <LoginForm locale={locale} promptKey="loginToViewCart" onLoggedIn={() => setLoggedIn(true)} />}
+      {!loggedIn && <LoginForm promptKey="auth.leadCart" onLoggedIn={() => setLoggedIn(true)} />}
       {error && <p style={{ color: "#b91c1c" }}>{error}</p>}
 
       {loggedIn && cart && cart.lines.length === 0 && (

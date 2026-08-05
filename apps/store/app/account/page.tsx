@@ -106,7 +106,7 @@ function AccountPageInner() {
         <Link href={`/account?lang=${otherLocale(locale)}`}>{t(locale, "switchLang")}</Link>
       </header>
 
-      {!loggedIn && <LoginForm locale={locale} promptKey="loginToViewAccount" onLoggedIn={() => setLoggedIn(true)} />}
+      {!loggedIn && <LoginForm promptKey="auth.leadAccount" onLoggedIn={() => setLoggedIn(true)} />}
       {error && <p style={{ color: "#b91c1c" }}>{error}</p>}
 
       {loggedIn && me && (

@@ -1,57 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { AuthShell } from "@petrospecial/ui";
+import { useLocale } from "@petrospecial/app-shell/src/client";
+import { SignInForm } from "@petrospecial/app-shell/src/auth";
+import { t, type StringKey } from "@petrospecial/i18n";
 import { login } from "../lib/authClient";
-import { dirFor, t, type Locale } from "../lib/locale";
 
-// Shared across cart/orders/account (SF-03/05/10) — was three identical
-// copies before AR/EN parity work needed a single place to add the locale
-// prop.
+// The gate on /cart, /orders and /account. The storefront has no /login route
+// — you sign in where you were stopped, and stay there — so this is the panel
+// variant of the same card the driver's and the distributor's own routes use.
+//
+// Was two unlabelled inputs, a `#b91c1c` error paragraph (--f-raval, the Raval
+// product family, standing in for an error red) and three inline style
+// objects.
 export function LoginForm({
-  locale,
   promptKey,
   onLoggedIn
 }: {
-  locale: Locale;
-  promptKey: "loginToViewCart" | "loginToViewOrders" | "loginToViewAccount";
+  promptKey: "auth.leadCart" | "auth.leadOrders" | "auth.leadAccount";
   onLoggedIn: () => void;
 }) {
-  const [email, setEmail] = useState("customer.seed@petrospecial.internal");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    try {
-      await login(email, password);
-      onLoggedIn();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
-    }
-  }
+  const locale = useLocale();
 
   return (
-    <form onSubmit={submit} style={{ maxWidth: 320, display: "grid", gap: 12 }} dir={dirFor(locale)}>
-      <p>{t(locale, promptKey)}</p>
-      <input
-        type="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        placeholder={t(locale, "emailPlaceholder")}
-        style={{ padding: 8, borderRadius: 6, border: "1px solid var(--line)" }}
-      />
-      <input
-        type="password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        placeholder={t(locale, "passwordPlaceholder")}
-        style={{ padding: 8, borderRadius: 6, border: "1px solid var(--line)" }}
-      />
-      {error && <p style={{ color: "#b91c1c" }}>{error}</p>}
-      <button type="submit" style={{ padding: "8px 16px", borderRadius: 6, background: "var(--gold)", border: "none" }}>
-        {t(locale, "signIn")}
-      </button>
-    </form>
+    <AuthShell variant="panel" title={t(locale, "auth.signInTitle")} lead={t(locale, promptKey as StringKey)}>
+      <SignInForm signIn={({ email, password }) => login(email, password)} onSignedIn={onLoggedIn} />
+    </AuthShell>
   );
 }

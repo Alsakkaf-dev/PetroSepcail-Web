@@ -1,11 +1,23 @@
 "use client";
 
-import Link from "next/link";
-import { Suspense, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import {
+  ButtonLink,
+  Container,
+  DataList,
+  DateTime,
+  IdDisplay,
+  Money,
+  Page,
+  Section,
+  SectionHead,
+  Stack,
+  StatusBadge
+} from "@petrospecial/ui";
+import { useLocale } from "@petrospecial/app-shell/src/client";
+import { messageFor, t } from "@petrospecial/i18n";
 import { LoginForm } from "../../components/LoginForm";
 import { authedFetch, getToken, isSessionEnded } from "../../lib/authClient";
-import { dirFor, localeDateString, orderStatusLabel, otherLocale, t } from "../../lib/locale";
-import { useLocale } from "../../lib/useLocale";
 
 interface OrderListItem {
   orderId: string;
@@ -16,79 +28,90 @@ interface OrderListItem {
   slot: string;
 }
 
-// EP-SF-030 / FR-SF10-003 (S09) — order history list, linking to SF-05's
-// existing order detail page (orders/[id]).
-// useLocale() (useSearchParams) requires a Suspense boundary in the Next.js
-// App Router static-export path, or `next build` fails at prerender.
+// EP-SF-030 / SCR-SF05-001. Was three near-identical bare rows, each showing a
+// status word, a date and a price and nothing else — no order reference, no
+// items, no way to tell one from another.
+//
+// The date bug the owner spotted lives here too: the app's own
+// localeDateString() called toLocaleDateString("ar-SA"), which renders
+// Arabic-Indic digits (٢٠٢٦/٨/٤) while every price beside it rendered Western.
+// packages/i18n formats through `ar-SA-u-nu-latn` precisely so the platform
+// uses one set of numerals; <DateTime> is that formatter.
 export default function OrdersListPage() {
-  return (
-    <Suspense fallback={null}>
-      <OrdersListPageInner />
-    </Suspense>
-  );
-}
-
-function OrdersListPageInner() {
   const locale = useLocale();
-  const [loggedIn, setLoggedIn] = useState(false);
+  const [loggedIn, setLoggedIn] = useState<boolean | undefined>(undefined);
   const [items, setItems] = useState<OrderListItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setLoggedIn(!!getToken());
+    setLoggedIn(Boolean(getToken()));
   }, []);
 
-  useEffect(() => {
-    if (!loggedIn) return;
+  const load = useCallback(() => {
+    setError(null);
+    setItems(null);
     authedFetch<{ items: OrderListItem[] }>("/api/v1/orders")
       .then((res) => setItems(res.items))
-      .catch((err) => {
-        // Expired session -> back to the sign-in form, not an error message
-        // beside a hidden one.
-        if (isSessionEnded(err)) return setLoggedIn(false);
-        setError(err instanceof Error ? err.message : "failed");
+      .catch((thrown) => {
+        // An expired session goes back to the sign-in card, not to an error
+        // message sitting beside a hidden one.
+        if (isSessionEnded(thrown)) return setLoggedIn(false);
+        setError(messageFor(locale, thrown));
       });
-  }, [loggedIn]);
+  }, [locale]);
+
+  useEffect(() => {
+    if (loggedIn) load();
+  }, [loggedIn, load]);
+
+  const state = error ? "error" : items === null ? "loading" : items.length === 0 ? "empty" : "ready";
 
   return (
-    <main dir={dirFor(locale)} style={{ maxWidth: 700, margin: "0 auto", padding: 24 }}>
-      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h1 style={{ fontFamily: "var(--font-display)" }}>{t(locale, "myOrders")}</h1>
-        <Link href={`/orders?lang=${otherLocale(locale)}`}>{t(locale, "switchLang")}</Link>
-      </header>
+    <Page width="flush">
+      <Section air="app" aria-labelledby="orders-title">
+        <Container>
+          <Stack gap="lg">
+            <SectionHead level={1} titleId="orders-title" title={t(locale, "orders.title")} />
 
-      {!loggedIn && <LoginForm locale={locale} promptKey="loginToViewOrders" onLoggedIn={() => setLoggedIn(true)} />}
-      {error && <p style={{ color: "#b91c1c" }}>{error}</p>}
+            {loggedIn === false ? <LoginForm promptKey="auth.leadOrders" onLoggedIn={() => setLoggedIn(true)} /> : null}
 
-      {loggedIn && items && items.length === 0 && <p>{t(locale, "noOrdersYet")}</p>}
-
-      {loggedIn && items && items.length > 0 && (
-        <div style={{ display: "grid", gap: 12 }}>
-          {items.map((o) => (
-            <Link
-              key={o.orderId}
-              href={`/orders/${o.orderId}?lang=${locale}`}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                padding: 12,
-                border: "1px solid var(--line)",
-                borderRadius: 8,
-                textDecoration: "none",
-                color: "inherit"
-              }}
-            >
-              <div>
-                <p style={{ margin: 0, fontWeight: 700 }}>{orderStatusLabel(locale, o.status)}</p>
-                <p style={{ margin: 0, fontSize: 12, color: "var(--muted)" }}>{localeDateString(locale, o.placedAt)}</p>
-              </div>
-              <span className="ps-ltr">
-                {o.total} {t(locale, "sar")}
-              </span>
-            </Link>
-          ))}
-        </div>
-      )}
-    </main>
+            {loggedIn ? (
+              <DataList
+                label={t(locale, "orders.title")}
+                state={state}
+                emptyTitle={t(locale, "orders.empty")}
+                emptyAction={
+                  <ButtonLink href="/catalog" variant="gold">
+                    {t(locale, "catalog.browse")}
+                  </ButtonLink>
+                }
+                errorMessage={error ?? undefined}
+                onRetry={load}
+                retryLabel={t(locale, "common.retry")}
+                items={(items ?? []).map((order) => ({
+                  id: order.orderId,
+                  href: `/orders/${order.orderId}`,
+                  // Never the raw UUID as the label: it is not something a
+                  // customer can read back over the phone. IdDisplay truncates
+                  // it and carries the full value for copying.
+                  title: (
+                    <IdDisplay
+                      id={order.orderId}
+                      label={t(locale, "orders.orderNumber")}
+                      copy={{ label: t(locale, "common.copy"), copiedLabel: t(locale, "common.copied") }}
+                    />
+                  ),
+                  status: <StatusBadge kind="order" value={order.status} locale={locale} />,
+                  fields: [
+                    { label: t(locale, "orders.placedAt"), value: <DateTime iso={order.placedAt} locale={locale} /> },
+                    { label: t(locale, "cart.total"), value: <Money amount={order.total} locale={locale} emphasis="strong" /> }
+                  ]
+                }))}
+              />
+            ) : null}
+          </Stack>
+        </Container>
+      </Section>
+    </Page>
   );
 }
