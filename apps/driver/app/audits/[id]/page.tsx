@@ -1,24 +1,29 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import type { AuditCountResponse } from "@petrospecial/contracts";
+import {
+  Banner,
+  Button,
+  ButtonLink,
+  Card,
+  Cluster,
+  Container,
+  DataList,
+  DataTable,
+  Ltr,
+  Page,
+  QtyStepper,
+  Section,
+  SectionHead,
+  Select,
+  Stack
+} from "@petrospecial/ui";
+import { useLocale } from "@petrospecial/app-shell/src/client";
+import { count, messageFor, t } from "@petrospecial/i18n";
 import { authedFetch } from "../../../lib/authClient";
-import { t } from "../../../lib/locale";
-import { useLocale } from "../../../lib/useLocale";
-
-// EP-DL-071 (DL-06, S12) — the driver counts the van blind (no expected
-// quantities shown up front, matching the zero-tolerance point of the
-// check: delivery.close_audit computes the expected/counted delta
-// server-side and the driver only learns it from the result). Same
-// product -> pack-size cascading picker as app/shift/page.tsx's LoadOutForm.
-export default function AuditCountPage() {
-  return (
-    <Suspense fallback={null}>
-      <AuditCountPageInner />
-    </Suspense>
-  );
-}
 
 interface ProductCard {
   slug: string;
@@ -35,15 +40,22 @@ interface CountLine {
   qty: number;
 }
 
-function AuditCountPageInner() {
+// SCR-DL06-001, the count itself — EP-DL-071.
+//
+// The rule that shapes the whole screen: **expected quantities stay hidden
+// until the count is submitted.** delivery.close_audit computes the delta
+// server-side and the driver only learns it from the result. Showing the
+// expected number first turns a stock count into a matching exercise, which
+// is exactly what a zero-tolerance audit is meant to prevent — so the screen
+// says so out loud rather than leaving the absence to be noticed.
+export default function AuditCountPage() {
   const locale = useLocale();
-  const router = useRouter();
   const params = useParams<{ id: string }>();
   const [products, setProducts] = useState<ProductCard[]>([]);
   const [selectedSlug, setSelectedSlug] = useState("");
   const [packSizes, setPackSizes] = useState<PackSize[]>([]);
   const [selectedPackSize, setSelectedPackSize] = useState("");
-  const [qty, setQty] = useState(1);
+  const [qty, setQty] = useState(0);
   const [lines, setLines] = useState<CountLine[]>([]);
   const [result, setResult] = useState<AuditCountResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +64,7 @@ function AuditCountPageInner() {
   useEffect(() => {
     authedFetch<{ items: ProductCard[] }>("/api/v1/catalog/products?limit=100")
       .then((res) => setProducts(res.items))
-      .catch(() => {});
+      .catch(() => setProducts([]));
   }, []);
 
   useEffect(() => {
@@ -69,11 +81,13 @@ function AuditCountPageInner() {
   }, [selectedSlug]);
 
   function addLine() {
-    if (!selectedPackSize || qty < 0) return;
-    const label = packSizes.find((p) => p.packSizeId === selectedPackSize)?.sizeLabel ?? selectedPackSize;
+    if (!selectedPackSize) return;
+    const label = packSizes.find((size) => size.packSizeId === selectedPackSize)?.sizeLabel ?? selectedPackSize;
     setLines((prev) => {
-      const existing = prev.find((l) => l.packSizeId === selectedPackSize);
-      if (existing) return prev.map((l) => (l.packSizeId === selectedPackSize ? { ...l, qty } : l));
+      const existing = prev.find((line) => line.packSizeId === selectedPackSize);
+      // A recount replaces the number rather than adding to it — this is a
+      // count of what is in the van, not a running tally of what was loaded.
+      if (existing) return prev.map((line) => (line.packSizeId === selectedPackSize ? { ...line, qty } : line));
       return [...prev, { packSizeId: selectedPackSize, label, qty }];
     });
   }
@@ -82,81 +96,166 @@ function AuditCountPageInner() {
     setBusy(true);
     setError(null);
     try {
-      const res = await authedFetch<AuditCountResponse>(`/api/v1/driver/audits/${params.id}/count`, {
-        method: "POST",
-        body: JSON.stringify({ counted: lines.map((l) => ({ packSizeId: l.packSizeId, qty: l.qty })) })
-      });
-      setResult(res);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t(locale, "errorGeneric"));
+      setResult(
+        await authedFetch<AuditCountResponse>(`/api/v1/driver/audits/${params.id}/count`, {
+          method: "POST",
+          body: JSON.stringify({ counted: lines.map((line) => ({ packSizeId: line.packSizeId, qty: line.qty })) })
+        })
+      );
+    } catch (thrown) {
+      setError(messageFor(locale, thrown));
     } finally {
       setBusy(false);
     }
   }
 
+  // ---- After submission: the expected figures, and the variance ---------
   if (result) {
     return (
-      <main dir={locale === "ar" ? "rtl" : "ltr"}>
-        <h1>{t(locale, "audits")}</h1>
-        <p>
-          {t(locale, "auditStatus")}: {result.status}
-        </p>
-        {result.variance.length === 0 ? (
-          <p>OK</p>
-        ) : (
-          <ul>
-            {result.variance.map((v) => (
-              <li key={v.packSizeId}>
-                {v.packSizeId}: expected {v.expected}, counted {v.counted}, delta {v.delta}
-              </li>
-            ))}
-          </ul>
-        )}
-        <button onClick={() => router.push(`/audits?lang=${locale}`)}>{t(locale, "back")}</button>
-      </main>
+      <Page width="flush">
+        <Section air="app" aria-labelledby="audit-result">
+          <Container>
+            <Stack gap="lg">
+              <SectionHead level={1} titleId="audit-result" title={t(locale, "driver.auditSubmitted")} />
+
+              {result.variance.length === 0 ? (
+                <Banner tone="success">{t(locale, "driver.auditSubmitted")}</Banner>
+              ) : (
+                <Banner tone="warn" title={t(locale, "driver.variance")}>
+                  {t(locale, "driver.auditVariance")}
+                </Banner>
+              )}
+
+              <DataTable
+                caption={t(locale, "driver.variance")}
+                state={result.variance.length === 0 ? "empty" : "ready"}
+                emptyTitle={t(locale, "driver.auditSubmitted")}
+                rows={result.variance}
+                getRowKey={(row) => row.packSizeId}
+                columns={[
+                  {
+                    key: "packSize",
+                    header: t(locale, "catalog.packSize"),
+                    emphasis: "primary",
+                    render: (row) => <Ltr>{row.packSizeId}</Ltr>
+                  },
+                  {
+                    key: "expected",
+                    header: t(locale, "driver.expected"),
+                    align: "end",
+                    render: (row) => <Ltr>{count(row.expected)}</Ltr>
+                  },
+                  {
+                    key: "counted",
+                    header: t(locale, "driver.counted"),
+                    align: "end",
+                    render: (row) => <Ltr>{count(row.counted)}</Ltr>
+                  },
+                  {
+                    key: "delta",
+                    header: t(locale, "driver.variance"),
+                    align: "end",
+                    render: (row) => (
+                      <Ltr>
+                        {row.delta > 0 ? "+" : ""}
+                        {count(row.delta)}
+                      </Ltr>
+                    )
+                  }
+                ]}
+              />
+
+              <ButtonLink linkAs={Link} href="/audits" variant="gold">
+                {t(locale, "driver.audits")}
+              </ButtonLink>
+            </Stack>
+          </Container>
+        </Section>
+      </Page>
     );
   }
 
+  // ---- Before submission: no expected figures anywhere ------------------
   return (
-    <main dir={locale === "ar" ? "rtl" : "ltr"}>
-      <button onClick={() => router.push(`/audits?lang=${locale}`)}>{t(locale, "back")}</button>
-      <h1>{t(locale, "countAudit")}</h1>
-      {error && <p role="alert">{error}</p>}
+    <Page width="flush">
+      <Section air="app" aria-labelledby="audit-count">
+        <Container>
+          <Stack gap="lg">
+            <SectionHead level={1} titleId="audit-count" title={t(locale, "driver.countAudit")} />
 
-      <fieldset>
-        <legend>Add counted line</legend>
-        <select value={selectedSlug} onChange={(e) => setSelectedSlug(e.target.value)}>
-          <option value="">Select product…</option>
-          {products.map((p) => (
-            <option key={p.slug} value={p.slug}>
-              {locale === "ar" ? p.nameAr : p.nameEn}
-            </option>
-          ))}
-        </select>
-        <select value={selectedPackSize} onChange={(e) => setSelectedPackSize(e.target.value)} disabled={packSizes.length === 0}>
-          {packSizes.map((p) => (
-            <option key={p.packSizeId} value={p.packSizeId}>
-              {p.sizeLabel}
-            </option>
-          ))}
-        </select>
-        <input type="number" min={0} value={qty} onChange={(e) => setQty(Number(e.target.value))} style={{ width: 60 }} />
-        <button type="button" onClick={addLine}>
-          Add
-        </button>
-      </fieldset>
+            <Banner tone="info">{t(locale, "driver.expectedHiddenHint")}</Banner>
 
-      <ul>
-        {lines.map((l) => (
-          <li key={l.packSizeId}>
-            {l.label} × {l.qty}
-          </li>
-        ))}
-      </ul>
+            {error ? <Banner tone="danger">{error}</Banner> : null}
 
-      <button type="button" disabled={busy || lines.length === 0} onClick={submitCount}>
-        {t(locale, "submit")}
-      </button>
-    </main>
+            <Card>
+              <Stack gap="md">
+                <Select
+                  label={t(locale, "nav.catalog")}
+                  value={selectedSlug}
+                  placeholder={t(locale, "form.selectPlaceholder")}
+                  onChange={(event) => setSelectedSlug(event.target.value)}
+                  options={products.map((product) => ({
+                    value: product.slug,
+                    label: locale === "ar" ? product.nameAr : product.nameEn
+                  }))}
+                />
+                <Select
+                  label={t(locale, "catalog.packSize")}
+                  value={selectedPackSize}
+                  disabled={packSizes.length === 0}
+                  onChange={(event) => setSelectedPackSize(event.target.value)}
+                  options={packSizes.map((size) => ({ value: size.packSizeId, label: size.sizeLabel }))}
+                />
+                <QtyStepper
+                  label={t(locale, "driver.counted")}
+                  value={qty}
+                  min={0}
+                  max={999}
+                  increaseLabel={t(locale, "cart.increase")}
+                  decreaseLabel={t(locale, "cart.decrease")}
+                  onChange={setQty}
+                />
+                <Cluster gap="sm">
+                  <Button variant="ghost" disabled={!selectedPackSize} onClick={addLine}>
+                    {t(locale, "driver.addLine")}
+                  </Button>
+                </Cluster>
+              </Stack>
+            </Card>
+
+            <Stack gap="md">
+              <h2 className="ps-section-head__title">{t(locale, "driver.closingCount")}</h2>
+              <DataList
+                label={t(locale, "driver.closingCount")}
+                state={lines.length === 0 ? "empty" : "ready"}
+                emptyTitle={t(locale, "driver.loadEmpty")}
+                items={lines.map((line) => ({
+                  id: line.packSizeId,
+                  title: <Ltr>{line.label}</Ltr>,
+                  fields: [{ label: t(locale, "driver.counted"), value: <Ltr>{count(line.qty)}</Ltr> }],
+                  actions: (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setLines((prev) => prev.filter((entry) => entry.packSizeId !== line.packSizeId))}
+                    >
+                      {t(locale, "common.remove")}
+                    </Button>
+                  )
+                }))}
+              />
+            </Stack>
+
+            <Button variant="gold" size="lg" busy={busy} disabled={lines.length === 0} onClick={submitCount}>
+              {t(locale, "driver.submitCount")}
+            </Button>
+
+            <ButtonLink linkAs={Link} href="/audits" variant="ghost">
+              {t(locale, "common.back")}
+            </ButtonLink>
+          </Stack>
+        </Container>
+      </Section>
+    </Page>
   );
 }

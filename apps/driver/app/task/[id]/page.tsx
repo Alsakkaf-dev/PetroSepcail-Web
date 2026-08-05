@@ -1,284 +1,437 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import type { TaskDetailResponse } from "@petrospecial/contracts";
+import {
+  Badge,
+  Banner,
+  Breadcrumb,
+  Button,
+  ButtonLink,
+  Card,
+  Cluster,
+  Container,
+  DataList,
+  FileUpload,
+  Icon,
+  Keypad,
+  Ltr,
+  Money,
+  Page,
+  Section,
+  SectionHead,
+  Select,
+  Skeleton,
+  Stack,
+  StatusBadge,
+  Stepper,
+  TextField
+} from "@petrospecial/ui";
+import { useLocale } from "@petrospecial/app-shell/src/client";
+import { count, messageFor, t, type StringKey } from "@petrospecial/i18n";
 import { authedFetch } from "../../../lib/authClient";
-import { t } from "../../../lib/locale";
-import { useLocale } from "../../../lib/useLocale";
 import { uploadFile } from "../../../lib/uploadFile";
 
-const FAIL_REASONS = ["recipient_absent", "address_wrong", "refused", "unreachable", "other"] as const;
-const REASON_LABEL_KEY: Record<(typeof FAIL_REASONS)[number], "reasonRecipientAbsent" | "reasonAddressWrong" | "reasonRefused" | "reasonUnreachable" | "reasonOther"> = {
-  recipient_absent: "reasonRecipientAbsent",
-  address_wrong: "reasonAddressWrong",
-  refused: "reasonRefused",
-  unreachable: "reasonUnreachable",
-  other: "reasonOther"
+const FAIL_REASONS: Array<{ value: string; labelKey: StringKey }> = [
+  { value: "recipient_absent", labelKey: "driver.reasonRecipientAbsent" },
+  { value: "address_wrong", labelKey: "driver.reasonAddressWrong" },
+  { value: "refused", labelKey: "driver.reasonRefused" },
+  { value: "unreachable", labelKey: "driver.reasonUnreachable" },
+  { value: "other", labelKey: "driver.reasonOther" }
+];
+
+// EP-DL-020's four accepted transitions. A status with no entry here has no
+// button — an illegal transition is *absent*, not disabled, because a greyed
+// control invites a press that can never work and teaches nothing.
+const TRANSITIONS: Record<string, { to: string; labelKey: StringKey }> = {
+  accepted: { to: "at_pickup", labelKey: "driver.atPickup" },
+  at_pickup: { to: "picked_up", labelKey: "driver.pickedUp" },
+  picked_up: { to: "en_route", labelKey: "driver.enRoute" },
+  en_route: { to: "arrived", labelKey: "driver.markArrived" }
 };
 
-// EP-DL-011/012/013/020 (DL-01/DL-04, S10) — task detail + the driver's
-// available actions for it. Only the 4 EP-DL-020 transitions this session's
-// backend accepts are offered (at_pickup/picked_up/en_route/arrived);
-// 'delivered' needs POD (EP-DL-040, DL-05/S12), not built yet, so there is
-// deliberately no button for it.
-const TRANSITIONS: Record<string, { to: "at_pickup" | "picked_up" | "en_route" | "arrived"; labelKey: "atPickup" | "pickedUp" | "enRoute" | "arrived" }> = {
-  accepted: { to: "at_pickup", labelKey: "atPickup" },
-  at_pickup: { to: "picked_up", labelKey: "pickedUp" },
-  picked_up: { to: "en_route", labelKey: "enRoute" },
-  en_route: { to: "arrived", labelKey: "arrived" }
+// The journey, for the Stepper. `assigned` sits before the first step.
+const JOURNEY = ["accepted", "at_pickup", "picked_up", "en_route", "arrived", "delivered"] as const;
+const JOURNEY_LABEL: Record<string, StringKey> = {
+  accepted: "driver.accept",
+  at_pickup: "driver.atPickup",
+  picked_up: "driver.pickedUp",
+  en_route: "driver.enRoute",
+  arrived: "driver.arrived",
+  delivered: "driver.markDelivered"
 };
 
+const CLOSED = new Set(["delivered", "confirmed", "failed"]);
+
+// SCR-DL04-001 and SCR-DL05-001 — EP-DL-011/012/013/020/040.
+//
+// Portrait, one-handed, bottom-anchored: the next action is the last thing on
+// the screen, where a thumb reaches.
+//
+// The proof-of-delivery code was a bare `<input placeholder="OTP">`. It is the
+// Keypad now — four large targets, forced LTR, and the value carried on one
+// labelled input rather than on four unlabelled boxes. The photo control opens
+// the rear camera directly instead of a file browser.
 export default function TaskPage() {
-  return (
-    <Suspense fallback={null}>
-      <TaskPageInner />
-    </Suspense>
-  );
-}
-
-function TaskPageInner() {
   const locale = useLocale();
   const router = useRouter();
   const params = useParams<{ id: string }>();
-  const [detail, setDetail] = useState<TaskDetailResponse | undefined>(undefined);
+  const [detail, setDetail] = useState<TaskDetailResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [otpInput, setOtpInput] = useState("");
+  const [otp, setOtp] = useState("");
   const [photoMediaId, setPhotoMediaId] = useState("");
-  const [collectorKind, setCollectorKind] = useState<"customer" | "supplier">("customer");
+  const [photoName, setPhotoName] = useState<string | null>(null);
+  const [collectorKind, setCollectorKind] = useState("customer");
   const [codCollected, setCodCollected] = useState("");
-  const [failReason, setFailReason] = useState<(typeof FAIL_REASONS)[number]>("recipient_absent");
+  const [failReason, setFailReason] = useState("recipient_absent");
   const [failNote, setFailNote] = useState("");
+  const [showFail, setShowFail] = useState(false);
 
-  function load() {
+  const load = useCallback(() => {
+    setError(null);
     authedFetch<TaskDetailResponse>(`/api/v1/driver/tasks/${params.id}`)
       .then(setDetail)
-      .catch((err) => setError(err instanceof Error ? err.message : t(locale, "errorGeneric")));
-  }
+      .catch((thrown) => setError(messageFor(locale, thrown)));
+  }, [locale, params.id]);
 
-  useEffect(load, [locale, params.id]);
+  useEffect(load, [load]);
 
-  async function act(action: "accept" | "decline") {
-    setBusy(true);
+  async function call(key: string, path: string, body?: Record<string, unknown>) {
+    setBusy(key);
     setError(null);
     try {
-      await authedFetch(`/api/v1/driver/tasks/${params.id}/${action}`, { method: "POST" });
-      if (action === "decline") router.push(`/manifest?lang=${locale}`);
-      else load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t(locale, "errorGeneric"));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function transition(to: string) {
-    setBusy(true);
-    setError(null);
-    try {
-      await authedFetch(`/api/v1/driver/tasks/${params.id}/transition`, {
-        method: "POST",
-        body: JSON.stringify({ to, clientActionId: `${params.id}-${to}-${Date.now()}` })
-      });
+      await authedFetch(path, { method: "POST", ...(body ? { body: JSON.stringify(body) } : {}) });
       load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t(locale, "errorGeneric"));
+    } catch (thrown) {
+      setError(messageFor(locale, thrown));
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   }
 
-  async function pickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+  async function pickPhoto(files: File[]) {
+    const file = files[0];
     if (!file) return;
     setUploading(true);
     setError(null);
     try {
-      const mediaId = await uploadFile(file, "pod_photo");
-      setPhotoMediaId(mediaId);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t(locale, "errorGeneric"));
+      setPhotoMediaId(await uploadFile(file, "pod_photo"));
+      setPhotoName(file.name);
+    } catch (thrown) {
+      setError(messageFor(locale, thrown));
     } finally {
       setUploading(false);
     }
   }
 
-  async function capturePod() {
-    setBusy(true);
-    setError(null);
-    try {
-      await authedFetch(`/api/v1/driver/tasks/${params.id}/pod`, {
-        method: "POST",
-        body: JSON.stringify({
-          photoMediaId,
-          otp: otpInput || undefined,
-          collectorKind,
-          codCollectedAmount: codCollected ? Number(codCollected) : undefined,
-          clientActionId: `${params.id}-pod-${Date.now()}`
-        })
-      });
-      load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t(locale, "errorGeneric"));
-    } finally {
-      setBusy(false);
-    }
+  if (!detail) {
+    return (
+      <Page>
+        {error ? (
+          <Banner
+            tone="danger"
+            action={
+              <Button variant="ghost" size="sm" onClick={load}>
+                {t(locale, "common.retry")}
+              </Button>
+            }
+          >
+            {error}
+          </Banner>
+        ) : (
+          <div role="status" aria-live="polite" aria-busy="true">
+            <span className="ps-visually-hidden">{t(locale, "state.loadingLabel")}</span>
+            <Stack gap="md">
+              <Skeleton width="1/2" />
+              <Skeleton variant="block" size="lg" />
+            </Stack>
+          </div>
+        )}
+      </Page>
+    );
   }
 
-  async function regenerateOtp() {
-    setBusy(true);
-    setError(null);
-    try {
-      await authedFetch(`/api/v1/driver/tasks/${params.id}/otp/regenerate`, { method: "POST" });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t(locale, "errorGeneric"));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function failDelivery() {
-    setBusy(true);
-    setError(null);
-    try {
-      await authedFetch(`/api/v1/driver/tasks/${params.id}/fail`, {
-        method: "POST",
-        body: JSON.stringify({
-          reasonCode: failReason,
-          note: failNote || undefined,
-          clientActionId: `${params.id}-fail-${Date.now()}`
-        })
-      });
-      load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t(locale, "errorGeneric"));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function returnToHub() {
-    setBusy(true);
-    setError(null);
-    try {
-      await authedFetch(`/api/v1/driver/tasks/${params.id}/return-to-hub`, { method: "POST" });
-      router.push(`/manifest?lang=${locale}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t(locale, "errorGeneric"));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  if (!detail) return <p>{t(locale, "loading")}</p>;
-
-  const nextTransition = TRANSITIONS[detail.task.status];
+  const status = detail.task.status;
+  const next = TRANSITIONS[status];
+  const stepIndex = JOURNEY.indexOf(status as (typeof JOURNEY)[number]);
 
   return (
-    <main dir={locale === "ar" ? "rtl" : "ltr"}>
-      <button onClick={() => router.push(`/manifest?lang=${locale}`)}>{t(locale, "back")}</button>
-      <h1>{t(locale, "taskDetails")}</h1>
-      {error && <p role="alert">{error}</p>}
-      <p>{detail.task.status}</p>
+    <Page width="flush">
+      <Section air="app" aria-labelledby="task-title">
+        <Container>
+          <Stack gap="lg">
+            <Breadcrumb
+              label={t(locale, "driver.manifestTitle")}
+              items={[
+                { label: t(locale, "driver.manifestTitle"), href: "/manifest" },
+                { label: t(locale, "driver.taskDetails") }
+              ]}
+            />
 
-      {detail.recipient && (
-        <p>
-          {t(locale, "recipient")}: {detail.recipient.name} — {detail.recipient.phone}
-        </p>
-      )}
+            <SectionHead
+              level={1}
+              titleId="task-title"
+              title={t(locale, "driver.taskDetails")}
+              actions={<StatusBadge kind="delivery" value={status} locale={locale} />}
+            />
 
-      <h2>{t(locale, "lines")}</h2>
-      <ul>
-        {detail.lines.map((line, i) => (
-          <li key={i}>
-            {locale === "ar" ? line.nameAr : line.nameEn} × {line.qty}
-          </li>
-        ))}
-      </ul>
+            {error ? <Banner tone="danger">{error}</Banner> : null}
 
-      {detail.codAmount && (
-        <p>
-          {t(locale, "codAmount")}: {detail.codAmount}
-        </p>
-      )}
+            <Stepper
+              label={t(locale, "orders.timeline")}
+              current={stepIndex < 0 ? 0 : stepIndex}
+              status={t(locale, "checkout.stepStatus", {
+                current: count(Math.max(stepIndex + 1, 1)),
+                total: count(JOURNEY.length)
+              })}
+              stateLabels={{
+                done: t(locale, "checkout.stepDone"),
+                current: t(locale, "checkout.stepCurrent"),
+                upcoming: t(locale, "checkout.stepUpcoming")
+              }}
+              steps={JOURNEY.map((step) => ({ id: step, label: t(locale, JOURNEY_LABEL[step] ?? "driver.accept") }))}
+            />
 
-      {detail.task.status === "assigned" && (
-        <div>
-          <button disabled={busy} onClick={() => act("accept")}>{t(locale, "accept")}</button>
-          <button disabled={busy} onClick={() => act("decline")}>{t(locale, "decline")}</button>
-        </div>
-      )}
+            {detail.recipient ? (
+              <Card>
+                <Stack gap="xs">
+                  <p className="ps-eyebrow">{t(locale, "driver.recipient")}</p>
+                  <p>{detail.recipient.name}</p>
+                  {/* A phone number a driver is about to dial, sitting inside
+                      Arabic copy: forced LTR, or the digits reorder. */}
+                  <Ltr>{detail.recipient.phone}</Ltr>
+                </Stack>
+              </Card>
+            ) : null}
 
-      {nextTransition && (
-        <button disabled={busy} onClick={() => transition(nextTransition.to)}>
-          {t(locale, "transitionTo")}: {t(locale, nextTransition.labelKey)}
-        </button>
-      )}
+            <Stack gap="md">
+              <h2 className="ps-section-head__title">{t(locale, "driver.lines")}</h2>
+              <DataList
+                label={t(locale, "driver.lines")}
+                items={detail.lines.map((line, index) => ({
+                  id: `${index}`,
+                  title: locale === "ar" ? line.nameAr : line.nameEn,
+                  // Quantities only. A manifest line never carries a price.
+                  fields: [{ label: t(locale, "orders.qty"), value: <Ltr>{count(line.qty)}</Ltr> }]
+                }))}
+              />
+            </Stack>
 
-      {detail.task.status === "arrived" && (
-        <div>
-          <h2>{t(locale, "uploadPhoto")}</h2>
-          <input type="file" accept="image/jpeg,image/webp,image/png" capture="environment" disabled={uploading} onChange={pickPhoto} />
-          {uploading && <p>{t(locale, "uploading")}</p>}
-          {photoMediaId && <p>✓ {photoMediaId}</p>}
+            {detail.codAmount ? (
+              <Card>
+                <Stack gap="xs">
+                  <p className="ps-eyebrow">{t(locale, "driver.codAmount")}</p>
+                  <Money amount={detail.codAmount} locale={locale} emphasis="strong" />
+                </Stack>
+              </Card>
+            ) : null}
 
-          {detail.otpRequired && (
-            <div>
-              <input placeholder="OTP" value={otpInput} onChange={(e) => setOtpInput(e.target.value)} />
-              <button type="button" disabled={busy} onClick={regenerateOtp}>
-                {t(locale, "regenerateOtp")}
-              </button>
-            </div>
-          )}
+            {/* ---- POD (SCR-DL05-001) ---------------------------------- */}
+            {status === "arrived" ? (
+              <Card>
+                <Stack gap="md">
+                  <h2 className="ps-section-head__title">{t(locale, "driver.capturePod")}</h2>
 
-          <label>
-            {t(locale, "collectorKind")}
-            <select value={collectorKind} onChange={(e) => setCollectorKind(e.target.value as "customer" | "supplier")}>
-              <option value="customer">{t(locale, "collectorCustomer")}</option>
-              <option value="supplier">{t(locale, "collectorSupplier")}</option>
-            </select>
-          </label>
+                  <FileUpload
+                    label={t(locale, "driver.podPhoto")}
+                    accept="image/jpeg,image/webp,image/png"
+                    capture="environment"
+                    browseLabel={t(locale, "driver.uploadPhoto")}
+                    onFiles={(files) => void pickPhoto(files)}
+                  />
+                  {uploading ? <Banner tone="info">{t(locale, "driver.uploading")}</Banner> : null}
+                  {photoMediaId ? (
+                    <span role="status">
+                      <Badge variant="success">
+                        <Icon name="check-circle" size="sm" />
+                        {photoName ?? t(locale, "driver.photoReady")}
+                      </Badge>
+                    </span>
+                  ) : null}
 
-          {detail.codAmount && (
-            <label>
-              {t(locale, "codCollected")}
-              <input type="number" min={0} step="0.01" value={codCollected} onChange={(e) => setCodCollected(e.target.value)} />
-            </label>
-          )}
+                  {detail.otpRequired ? (
+                    <Stack gap="sm">
+                      <Keypad
+                        label={t(locale, "driver.podOtp")}
+                        value={otp}
+                        onChange={setOtp}
+                        deleteLabel={t(locale, "common.remove")}
+                      />
+                      <Cluster gap="sm">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          busy={busy === "otp"}
+                          onClick={() => call("otp", `/api/v1/driver/tasks/${params.id}/otp/regenerate`)}
+                        >
+                          {t(locale, "driver.regenerateOtp")}
+                        </Button>
+                      </Cluster>
+                    </Stack>
+                  ) : null}
 
-          <button disabled={busy || uploading || !photoMediaId} onClick={capturePod}>
-            {t(locale, "submitPod")}
-          </button>
-        </div>
-      )}
+                  <Select
+                    label={t(locale, "driver.collectorKind")}
+                    value={collectorKind}
+                    onChange={(event) => setCollectorKind(event.target.value)}
+                    options={[
+                      { value: "customer", label: t(locale, "driver.collectorCustomer") },
+                      { value: "supplier", label: t(locale, "driver.collectorSupplier") }
+                    ]}
+                  />
 
-      {detail.task.status !== "delivered" && detail.task.status !== "confirmed" && detail.task.status !== "failed" && (
-        <details>
-          <summary>{t(locale, "failTask")}</summary>
-          <label>
-            {t(locale, "reasonCode")}
-            <select value={failReason} onChange={(e) => setFailReason(e.target.value as (typeof FAIL_REASONS)[number])}>
-              {FAIL_REASONS.map((r) => (
-                <option key={r} value={r}>
-                  {t(locale, REASON_LABEL_KEY[r])}
-                </option>
-              ))}
-            </select>
-          </label>
-          <input placeholder={t(locale, "note")} value={failNote} onChange={(e) => setFailNote(e.target.value)} />
-          <button type="button" disabled={busy} onClick={failDelivery}>
-            {t(locale, "submit")}
-          </button>
-        </details>
-      )}
+                  {detail.codAmount ? (
+                    <TextField
+                      label={t(locale, "driver.codCollected")}
+                      // Cash collected becomes custody the moment it is
+                      // taken — it is not the driver's, and it is not a debt.
+                      hint={t(locale, "supplier.custodyNotDebt")}
+                      forceLtr
+                      inputMode="decimal"
+                      value={codCollected}
+                      onChange={(event) => setCodCollected(event.target.value)}
+                    />
+                  ) : null}
 
-      {detail.task.status === "failed" && (
-        <button disabled={busy} onClick={returnToHub}>
-          {t(locale, "returnToHub")}
-        </button>
-      )}
-    </main>
+                  {!photoMediaId ? <Banner tone="info">{t(locale, "driver.podNeedsPhoto")}</Banner> : null}
+
+                  <Button
+                    variant="gold"
+                    size="lg"
+                    busy={busy === "pod"}
+                    disabled={uploading || !photoMediaId}
+                    onClick={() =>
+                      call("pod", `/api/v1/driver/tasks/${params.id}/pod`, {
+                        photoMediaId,
+                        ...(otp ? { otp } : {}),
+                        collectorKind,
+                        ...(codCollected ? { codCollectedAmount: Number(codCollected) } : {}),
+                        clientActionId: `${params.id}-pod`
+                      })
+                    }
+                  >
+                    {t(locale, "driver.submitPod")}
+                  </Button>
+                </Stack>
+              </Card>
+            ) : null}
+
+            {/* ---- The next legal transition, and only that one -------- */}
+            {status === "assigned" ? (
+              <Cluster gap="sm">
+                <Button
+                  variant="gold"
+                  size="lg"
+                  busy={busy === "accept"}
+                  onClick={() => call("accept", `/api/v1/driver/tasks/${params.id}/accept`)}
+                >
+                  {t(locale, "driver.accept")}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="lg"
+                  busy={busy === "decline"}
+                  onClick={async () => {
+                    await call("decline", `/api/v1/driver/tasks/${params.id}/decline`);
+                    router.push("/manifest");
+                  }}
+                >
+                  {t(locale, "driver.decline")}
+                </Button>
+              </Cluster>
+            ) : null}
+
+            {next ? (
+              <Button
+                variant="gold"
+                size="lg"
+                busy={busy === "transition"}
+                onClick={() =>
+                  call("transition", `/api/v1/driver/tasks/${params.id}/transition`, {
+                    to: next.to,
+                    clientActionId: `${params.id}-${next.to}`
+                  })
+                }
+              >
+                {t(locale, next.labelKey)}
+              </Button>
+            ) : null}
+
+            {/* ---- Exception path ------------------------------------- */}
+            {!CLOSED.has(status) ? (
+              <Card>
+                <Stack gap="md">
+                  {!showFail ? (
+                    <Button variant="ghost" onClick={() => setShowFail(true)}>
+                      {t(locale, "driver.failTask")}
+                    </Button>
+                  ) : (
+                    <>
+                      <h2 className="ps-section-head__title">{t(locale, "driver.failTask")}</h2>
+                      <Banner tone="info">{t(locale, "driver.exceptionNotice")}</Banner>
+                      <Select
+                        label={t(locale, "driver.failReason")}
+                        value={failReason}
+                        onChange={(event) => setFailReason(event.target.value)}
+                        options={FAIL_REASONS.map((reason) => ({
+                          value: reason.value,
+                          label: t(locale, reason.labelKey)
+                        }))}
+                      />
+                      <TextField
+                        label={t(locale, "form.note")}
+                        hint={t(locale, "common.optional")}
+                        value={failNote}
+                        onChange={(event) => setFailNote(event.target.value)}
+                      />
+                      <Cluster gap="sm">
+                        <Button
+                          variant="danger"
+                          busy={busy === "fail"}
+                          onClick={() =>
+                            call("fail", `/api/v1/driver/tasks/${params.id}/fail`, {
+                              reasonCode: failReason,
+                              ...(failNote.trim() ? { note: failNote.trim() } : {}),
+                              clientActionId: `${params.id}-fail`
+                            })
+                          }
+                        >
+                          {t(locale, "driver.reportException")}
+                        </Button>
+                        <Button variant="ghost" onClick={() => setShowFail(false)}>
+                          {t(locale, "common.cancel")}
+                        </Button>
+                      </Cluster>
+                    </>
+                  )}
+                </Stack>
+              </Card>
+            ) : null}
+
+            {status === "failed" ? (
+              <Button
+                variant="gold"
+                size="lg"
+                busy={busy === "return"}
+                onClick={async () => {
+                  await call("return", `/api/v1/driver/tasks/${params.id}/return-to-hub`);
+                  router.push("/manifest");
+                }}
+              >
+                {t(locale, "driver.returnToHub")}
+              </Button>
+            ) : null}
+
+            <ButtonLink linkAs={Link} href="/manifest" variant="ghost">
+              {t(locale, "common.back")}
+            </ButtonLink>
+          </Stack>
+        </Container>
+      </Section>
+    </Page>
   );
 }

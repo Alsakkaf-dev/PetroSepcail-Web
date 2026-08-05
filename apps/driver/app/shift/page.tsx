@@ -1,24 +1,33 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
 import type { ShiftResponse } from "@petrospecial/contracts";
+import {
+  Banner,
+  Button,
+  ButtonLink,
+  Card,
+  Cluster,
+  Container,
+  DataList,
+  EmptyState,
+  IconWell,
+  Ltr,
+  Money,
+  Page,
+  QtyStepper,
+  Section,
+  SectionHead,
+  Select,
+  Skeleton,
+  Stack,
+  StatCard,
+  TextField
+} from "@petrospecial/ui";
+import { useLocale } from "@petrospecial/app-shell/src/client";
+import { count, messageFor, t, type Locale } from "@petrospecial/i18n";
 import { authedFetch } from "../../lib/authClient";
-import { t } from "../../lib/locale";
-import { useLocale } from "../../lib/useLocale";
-
-// EP-DL-001/002 (DL-07, S11) — shows the driver's current shift, or a real
-// load-out picker if none is open. Real gap closed this pass: this page
-// previously had no way to actually START a shift at all (just a "no shift"
-// message) even though the API (POST /driver/shifts/start) always accepted
-// a full `load: [{packSizeId, qty}]` array — the form simply didn't exist.
-export default function ShiftPage() {
-  return (
-    <Suspense fallback={null}>
-      <ShiftPageInner />
-    </Suspense>
-  );
-}
 
 interface ProductCard {
   slug: string;
@@ -35,7 +44,10 @@ interface LoadLine {
   qty: number;
 }
 
-function LoadOutForm({ locale, onStarted }: { locale: "ar" | "en"; onStarted: (shift: ShiftResponse) => void }) {
+/** SCR-DL07-001 — the van load-out. Product → pack size → quantity, with a
+ * running list, because a driver loading a van is adding one line at a time
+ * and needs to see what is already on it. */
+function LoadOutForm({ locale, onStarted }: { locale: Locale; onStarted: (shift: ShiftResponse) => void }) {
   const [vanId, setVanId] = useState("");
   const [products, setProducts] = useState<ProductCard[]>([]);
   const [selectedSlug, setSelectedSlug] = useState("");
@@ -49,7 +61,7 @@ function LoadOutForm({ locale, onStarted }: { locale: "ar" | "en"; onStarted: (s
   useEffect(() => {
     authedFetch<{ items: ProductCard[] }>("/api/v1/catalog/products?limit=100")
       .then((res) => setProducts(res.items))
-      .catch(() => {});
+      .catch(() => setProducts([]));
   }, []);
 
   useEffect(() => {
@@ -67,114 +79,233 @@ function LoadOutForm({ locale, onStarted }: { locale: "ar" | "en"; onStarted: (s
 
   function addLine() {
     if (!selectedPackSize || qty < 1) return;
-    const label = packSizes.find((p) => p.packSizeId === selectedPackSize)?.sizeLabel ?? selectedPackSize;
+    const label = packSizes.find((size) => size.packSizeId === selectedPackSize)?.sizeLabel ?? selectedPackSize;
     setLines((prev) => {
-      const existing = prev.find((l) => l.packSizeId === selectedPackSize);
-      if (existing) return prev.map((l) => (l.packSizeId === selectedPackSize ? { ...l, qty: l.qty + qty } : l));
+      const existing = prev.find((line) => line.packSizeId === selectedPackSize);
+      if (existing) {
+        return prev.map((line) =>
+          line.packSizeId === selectedPackSize ? { ...line, qty: line.qty + qty } : line
+        );
+      }
       return [...prev, { packSizeId: selectedPackSize, label, qty }];
     });
   }
 
   async function startShift() {
-    if (!vanId || lines.length === 0) {
-      setError("Van ID and at least one load line are required.");
-      return;
-    }
     setBusy(true);
     setError(null);
     try {
-      const shift = await authedFetch<{ shiftId: string; openingStock: LoadLine[] }>("/api/v1/driver/shifts/start", {
+      const shift = await authedFetch<{ shiftId: string }>("/api/v1/driver/shifts/start", {
         method: "POST",
-        body: JSON.stringify({ vanId, load: lines.map((l) => ({ packSizeId: l.packSizeId, qty: l.qty })) })
+        body: JSON.stringify({ vanId, load: lines.map((line) => ({ packSizeId: line.packSizeId, qty: line.qty })) })
       });
       onStarted({
         shiftId: shift.shiftId,
         vanId,
         status: "open",
         available: true,
-        vanStock: lines.map((l) => ({ packSizeId: l.packSizeId, qty: l.qty })),
+        vanStock: lines.map((line) => ({ packSizeId: line.packSizeId, qty: line.qty })),
         custodyHeld: "0.00"
       });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "failed to start shift");
+    } catch (thrown) {
+      setError(messageFor(locale, thrown));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div>
-      <p>{t(locale, "noShift")}</p>
-      <label>
-        Van ID (UUID)
-        <input value={vanId} onChange={(e) => setVanId(e.target.value)} style={{ display: "block", width: "100%", padding: 8 }} />
-      </label>
+    <Stack gap="lg">
+      <EmptyState
+        illustration={<IconWell name="truck" tone="gold" />}
+        title={t(locale, "driver.noShift")}
+        description={t(locale, "driver.noShiftHint")}
+      />
 
-      <fieldset style={{ marginTop: 12 }}>
-        <legend>Add load line</legend>
-        <select value={selectedSlug} onChange={(e) => setSelectedSlug(e.target.value)}>
-          <option value="">Select product…</option>
-          {products.map((p) => (
-            <option key={p.slug} value={p.slug}>
-              {locale === "ar" ? p.nameAr : p.nameEn}
-            </option>
-          ))}
-        </select>
-        <select value={selectedPackSize} onChange={(e) => setSelectedPackSize(e.target.value)} disabled={packSizes.length === 0}>
-          {packSizes.map((p) => (
-            <option key={p.packSizeId} value={p.packSizeId}>
-              {p.sizeLabel}
-            </option>
-          ))}
-        </select>
-        <input type="number" min={1} value={qty} onChange={(e) => setQty(Number(e.target.value))} style={{ width: 60 }} />
-        <button type="button" onClick={addLine}>
-          Add
-        </button>
-      </fieldset>
+      <Card>
+        <Stack gap="md">
+          <TextField
+            label={t(locale, "driver.vanId")}
+            required
+            forceLtr
+            value={vanId}
+            onChange={(event) => setVanId(event.target.value)}
+          />
 
-      <ul>
-        {lines.map((l) => (
-          <li key={l.packSizeId}>
-            {l.label} × {l.qty}
-          </li>
-        ))}
-      </ul>
+          <Select
+            label={t(locale, "nav.catalog")}
+            value={selectedSlug}
+            placeholder={t(locale, "form.selectPlaceholder")}
+            onChange={(event) => setSelectedSlug(event.target.value)}
+            options={products.map((product) => ({
+              value: product.slug,
+              label: locale === "ar" ? product.nameAr : product.nameEn
+            }))}
+          />
 
-      {error && <p role="alert">{error}</p>}
-      <button type="button" disabled={busy} onClick={startShift}>
-        {busy ? "Starting…" : "Start shift"}
-      </button>
-    </div>
+          <Select
+            label={t(locale, "catalog.packSize")}
+            value={selectedPackSize}
+            disabled={packSizes.length === 0}
+            onChange={(event) => setSelectedPackSize(event.target.value)}
+            options={packSizes.map((size) => ({ value: size.packSizeId, label: size.sizeLabel }))}
+          />
+
+          <QtyStepper
+            label={t(locale, "form.quantity")}
+            value={qty}
+            min={1}
+            max={999}
+            increaseLabel={t(locale, "cart.increase")}
+            decreaseLabel={t(locale, "cart.decrease")}
+            onChange={setQty}
+          />
+
+          <Cluster gap="sm">
+            <Button variant="ghost" disabled={!selectedPackSize} onClick={addLine}>
+              {t(locale, "driver.addLine")}
+            </Button>
+          </Cluster>
+        </Stack>
+      </Card>
+
+      <Stack gap="md">
+        <h2 className="ps-section-head__title">{t(locale, "driver.loadLines")}</h2>
+        <DataList
+          label={t(locale, "driver.loadLines")}
+          state={lines.length === 0 ? "empty" : "ready"}
+          emptyTitle={t(locale, "driver.loadEmpty")}
+          items={lines.map((line) => ({
+            id: line.packSizeId,
+            title: <Ltr>{line.label}</Ltr>,
+            fields: [{ label: t(locale, "form.quantity"), value: <Ltr>{count(line.qty)}</Ltr> }],
+            actions: (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setLines((prev) => prev.filter((entry) => entry.packSizeId !== line.packSizeId))}
+              >
+                {t(locale, "common.remove")}
+              </Button>
+            )
+          }))}
+        />
+      </Stack>
+
+      {error ? <Banner tone="danger">{error}</Banner> : null}
+
+      <Button variant="gold" size="lg" busy={busy} disabled={!vanId || lines.length === 0} onClick={startShift}>
+        {t(locale, "driver.startShift")}
+      </Button>
+    </Stack>
   );
 }
 
-function ShiftPageInner() {
+// SCR-DL07-001 and SCR-DL07-002 — EP-DL-001/002.
+//
+// Was 180 lines of unstyled markup with hardcoded English inside a page whose
+// other strings were translated: "Van ID (UUID)", "Add load line", "Select
+// product…", "Starting…", "Van ID and at least one load line are required."
+export default function ShiftPage() {
   const locale = useLocale();
-  const router = useRouter();
-  const [shift, setShift] = useState<ShiftResponse | null | undefined>(undefined);
+  const [shift, setShift] = useState<ShiftResponse | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setError(null);
     authedFetch<ShiftResponse>("/api/v1/driver/shift")
       .then(setShift)
-      .catch((err) => setError(err instanceof Error ? err.message : t(locale, "errorGeneric")));
+      .catch((thrown) => setError(messageFor(locale, thrown)));
   }, [locale]);
 
-  if (shift === undefined) return <p>{t(locale, "loading")}</p>;
+  useEffect(load, [load]);
 
   return (
-    <main dir={locale === "ar" ? "rtl" : "ltr"}>
-      <h1>{t(locale, "startShift")}</h1>
-      {error && <p role="alert">{error}</p>}
-      {shift ? (
-        <div>
-          <p>{t(locale, "vanPlate")}: {shift.vanId}</p>
-          <button onClick={() => router.push(`/manifest?lang=${locale}`)}>{t(locale, "goToManifest")}</button>
-        </div>
-      ) : (
-        <LoadOutForm locale={locale} onStarted={setShift} />
-      )}
-    </main>
+    <Page width="flush">
+      <Section air="app" aria-labelledby="shift-title">
+        <Container>
+          <Stack gap="lg">
+            <SectionHead level={1} titleId="shift-title" title={t(locale, "nav.shift")} />
+
+            {error ? (
+              <Banner
+                tone="danger"
+                action={
+                  <Button variant="ghost" size="sm" onClick={load}>
+                    {t(locale, "common.retry")}
+                  </Button>
+                }
+              >
+                {error}
+              </Banner>
+            ) : null}
+
+            {shift === undefined && !error ? (
+              <div role="status" aria-live="polite" aria-busy="true">
+                <span className="ps-visually-hidden">{t(locale, "state.loadingLabel")}</span>
+                <Stack gap="md">
+                  <Skeleton variant="block" size="md" />
+                  <Skeleton variant="block" size="lg" />
+                </Stack>
+              </div>
+            ) : null}
+
+            {shift === null ? <LoadOutForm locale={locale} onStarted={setShift} /> : null}
+
+            {shift ? (
+              <Stack gap="lg">
+                <Cluster gap="md">
+                  <StatCard
+                    label={t(locale, "driver.vanPlate")}
+                    value={<Ltr>{shift.vanId}</Ltr>}
+                    caption={t(locale, "driver.shiftOpen")}
+                    icon="truck"
+                    tone="gold"
+                  />
+                  {/* Cash held is custody, and it is labelled as custody
+                      everywhere it appears — including here, where a driver
+                      might otherwise read it as takings. */}
+                  <StatCard
+                    label={t(locale, "supplier.custodyPanel")}
+                    value={<Money amount={shift.custodyHeld} locale={locale} emphasis="strong" />}
+                    caption={t(locale, "supplier.custodyNotDebt")}
+                    icon="banknote"
+                  />
+                </Cluster>
+
+                <Stack gap="md">
+                  <h2 className="ps-section-head__title">{t(locale, "driver.openingStock")}</h2>
+                  <DataList
+                    label={t(locale, "driver.openingStock")}
+                    state={shift.vanStock.length === 0 ? "empty" : "ready"}
+                    emptyTitle={t(locale, "driver.loadEmpty")}
+                    items={shift.vanStock.map((line) => ({
+                      id: line.packSizeId,
+                      title: <Ltr>{line.packSizeId}</Ltr>,
+                      fields: [{ label: t(locale, "form.quantity"), value: <Ltr>{count(line.qty)}</Ltr> }]
+                    }))}
+                  />
+                </Stack>
+
+                {/* Closing a shift needs a nil variance and remitted custody
+                    (AUDIT_VARIANCE / CUSTODY_OPEN). Both are enforced
+                    server-side; both are stated here so a driver learns the
+                    rule before they are stopped by it. */}
+                <Banner tone="info">{t(locale, "driver.endShiftBlocked")}</Banner>
+
+                <Cluster gap="sm">
+                  <ButtonLink linkAs={Link} href="/manifest" variant="gold" size="lg">
+                    {t(locale, "driver.manifestTitle")}
+                  </ButtonLink>
+                  <ButtonLink linkAs={Link} href="/audits" variant="ghost">
+                    {t(locale, "driver.audits")}
+                  </ButtonLink>
+                </Cluster>
+              </Stack>
+            ) : null}
+          </Stack>
+        </Container>
+      </Section>
+    </Page>
   );
 }

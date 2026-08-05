@@ -14,6 +14,10 @@ export interface FileUploadProps {
   files?: File[];
   onRemove?: (index: number) => void;
   accept?: string;
+  /** `environment` opens the rear camera straight away on a phone. That is
+   * the whole interaction for a proof-of-delivery photo: a driver at a door
+   * should not have to pick "camera" out of a file browser first. */
+  capture?: "user" | "environment";
   multiple?: boolean;
   hint?: ReactNode;
   error?: string;
@@ -44,6 +48,7 @@ export function FileUpload({
   files = [],
   onRemove,
   accept,
+  capture,
   multiple = false,
   hint,
   error,
@@ -98,6 +103,7 @@ export function FileUpload({
           type="file"
           className="ps-upload__input"
           accept={accept}
+          capture={capture}
           multiple={multiple}
           disabled={disabled}
           required={required}

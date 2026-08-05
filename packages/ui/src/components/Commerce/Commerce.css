@@ -190,3 +190,142 @@
   font-weight: 700;
   color: var(--gold-800);
 }
+
+/* ---- StopCard / StopSection (DL-08) ------------------------------------ */
+
+.ps-stop-section {
+  display: grid;
+  gap: var(--d-3);
+}
+
+/* The accent runs down the start edge of the whole section, so the three
+   D-14 types stay visibly separate even stacked on a phone — and it is a
+   logical property, so it mirrors for free. */
+.ps-stop-section__title {
+  display: flex;
+  align-items: center;
+  gap: var(--d-2);
+  margin: 0;
+  padding-inline-start: var(--d-3);
+  border-inline-start: 4px solid var(--line);
+  font-size: var(--fs-500);
+}
+
+.ps-stop-section--b2b_drop .ps-stop-section__title {
+  border-inline-start-color: var(--blue-600);
+  color: var(--blue);
+}
+
+.ps-stop-section--b2c_home .ps-stop-section__title {
+  border-inline-start-color: var(--gold-600);
+  color: var(--gold-800);
+}
+
+.ps-stop-section--b2c_pickup .ps-stop-section__title {
+  border-inline-start-color: var(--f-petro);
+  color: var(--f-petro);
+}
+
+.ps-stop-section__count {
+  margin-inline-start: auto;
+  color: var(--muted);
+  font-size: var(--fs-300);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.ps-stop-section__list {
+  display: grid;
+  gap: var(--d-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ps-stop {
+  display: grid;
+  gap: var(--d-3);
+  padding: var(--d-4);
+  border: 1px solid var(--line);
+  border-inline-start: 4px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.ps-stop--b2b_drop {
+  border-inline-start-color: var(--blue-600);
+}
+
+.ps-stop--b2c_home {
+  border-inline-start-color: var(--gold-600);
+}
+
+.ps-stop--b2c_pickup {
+  border-inline-start-color: var(--f-petro);
+}
+
+.ps-stop__head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--d-2);
+}
+
+.ps-stop__kind {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--d-1);
+  color: var(--muted);
+  font-size: var(--fs-300);
+  font-weight: 700;
+}
+
+.ps-stop__sequence {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  font-size: var(--fs-300);
+}
+
+.ps-stop__status {
+  margin-inline-start: auto;
+}
+
+.ps-stop__destination {
+  margin: 0;
+  font-size: var(--fs-500);
+  font-weight: 700;
+  line-height: var(--lh-tight);
+}
+
+.ps-stop__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--d-4);
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-300);
+}
+
+.ps-stop__fact {
+  display: flex;
+  align-items: center;
+  gap: var(--d-1);
+}
+
+.ps-stop__fact dt,
+.ps-stop__fact dd {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Bottom-anchored, full width: this is a control pressed one-handed, often
+   in sunlight, often while holding something else. */
+.ps-stop__action {
+  display: grid;
+}
+
+.ps-stop__action > * {
+  inline-size: 100%;
+}

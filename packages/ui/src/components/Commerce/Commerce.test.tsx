@@ -3,6 +3,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { LineItem, LineList, LineNote } from "./LineItem";
 import { SummaryPanel } from "./SummaryPanel";
+import { StopCard, StopSection } from "./StopCard";
 import { structuralSignature, withDocumentDirection } from "../../testing/domSnapshot";
 
 afterEach(cleanup);
@@ -118,6 +119,74 @@ describe("SummaryPanel", () => {
     const rtl = withDocumentDirection("rtl", "ar", () => structuralSignature(render(panel).container));
     cleanup();
     const ltr = withDocumentDirection("ltr", "en", () => structuralSignature(render(panel).container));
+    expect(rtl).toEqual(ltr);
+  });
+});
+
+describe("StopCard / StopSection", () => {
+  it("names the stop type in words, never in colour alone", () => {
+    render(
+      <StopSection title="توريد للموزّعين" kind="b2b_drop" count="3">
+        <StopCard kind="b2b_drop" kindLabel="توريد للموزّعين" destination="مؤسسة النور" />
+      </StopSection>
+    );
+    expect(screen.getByRole("region", { name: "توريد للموزّعين" })).toBeInTheDocument();
+    expect(screen.getAllByText("توريد للموزّعين").length).toBeGreaterThan(0);
+  });
+
+  it("keeps the three types in separate sections", () => {
+    const { container } = render(
+      <>
+        <StopSection title="a" kind="b2b_drop">
+          <StopCard kind="b2b_drop" kindLabel="a" destination="d1" />
+        </StopSection>
+        <StopSection title="b" kind="b2c_home">
+          <StopCard kind="b2c_home" kindLabel="b" destination="d2" />
+        </StopSection>
+        <StopSection title="c" kind="b2c_pickup">
+          <StopCard kind="b2c_pickup" kindLabel="c" destination="d3" />
+        </StopSection>
+      </>
+    );
+    expect(container.querySelectorAll(".ps-stop-section")).toHaveLength(3);
+    expect(container.querySelector(".ps-stop-section--b2b_drop")).not.toBeNull();
+    expect(container.querySelector(".ps-stop-section--b2c_home")).not.toBeNull();
+    expect(container.querySelector(".ps-stop-section--b2c_pickup")).not.toBeNull();
+  });
+
+  it("renders item counts and drops the facts row when there is nothing to put in it", () => {
+    const { container, rerender } = render(
+      <StopSection title="s" kind="b2c_home">
+        <StopCard kind="b2c_home" kindLabel="k" destination="d" items="3 أصناف" />
+      </StopSection>
+    );
+    expect(screen.getByText("3 أصناف")).toBeInTheDocument();
+    rerender(
+      <StopSection title="s" kind="b2c_home">
+        <StopCard kind="b2c_home" kindLabel="k" destination="d" />
+      </StopSection>
+    );
+    expect(container.querySelector(".ps-stop__facts")).toBeNull();
+  });
+
+  it("renders identical DOM structure across RTL/ar and LTR/en (TC-PC08-002)", () => {
+    const tree = (
+      <StopSection title="s" kind="b2b_drop" count="2">
+        <StopCard
+          kind="b2b_drop"
+          kindLabel="k"
+          destination="d"
+          status={<span>st</span>}
+          sequence="1"
+          eta={<time>10:00</time>}
+          items="2"
+          action={<button type="button">go</button>}
+        />
+      </StopSection>
+    );
+    const rtl = withDocumentDirection("rtl", "ar", () => structuralSignature(render(tree).container));
+    cleanup();
+    const ltr = withDocumentDirection("ltr", "en", () => structuralSignature(render(tree).container));
     expect(rtl).toEqual(ltr);
   });
 });
