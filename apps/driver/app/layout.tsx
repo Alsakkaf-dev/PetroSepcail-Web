@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { getLocale, htmlLangAttrs } from "@petrospecial/app-shell/src/server";
 import { LocaleProvider } from "@petrospecial/app-shell/src/client";
+import { PortalShell } from "@petrospecial/app-shell/src/shell";
 import { t } from "@petrospecial/i18n";
 import "./globals.css";
 
@@ -15,7 +16,8 @@ export const metadata: Metadata = {
   description: "PetroSpecial driver PWA",
   manifest: "/manifest.json",
   appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "PS Driver" },
-  icons: { icon: "/icon.svg", apple: "/icon.svg" }
+  icons: { icon: "/favicon.svg", apple: "/apple-touch-icon.png" },
+  robots: { index: false, follow: false }
 };
 
 export const viewport: Viewport = {
@@ -25,6 +27,14 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1
 };
+
+// Three destinations, so the header nav is the whole navigation — a rail
+// would cost thumb-reach on a phone held one-handed for a full shift.
+const NAV = [
+  { href: "/shift", labelKey: "nav.shift" },
+  { href: "/manifest", labelKey: "nav.manifest" },
+  { href: "/audits", labelKey: "nav.audits" }
+] as const;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   // Was hardcoded lang="en" dir="ltr" — in an app whose every page then set
@@ -37,7 +47,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <a className="ps-skip-link" href="#main">
           {t(locale, "common.skipToContent")}
         </a>
-        <LocaleProvider locale={locale}>{children}</LocaleProvider>
+        <LocaleProvider locale={locale}>
+          <PortalShell portalKey="brand.portalDriver" nav={[...NAV]} bareRoutes={["/login"]}>
+            {children}
+          </PortalShell>
+        </LocaleProvider>
       </body>
     </html>
   );

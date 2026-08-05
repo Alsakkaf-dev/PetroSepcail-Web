@@ -2,8 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { SupplierNav } from "../../components/Nav";
-import { authedFetch, clearToken, getToken } from "../../lib/authClient";
+import { authedFetch, getToken } from "../../lib/authClient";
 import { dirFor, t } from "../../lib/locale";
 import { useLocale } from "../../lib/useLocale";
 
@@ -39,14 +38,9 @@ function PaymentsPageInner() {
       .catch((err) => setError(err instanceof Error ? err.message : t(locale, "errorGeneric")));
   }, [locale, router]);
 
-  function signOut() {
-    clearToken();
-    router.push(`/login?lang=${locale}`);
-  }
 
   return (
     <main dir={dirFor(locale)} style={{ maxWidth: 700, margin: "0 auto", padding: 24 }}>
-      <SupplierNav locale={locale} onSignOut={signOut} />
       <h1>{t(locale, "paymentsTitle")}</h1>
       {error && <p role="alert">{error}</p>}
       {items && items.length === 0 && <p>{t(locale, "noPayments")}</p>}

@@ -1,74 +1,41 @@
 "use client";
 
-import { Suspense, useState } from "react";
 import { useRouter } from "next/navigation";
+import { AuthShell, Brand } from "@petrospecial/ui";
+import { useLocale } from "@petrospecial/app-shell/src/client";
+import { SignInForm } from "@petrospecial/app-shell/src/auth";
+import { t } from "@petrospecial/i18n";
 import { login } from "../../lib/authClient";
-import { t } from "../../lib/locale";
-import { useLocale } from "../../lib/useLocale";
 
-// App Router requires any useSearchParams()-using component (useLocale())
-// to sit under a <Suspense> boundary or static export fails — the exact
-// production break S09 hit on apps/store when this wasn't done from the
-// start (PROGRESS.md, "production build break found + fixed"). Applied here
-// from the first page, not retrofitted after a broken deploy.
-export default function LoginPage() {
-  return (
-    <Suspense fallback={null}>
-      <LoginPageInner />
-    </Suspense>
-  );
-}
-
-function LoginPageInner() {
+// SCR-PC01-002. Was the platform's one outright layout bug rather than merely
+// a plain screen: a bare <h1> clipped at the viewport edge above an
+// unconstrained row of default inputs that ran off the side of a phone. The
+// form is the shared one now, inside a 26rem card that cannot overflow.
+//
+// The <Suspense> + PageInner() wrapper this file carried is gone with it: it
+// existed only to satisfy useSearchParams() inside the old useLocale(), and
+// locale comes from context now.
+export default function DriverLoginPage() {
   const locale = useLocale();
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      await login(email, password);
-      router.push(`/shift?lang=${locale}`);
-    } catch (err) {
-      // authClient collapses every transport-level fetch failure into this
-      // one code so it can be said in the driver's language here, instead of
-      // surfacing the browser's raw "Failed to fetch".
-      const message = err instanceof Error ? err.message : "";
-      if (message === "NETWORK_UNREACHABLE") setError(t(locale, "errorNetwork"));
-      else setError(message || t(locale, "errorGeneric"));
-    } finally {
-      setBusy(false);
-    }
-  }
 
   return (
-    <main dir={locale === "ar" ? "rtl" : "ltr"}>
-      <h1>{t(locale, "appTitle")}</h1>
-      <form onSubmit={onSubmit}>
-        <input
-          type="email"
-          placeholder={t(locale, "emailPlaceholder")}
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
+    <AuthShell
+      brand={
+        <Brand
+          size="lg"
+          logoSrc="/brand/petrospecial.png"
+          logoAlt={t(locale, "brand.name")}
+          portal={t(locale, "brand.portalDriver")}
         />
-        <input
-          type="password"
-          placeholder={t(locale, "passwordPlaceholder")}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        {error && <p role="alert">{error}</p>}
-        <button type="submit" disabled={busy}>
-          {t(locale, "signIn")}
-        </button>
-      </form>
-    </main>
+      }
+      title={t(locale, "auth.signInTitle")}
+      lead={t(locale, "auth.leadDriver")}
+    >
+      <SignInForm
+        signIn={({ email, password }) => login(email, password)}
+        onSignedIn={() => router.push("/shift")}
+      />
+    </AuthShell>
   );
 }

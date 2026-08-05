@@ -1,77 +1,65 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { clearToken, getToken, login } from "./authClient";
+import { useCallback, useEffect, useState } from "react";
+import { AuthShell, Banner, Skeleton, Stack } from "@petrospecial/ui";
+import { useLocale } from "@petrospecial/app-shell/src/client";
+import { SignInForm } from "@petrospecial/app-shell/src/auth";
+import { t } from "@petrospecial/i18n";
+import { getToken, login } from "./authClient";
 
-// Shared login gate for every new admin page — see authClient.ts's own note.
+// The console has no /login route of its own — every page wraps itself in
+// this gate — so the sign-in screen renders as a panel inside the shell
+// rather than owning the viewport. Same card and same shared form as the
+// driver's and the distributor's dedicated routes.
+//
+// Was: two unlabelled inputs, a `#b91c1c` error paragraph (that hex is
+// --f-raval, the Raval product-family colour, pressed into service as an
+// error red), hardcoded English, and a "Signing in..." string that was the
+// whole app's only loading state. Sign-out moved to the shell, where one
+// control serves every page instead of a floated 12px button per screen.
 export function LoginGate({ children }: { children: React.ReactNode }) {
-  const [token, setTokenState] = useState<string | null | undefined>(undefined);
-  const [email, setEmail] = useState("admin.seed@petrospecial.internal");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const locale = useLocale();
+  const [token, setToken] = useState<string | null | undefined>(undefined);
 
+  // undefined = localStorage not read yet. Rendering the form during that
+  // moment flashes a sign-in screen at someone who is already signed in.
   useEffect(() => {
-    setTokenState(getToken());
+    setToken(getToken());
   }, []);
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      const t = await login(email, password);
-      setTokenState(t);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
-    } finally {
-      setBusy(false);
-    }
-  }
+  // A full reload rather than a state update: the shell's own sign-out
+  // control reads the token once on mount, so re-rendering only this subtree
+  // would leave the console showing a signed-in page with no way out of it.
+  // One reload keeps every part of the chrome agreeing about the session.
+  const onSignedIn = useCallback(() => {
+    window.location.reload();
+  }, []);
 
-  if (token === undefined) return null; // avoid a login-form flash before localStorage is read
-  if (!token) {
+  if (token === undefined) {
     return (
-      <form onSubmit={submit} style={{ maxWidth: 360, display: "grid", gap: 12 }}>
-        <label>
-          Email
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={{ display: "block", width: "100%", padding: 8, borderRadius: 6, border: "1px solid var(--line)" }}
-          />
-        </label>
-        <label>
-          Password
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={{ display: "block", width: "100%", padding: 8, borderRadius: 6, border: "1px solid var(--line)" }}
-          />
-        </label>
-        {error && <p style={{ color: "#b91c1c" }}>{error}</p>}
-        <button type="submit" disabled={busy} style={{ padding: "8px 16px", borderRadius: 6, background: "var(--gold)", border: "none" }}>
-          {busy ? "Signing in..." : "Sign in"}
-        </button>
-      </form>
+      <Stack gap="md">
+        <Skeleton variant="block" size="lg" />
+        <Skeleton width="1/2" />
+      </Stack>
     );
   }
 
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => {
-          clearToken();
-          setTokenState(null);
-        }}
-        style={{ float: "inline-end", fontSize: 12 }}
+  if (!token) {
+    return (
+      <AuthShell
+        variant="panel"
+        title={t(locale, "auth.signInTitle")}
+        lead={t(locale, "auth.leadAdmin")}
+        footer={<Banner tone="warn">{t(locale, "auth.adminMonitored")}</Banner>}
       >
-        Sign out
-      </button>
-      {children}
-    </>
-  );
+        <SignInForm
+          signIn={({ email, password }) => login(email, password)}
+          onSignedIn={onSignedIn}
+          defaultEmail="admin.seed@petrospecial.internal"
+        />
+      </AuthShell>
+    );
+  }
+
+  return <>{children}</>;
 }
