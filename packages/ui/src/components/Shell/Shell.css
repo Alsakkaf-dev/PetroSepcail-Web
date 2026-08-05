@@ -1,0 +1,500 @@
+/* App chrome: the lockup, the frame, the console rail, the footer and the
+ * sign-in surface. Logical properties only — there is no `left` or `right`
+ * anywhere in this file, and there must never be. */
+
+/* ---- Brand ------------------------------------------------------------- */
+
+.ps-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-inline-size: 0;
+  color: var(--ink);
+}
+
+.ps-brand__mark {
+  inline-size: auto;
+  flex: none;
+}
+
+.ps-brand--sm .ps-brand__mark {
+  block-size: 1.9rem;
+}
+
+.ps-brand--md .ps-brand__mark {
+  block-size: 2.6rem;
+}
+
+.ps-brand--lg .ps-brand__mark {
+  block-size: 3.4rem;
+}
+
+/* Which portal you came in by. The hairline is a border-inline-start, so it
+   lands between the mark and the word in both directions without a second
+   rule. */
+.ps-brand__portal {
+  padding-inline-start: 0.7rem;
+  border-inline-start: 1px solid var(--line);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--fs-300);
+  line-height: var(--lh-tight);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+a.ps-brand:hover .ps-brand__portal {
+  color: var(--gold-700);
+}
+
+@media (max-width: 30em) {
+  /* The mark alone carries the identity on a narrow phone; the portal word
+     is the first thing that can go before the header starts wrapping. */
+  .ps-brand__portal {
+    display: none;
+  }
+}
+
+/* ---- AppShell ---------------------------------------------------------- */
+
+.ps-shell {
+  display: flex;
+  flex-direction: column;
+  /* dvh, not vh: on iOS the collapsing address bar makes 100vh taller than
+     the visible viewport, which parks the footer just off the bottom of
+     every short screen in the platform. */
+  min-block-size: 100dvh;
+  background: var(--bg);
+}
+
+.ps-shell__body {
+  flex: 1;
+  inline-size: 100%;
+  min-inline-size: 0;
+}
+
+.ps-shell__content {
+  min-inline-size: 0;
+}
+
+/* A railed console is a two-column grid at desktop and one column below it.
+   The rail is first in source order in both, which is also the order it is
+   drawn — see SideRail's own note on why it never becomes a drawer. */
+.ps-shell__body--railed {
+  display: grid;
+  gap: var(--d-5);
+  align-items: start;
+  margin-inline: auto;
+  padding-inline: var(--d-4);
+}
+
+.ps-shell__body--railed.ps-shell__body--standard {
+  max-inline-size: var(--container);
+}
+
+.ps-shell__body--railed.ps-shell__body--wide {
+  max-inline-size: var(--container-wide);
+}
+
+.ps-shell__body--railed .ps-shell__rail {
+  min-inline-size: 0;
+  padding-block-start: var(--d-5);
+}
+
+@media (min-width: 60em) {
+  .ps-shell__body--railed {
+    grid-template-columns: 16rem minmax(0, 1fr);
+    padding-inline: var(--d-5);
+  }
+
+  .ps-shell__body--railed .ps-shell__rail {
+    position: sticky;
+    inset-block-start: calc(var(--header-h) + var(--d-4));
+    max-block-size: calc(100dvh - var(--header-h) - var(--d-5));
+    overflow-y: auto;
+  }
+}
+
+/* ---- SideRail ---------------------------------------------------------- */
+
+.ps-rail-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--d-5);
+}
+
+.ps-rail-nav__group-label {
+  font-size: var(--fs-200);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-block-end: var(--d-2);
+  padding-inline: var(--d-3);
+}
+
+.ps-rail-nav__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.ps-rail-nav__link {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-block-size: 44px;
+  padding-inline: var(--d-3);
+  padding-block: var(--d-2);
+  border-radius: var(--r-sm);
+  font-weight: 600;
+  font-size: var(--fs-300);
+  color: var(--ink);
+  transition: background-color 0.25s, color 0.25s;
+}
+
+.ps-rail-nav__link:hover {
+  background: var(--bg-tint);
+  color: var(--gold-700);
+}
+
+/* Current gets three signals, not one: a tinted plate, a start-edge marker
+   and `aria-current`. Colour alone would leave the state invisible to anyone
+   who cannot see it and to anyone who cannot distinguish it. */
+.ps-rail-nav__link--current {
+  background: linear-gradient(180deg, rgba(255, 200, 0, 0.22), rgba(255, 200, 0, 0.1));
+  color: var(--blue);
+  position: relative;
+}
+
+.ps-rail-nav__link--current::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block: 0.35rem;
+  inline-size: 3px;
+  border-radius: var(--r-pill);
+  background: var(--gold-600);
+}
+
+.ps-rail-nav__icon {
+  display: inline-flex;
+  flex: none;
+  color: var(--gold-700);
+}
+
+.ps-rail-nav__link--current .ps-rail-nav__icon {
+  color: var(--blue);
+}
+
+.ps-rail-nav__label {
+  min-inline-size: 0;
+}
+
+.ps-rail-nav__badge {
+  margin-inline-start: auto;
+  padding-inline: 0.5rem;
+  border-radius: var(--r-pill);
+  background: var(--blue);
+  color: var(--surface);
+  font-size: var(--fs-200);
+  font-weight: 700;
+  line-height: 1.6;
+}
+
+@media (max-width: 59.99em) {
+  /* One scrolling strip of pills. `scroll-padding-inline` keeps the current
+     item clear of the fading edge when the browser scrolls it into view. */
+  .ps-rail-nav {
+    flex-direction: row;
+    gap: var(--d-4);
+    overflow-x: auto;
+    scroll-padding-inline: var(--d-4);
+    padding-block-end: var(--d-2);
+    border-block-end: 1px solid var(--line);
+  }
+
+  .ps-rail-nav__group {
+    display: flex;
+    align-items: center;
+    gap: var(--d-2);
+  }
+
+  .ps-rail-nav__group-label {
+    margin-block-end: 0;
+    padding-inline: 0;
+    white-space: nowrap;
+  }
+
+  .ps-rail-nav__list {
+    flex-direction: row;
+    gap: var(--d-2);
+  }
+
+  .ps-rail-nav__link {
+    white-space: nowrap;
+    border: 1px solid var(--line);
+    border-radius: var(--r-pill);
+    background: var(--surface);
+  }
+
+  .ps-rail-nav__link--current::before {
+    display: none;
+  }
+
+  .ps-rail-nav__link--current {
+    border-color: var(--gold-600);
+  }
+}
+
+/* ---- NavTile ----------------------------------------------------------- */
+
+.ps-nav-tile {
+  display: flex;
+  align-items: center;
+  gap: var(--d-4);
+  min-block-size: 44px;
+  padding: var(--d-4);
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  color: var(--ink);
+  transition: transform 0.3s var(--ease-out), box-shadow 0.3s, border-color 0.3s;
+}
+
+/* The card lift from the design language (§3.7): -8px and --shadow-md, with a
+   gold-tinted border. Elevation is meaning — a panel that lifts is
+   interactive, and this one is a link. */
+.ps-nav-tile:hover {
+  transform: translateY(-8px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--gold-600);
+}
+
+.ps-nav-tile:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+.ps-nav-tile__icon {
+  flex: none;
+}
+
+.ps-nav-tile__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--d-1);
+  min-inline-size: 0;
+}
+
+.ps-nav-tile__title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--fs-500);
+  line-height: var(--lh-tight);
+  color: var(--blue);
+}
+
+.ps-nav-tile__desc {
+  font-size: var(--fs-300);
+  color: var(--muted);
+}
+
+.ps-nav-tile__meta {
+  font-weight: 700;
+  font-size: var(--fs-300);
+  color: var(--gold-700);
+}
+
+/* margin-inline-start: auto pushes the chevron to the end edge, which is the
+   right edge in English and the left in Arabic. The glyph itself flips
+   through .ps-icon--directional. */
+.ps-nav-tile__go {
+  margin-inline-start: auto;
+  flex: none;
+  color: var(--gold-600);
+  transition: transform 0.3s var(--ease-out);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ps-nav-tile:hover .ps-nav-tile__go {
+    /* Travels toward the end edge, so it leans the way the reader is going
+       in both directions. */
+    transform: translateX(0.25rem);
+  }
+
+  [dir="rtl"] .ps-nav-tile:hover .ps-nav-tile__go {
+    transform: translateX(-0.25rem);
+  }
+}
+
+/* ---- AppFooter --------------------------------------------------------- */
+
+.ps-app-footer {
+  margin-block-start: var(--d-6);
+  background: var(--bg-warm);
+  border-block-start: 1px solid var(--line);
+}
+
+.ps-app-footer__inner {
+  max-inline-size: var(--container);
+  margin-inline: auto;
+  padding-block: var(--d-5);
+  padding-inline: var(--d-4);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--d-4);
+}
+
+.ps-app-footer__brand {
+  display: flex;
+  flex-direction: column;
+  gap: var(--d-1);
+  min-inline-size: 0;
+}
+
+.ps-app-footer__tagline {
+  font-size: var(--fs-200);
+  color: var(--muted);
+}
+
+.ps-app-footer__nav {
+  margin-inline-start: auto;
+}
+
+.ps-app-footer__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--d-4);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.ps-app-footer__link {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 44px;
+  font-size: var(--fs-300);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.ps-app-footer__link:hover {
+  color: var(--gold-700);
+}
+
+.ps-app-footer__legal {
+  flex-basis: 100%;
+  padding-block-start: var(--d-4);
+  border-block-start: 1px solid var(--line-soft);
+  font-size: var(--fs-200);
+  color: var(--muted);
+}
+
+/* ---- AuthShell --------------------------------------------------------- */
+
+.ps-auth {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-block: var(--d-6);
+  padding-inline: var(--d-4);
+  overflow-x: clip;
+}
+
+/* <main> is focusable so the skip link actually moves focus (WebKit), but a
+   mouse click must not draw a ring around the whole screen. Scoped exactly as
+   Page's own rule is, for the same reason. */
+.ps-auth:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.ps-auth--page {
+  min-block-size: 100dvh;
+  background:
+    radial-gradient(46rem 30rem at 85% -8%, rgba(255, 200, 0, 0.16), transparent 60%),
+    radial-gradient(38rem 26rem at -6% 22%, rgba(255, 214, 82, 0.13), transparent 62%),
+    radial-gradient(30rem 22rem at 55% 115%, rgba(22, 38, 92, 0.07), transparent 65%),
+    var(--bg);
+}
+
+/* The oil-pour contours, same data URI the Section primitive carries. Purely
+   decorative, so it is aria-hidden in the markup and pointer-transparent
+   here — it must never sit between a finger and the password field. The
+   `panel` variant sits inside a screen that already has a background, so it
+   draws none of this. */
+.ps-auth--panel .ps-auth__decor {
+  display: none;
+}
+
+.ps-auth__decor {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 640' preserveAspectRatio='none'%3E%3Cg fill='none' stroke='%23e0b100' stroke-width='1.4'%3E%3Cpath stroke-opacity='.16' d='M-40 520C240 430 420 610 720 500s470-180 780-90'/%3E%3Cpath stroke-opacity='.12' d='M-40 560C260 480 460 640 760 540s450-150 720-70'/%3E%3Cpath stroke-opacity='.09' d='M-40 600C280 530 500 670 800 580s420-120 680-50'/%3E%3Cpath stroke-opacity='.07' d='M-40 120C300 40 520 190 820 100s400-90 660-30'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 100% 100%;
+}
+
+.ps-auth__inner {
+  position: relative;
+  z-index: 1;
+  inline-size: 100%;
+  /* 26rem, SCR-PC01-001. The cap is on the *inner* column so the mark above
+     the card and the links below it share the card's measure. */
+  max-inline-size: 26rem;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--d-5);
+}
+
+.ps-auth__brand {
+  display: flex;
+  justify-content: center;
+}
+
+.ps-auth__card {
+  inline-size: 100%;
+  min-inline-size: 0;
+  padding: var(--d-5);
+  border-radius: var(--r-lg);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+}
+
+.ps-auth__head {
+  margin-block-end: var(--d-5);
+}
+
+.ps-auth__title {
+  font-size: var(--fs-600);
+  color: var(--blue);
+  line-height: var(--lh-tight);
+}
+
+.ps-auth__lead {
+  margin-block-start: var(--d-2);
+  font-size: var(--fs-300);
+  color: var(--muted);
+}
+
+.ps-auth__footer {
+  inline-size: 100%;
+  text-align: center;
+  font-size: var(--fs-200);
+  color: var(--muted);
+}
+
+@media (min-width: 48em) {
+  .ps-auth__card {
+    padding: var(--d-6);
+  }
+}

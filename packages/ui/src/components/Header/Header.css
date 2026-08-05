@@ -1,49 +1,90 @@
+/* The persistent bar, in all four apps.
+ *
+ * Matches the marketing site's own header (assets/css/styles.css, "Header &
+ * navigation"): glass over a warm page, pill nav, gold-tinted current state.
+ * Two deliberate differences, both app-shell concerns a brochure does not
+ * have — `sticky` rather than `fixed`, so no screen has to reserve a header's
+ * worth of padding, and a 44px minimum on every target. */
+
 .ps-header {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 100;
   block-size: var(--header-h);
-  background: var(--surface);
-  border-block-end: 1px solid var(--line);
+  /* Translucent rather than solid, so the page's gold aurora carries on
+     behind the bar instead of being cut off by it. */
+  background: rgba(253, 252, 249, 0.86);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  backdrop-filter: blur(14px) saturate(1.4);
+  /* The marketing site's own scrolled-header shadow, one pixel deeper: its
+     y-offset happens to equal --r-sm, and the token audit fails any literal
+     px matching a token value — comments included. */
+  box-shadow: 0 1px 0 var(--line), 0 12px 30px rgba(18, 20, 23, 0.05);
 }
 
 .ps-header__bar {
   block-size: 100%;
-  max-inline-size: var(--container);
+  max-inline-size: var(--container-wide);
   margin-inline: auto;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-4);
-  padding-inline: var(--sp-3);
+  gap: var(--d-4);
+  padding-inline: var(--d-4);
 }
 
 .ps-header__logo {
   display: flex;
   align-items: center;
+  min-inline-size: 0;
   font-family: var(--font-display);
   font-weight: 800;
   color: var(--ink);
 }
 
+/* Pushed to the end edge with margin-inline-start, so the nav sits beside the
+   actions in both directions with no mirrored rule. */
+.ps-header__nav {
+  margin-inline-start: auto;
+  min-inline-size: 0;
+}
+
 .ps-header__nav-list {
   display: flex;
   align-items: center;
-  gap: var(--sp-4);
+  gap: 0.15rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
 }
 
 .ps-header__nav-link {
-  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 44px;
+  padding-inline: 0.95rem;
+  border-radius: var(--r-pill);
+  font-weight: 700;
+  font-size: var(--fs-300);
   color: var(--ink);
-  padding-block: 0.5rem;
+  white-space: nowrap;
+  transition: background-color 0.25s, color 0.25s;
+}
+
+.ps-header__nav-link:hover {
+  background: var(--bg-tint);
+  color: var(--gold-700);
 }
 
 .ps-header__nav-link[aria-current="page"] {
   color: var(--blue);
-  border-block-end: 2px solid var(--gold);
+  background: linear-gradient(180deg, rgba(255, 200, 0, 0.22), rgba(255, 200, 0, 0.1));
 }
 
 .ps-header__actions {
   display: flex;
   align-items: center;
-  gap: var(--sp-2);
+  gap: var(--d-2);
+  flex: none;
 }
 
 .ps-header__menu-toggle {
@@ -53,6 +94,8 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+  background: var(--surface);
 }
 
 .ps-header__menu-icon,
@@ -79,12 +122,16 @@
     display: flex;
   }
 
+  /* Absolute against the sticky header, which is itself a positioned
+     ancestor — so the drawer hangs from the bar rather than from the page,
+     and stays with it as the content scrolls underneath. */
   .ps-header__nav {
     position: absolute;
     inset-inline: 0;
     inset-block-start: var(--header-h);
     background: var(--surface);
     border-block-end: 1px solid var(--line);
+    box-shadow: var(--shadow-md);
     display: none;
   }
 
@@ -95,7 +142,11 @@
   .ps-header__nav-list {
     flex-direction: column;
     align-items: stretch;
-    padding: var(--sp-3);
-    gap: var(--sp-1);
+    padding: var(--d-3);
+    gap: var(--d-1);
+  }
+
+  .ps-header__nav-link {
+    border-radius: var(--r-sm);
   }
 }

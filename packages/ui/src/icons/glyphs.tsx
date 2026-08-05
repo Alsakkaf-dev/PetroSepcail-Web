@@ -452,6 +452,25 @@ export const glyphs = {
       <path d="m16 17 5-5-5-5" />
       <path d="M21 12H9" />
     </>
+  ),
+  /** lucide: layout-dashboard — the console home in admin and supplier */
+  dashboard: (
+    <>
+      <rect width="7" height="9" x="3" y="3" rx="1" />
+      <rect width="7" height="5" x="14" y="3" rx="1" />
+      <rect width="7" height="9" x="14" y="12" rx="1" />
+      <rect width="7" height="5" x="3" y="16" rx="1" />
+    </>
+  ),
+  /** lucide: chart-column — KPIs and trends. Never mirrored: a chart's own
+   * axis direction is data, not reading order. */
+  chart: (
+    <>
+      <path d="M3 3v16a2 2 0 0 0 2 2h16" />
+      <path d="M18 17V9" />
+      <path d="M13 17V5" />
+      <path d="M8 17v-3" />
+    </>
   )
 } satisfies Record<string, ReactElement>;
 

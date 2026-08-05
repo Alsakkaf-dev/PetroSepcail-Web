@@ -13,6 +13,9 @@
   line-height: 1.3;
   min-block-size: 48px;
   cursor: pointer;
+  /* ButtonLink renders the same class list on an <a>; without this the two
+     would differ by an underline. */
+  text-decoration: none;
   transition: transform 0.35s var(--ease-out), box-shadow 0.35s var(--ease-out), background-color 0.25s, color 0.25s;
 }
 

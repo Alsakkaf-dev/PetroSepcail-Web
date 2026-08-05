@@ -6,5 +6,6 @@
 export * from "./locale";
 export * from "./dictionary";
 export * from "./t";
+export * from "./apiError";
 export * from "./format";
 export * from "./status";

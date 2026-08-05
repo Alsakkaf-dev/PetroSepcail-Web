@@ -20,6 +20,7 @@ export * from "./components/Finance";
 export * from "./components/Motion";
 export * from "./components/Navigation";
 export * from "./components/Overlay";
+export * from "./components/Shell";
 export * from "./components/Status";
 
 export * from "./components/Skeleton/Skeleton";
