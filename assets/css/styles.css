@@ -17,6 +17,13 @@
   --gold: #ffc800;
   --gold-600: #e0b100;
   --gold-700: #a37f00;
+  /* Gold that can carry small text. --gold-700 reaches 3.76:1 on white — fine
+     for a large or bold heading, short of the 4.5:1 that normal-size text
+     needs, and the app UI puts gold on 15px labels, facet counts and link
+     hovers all over the place. This clears 4.5:1 on --surface, --bg,
+     --bg-warm and --bg-tint alike (asserted in a11y/contrast.test.ts).
+     Additive: nothing on the marketing site uses it. */
+  --gold-800: #806200;
   --gold-metal: linear-gradient(135deg, #e0a400 0%, #ffc800 38%, #ffe27a 55%, #f5b301 78%, #cf9700 100%);
   --blue: #16265c;
   --blue-600: #1e3a8a;

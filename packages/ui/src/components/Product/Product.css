@@ -1,0 +1,509 @@
+/* Catalogue surfaces: the SKU tile, its picture-or-placeholder, and the three
+ * family cards on the landing. Logical properties only. */
+
+/* ---- ProductThumb ------------------------------------------------------ */
+
+.ps-thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  inline-size: 100%;
+  overflow: hidden;
+  border-radius: var(--r-sm);
+  background: var(--bg-warm);
+}
+
+.ps-thumb--md {
+  aspect-ratio: 4 / 3;
+}
+
+.ps-thumb--lg {
+  aspect-ratio: 1 / 1;
+}
+
+.ps-thumb__img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+  transition: transform 0.5s var(--ease-out);
+}
+
+/* The placeholder. Each family gets its own wash, drawn from the family token
+   at low alpha over the warm recessed surface — the same colour that carries
+   the accent bar, so a tile with no photograph still says which line it
+   belongs to. */
+.ps-thumb--placeholder {
+  flex-direction: column;
+  gap: var(--d-2);
+}
+
+.ps-thumb--special {
+  background:
+    radial-gradient(14rem 10rem at 50% 15%, rgba(30, 58, 138, 0.14), transparent 70%),
+    var(--bg-warm);
+}
+
+.ps-thumb--petro {
+  background:
+    radial-gradient(14rem 10rem at 50% 15%, rgba(161, 98, 7, 0.16), transparent 70%),
+    var(--bg-warm);
+}
+
+.ps-thumb--raval {
+  background:
+    radial-gradient(14rem 10rem at 50% 15%, rgba(185, 28, 28, 0.14), transparent 70%),
+    var(--bg-warm);
+}
+
+/* The oil-drop blob, --r-drop, at the size the tile can carry.
+ *
+ * The family colour lives here and nowhere else on the placeholder: the well
+ * is --surface, where all three family colours clear AA, while the wash
+ * behind it is --bg-warm, where --f-petro does not (4.48:1 — asserted
+ * deliberately in a11y/contrast.test.ts). Putting the grade in the family
+ * colour would have failed that gate for one family in three. */
+.ps-thumb__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 3.6rem;
+  block-size: 3.6rem;
+  border-radius: var(--r-drop);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.ps-thumb--special .ps-thumb__mark {
+  color: var(--f-special);
+}
+
+.ps-thumb--petro .ps-thumb__mark {
+  color: var(--f-petro);
+}
+
+.ps-thumb--raval .ps-thumb__mark {
+  color: var(--f-raval);
+}
+
+.ps-thumb__grade {
+  font-family: var(--font-latin);
+  font-weight: 800;
+  font-size: var(--fs-500);
+  letter-spacing: 0.02em;
+  color: var(--ink);
+}
+
+/* ---- ProductCard ------------------------------------------------------- */
+
+.ps-product {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--d-3);
+  padding: var(--d-3);
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  min-inline-size: 0;
+  transition: transform 0.35s var(--ease-out), box-shadow 0.35s, border-color 0.35s;
+}
+
+.ps-product:has(.ps-product__link:hover),
+.ps-product:has(.ps-product__link:focus-visible) {
+  transform: translateY(-8px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--gold-600);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ps-product:has(.ps-product__link:hover) .ps-thumb__img {
+    transform: scale(1.04);
+  }
+}
+
+.ps-product__media {
+  min-inline-size: 0;
+}
+
+.ps-product__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--d-1);
+  min-inline-size: 0;
+}
+
+/* The family name in the family's own colour. The name is always spelled
+   out, so the colour is reinforcement rather than the signal. --ps-family-color
+   comes from the .ps-family--* class FamilyAccent defines; the card sits on
+   --surface, where all three family colours clear AA. */
+.ps-product__family {
+  font-size: var(--fs-200);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--ps-family-color);
+}
+
+.ps-product__name {
+  font-family: var(--font-display);
+  font-size: var(--fs-500);
+  font-weight: 800;
+  line-height: var(--lh-tight);
+  color: var(--ink);
+}
+
+.ps-product__link {
+  color: inherit;
+}
+
+/* The card-wide hit area. The anchor is still only the product name, so
+   assistive tech announces one link named after the product rather than a
+   region full of overlapping targets. */
+.ps-product__link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--r-md);
+}
+
+.ps-product__grade {
+  font-family: var(--font-latin);
+  font-size: var(--fs-300);
+  color: var(--muted);
+}
+
+.ps-product__price {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem;
+  margin-block-start: var(--d-1);
+  font-weight: 800;
+  color: var(--blue);
+}
+
+.ps-product__price-label {
+  font-size: var(--fs-200);
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.ps-product__stock {
+  margin-block-start: var(--d-1);
+}
+
+/* Actions sit above the card-wide overlay, which is what keeps the wishlist
+   button reachable on an out-of-stock SKU whose buy button is disabled. */
+.ps-product__actions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--d-2);
+  margin-block-start: auto;
+  padding-block-start: var(--d-2);
+}
+
+/* Out of stock greys the price, per SCR-SF01-002 — the tile stays legible and
+   the product stays browsable; only buying is off. */
+.ps-product--out .ps-product__price {
+  color: var(--muted);
+}
+
+.ps-product--out .ps-thumb {
+  opacity: 0.72;
+}
+
+/* ---- FamilyCard -------------------------------------------------------- */
+
+.ps-family-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--d-3);
+  padding: var(--d-5);
+  border-radius: var(--r-lg);
+  border: 1px solid var(--line);
+  /* The accent stripe. A border on the start edge, so it is the left edge in
+     English and the right edge in Arabic with no second rule. */
+  border-inline-start-width: 4px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  color: var(--ink);
+  transition: transform 0.35s var(--ease-out), box-shadow 0.35s;
+}
+
+.ps-family-card:hover {
+  transform: translateY(-8px);
+  box-shadow: var(--shadow-md);
+}
+
+.ps-family-card--special {
+  border-inline-start-color: var(--f-special);
+}
+
+.ps-family-card--petro {
+  border-inline-start-color: var(--f-petro);
+}
+
+.ps-family-card--raval {
+  border-inline-start-color: var(--f-raval);
+}
+
+.ps-family-card__head {
+  display: flex;
+  align-items: center;
+  gap: var(--d-3);
+}
+
+.ps-family-card__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 2.8rem;
+  block-size: 2.8rem;
+  flex: none;
+  border-radius: var(--r-drop);
+  background: var(--bg-warm);
+}
+
+.ps-family-card--special .ps-family-card__mark {
+  color: var(--f-special);
+}
+
+.ps-family-card--petro .ps-family-card__mark {
+  color: var(--f-petro);
+}
+
+.ps-family-card--raval .ps-family-card__mark {
+  color: var(--f-raval);
+}
+
+.ps-family-card__name {
+  font-family: var(--font-display);
+  font-size: var(--fs-600);
+  font-weight: 800;
+  line-height: var(--lh-tight);
+  color: var(--blue);
+}
+
+.ps-family-card__intro {
+  color: var(--muted);
+  font-size: var(--fs-300);
+}
+
+.ps-family-card__count {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-block-start: auto;
+  font-weight: 700;
+  font-size: var(--fs-300);
+  color: var(--gold-800);
+}
+
+.ps-family-card__go {
+  margin-inline-start: auto;
+  color: var(--gold-600);
+  transition: transform 0.3s var(--ease-out);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ps-family-card:hover .ps-family-card__go {
+    transform: translateX(0.25rem);
+  }
+
+  [dir="rtl"] .ps-family-card:hover .ps-family-card__go {
+    transform: translateX(-0.25rem);
+  }
+}
+
+/* ---- Filter group ------------------------------------------------------
+ * A <details> per facet dimension in the catalogue rail. Collapsible without
+ * JavaScript, which matters because the rail stacks *above* the results on a
+ * phone: four expanded facet lists would push the first product off the
+ * screen. Server-rendered, keyboard-operable, and it survives with scripting
+ * off. */
+
+.ps-filter-group {
+  border-block-end: 1px solid var(--line-soft);
+  padding-block-end: var(--d-3);
+}
+
+.ps-filter-group:last-child {
+  border-block-end: 0;
+}
+
+.ps-filter-group__summary {
+  display: flex;
+  align-items: center;
+  min-block-size: 44px;
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--fs-300);
+  color: var(--blue);
+  /* The marker is a ::after on the end edge instead of the default list
+     marker, which sits on the left in every direction. */
+  list-style: none;
+}
+
+.ps-filter-group__summary::-webkit-details-marker {
+  display: none;
+}
+
+.ps-filter-group__summary::after {
+  content: "";
+  margin-inline-start: auto;
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  border-inline-end: 2px solid var(--gold-600);
+  border-block-end: 2px solid var(--gold-600);
+  transform: rotate(45deg);
+  transition: transform 0.25s var(--ease-out);
+}
+
+.ps-filter-group[open] > .ps-filter-group__summary::after {
+  transform: rotate(-135deg);
+}
+
+.ps-filter-group[open] > .ps-filter-group__summary {
+  margin-block-end: var(--d-2);
+}
+
+/* ---- SpecList ----------------------------------------------------------
+ * A <dl>, not a <table>: ten named facts about one product. It reflows to one
+ * column on a phone with no mobile-table strategy, and `text-align: start`
+ * does what five inline `textAlign: locale === "ar" ? …` styles used to. */
+
+.ps-specs {
+  display: grid;
+  gap: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.ps-specs__row {
+  display: grid;
+  gap: var(--d-1);
+  padding-block: var(--d-3);
+  padding-inline: var(--d-4);
+  border-block-end: 1px solid var(--line-soft);
+}
+
+.ps-specs__row:last-child {
+  border-block-end: 0;
+}
+
+.ps-specs__row:nth-child(odd) {
+  background: var(--bg-warm);
+}
+
+.ps-specs__label {
+  font-size: var(--fs-200);
+  font-weight: 700;
+  color: var(--muted);
+  text-align: start;
+}
+
+.ps-specs__value {
+  margin: 0;
+  font-weight: 600;
+  color: var(--ink);
+  text-align: start;
+}
+
+@media (min-width: 40em) {
+  .ps-specs__row {
+    grid-template-columns: 14rem minmax(0, 1fr);
+    align-items: baseline;
+    gap: var(--d-4);
+  }
+}
+
+/* ---- Gallery ----------------------------------------------------------- */
+
+.ps-gallery {
+  display: flex;
+  flex-direction: column;
+  gap: var(--d-3);
+  min-inline-size: 0;
+}
+
+.ps-gallery__lead {
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: var(--bg-warm);
+  aspect-ratio: 1 / 1;
+}
+
+.ps-gallery__strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--d-2);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.ps-gallery__item {
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  background: var(--bg-warm);
+  aspect-ratio: 1 / 1;
+}
+
+.ps-gallery__img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+
+/* ---- Pack-size selector ------------------------------------------------
+ * One row per pack size: the size, its VAT-inclusive price, whether it is in
+ * stock, and the buy control. The price is per row rather than one figure
+ * that changes, so a customer can compare 1L against 4L without clicking. */
+
+.ps-packs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--d-2);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.ps-packs__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--d-3);
+  padding: var(--d-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+}
+
+.ps-packs__size {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--fs-400);
+  color: var(--blue);
+}
+
+.ps-packs__price {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.ps-packs__vat {
+  font-size: var(--fs-200);
+  color: var(--muted);
+}
+
+.ps-packs__action {
+  margin-inline-start: auto;
+}

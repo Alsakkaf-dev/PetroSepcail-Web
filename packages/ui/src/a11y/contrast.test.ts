@@ -22,6 +22,10 @@ const T = {
   blue600: "#1e3a8a",
   gold: "#ffc800",
   gold700: "#a37f00",
+  // The gold that carries small text — labels, facet counts, link hovers.
+  // --gold-700 is a large/bold-only gold; this one is asserted below on every
+  // surface an app label can land on.
+  gold800: "#806200",
   flame: "#f15a24",
   // Semantic status (D-14 of DEFERRED-DECISIONS §4). Separate from the family
   // colors so neither has to do the other's job.
@@ -95,7 +99,14 @@ describe("TC-PC08-003 WCAG AA contrast on token pairs actually used as text", ()
     // Reversed-out surfaces: the current page in Pagination, and the tick
     // inside a checked checkbox. Both put --surface on a solid brand blue.
     ["surface on blue (current page)", T.surface, T.blue],
-    ["surface on blue-600 (checked control)", T.surface, T.blue600]
+    ["surface on blue-600 (checked control)", T.surface, T.blue600],
+    // --gold-800, on every surface a gold label or link hover lands on. The
+    // eyebrow, a facet count, a nav hover and a family card's SKU count are
+    // all --fs-200/--fs-300, i.e. normal text however bold they are set.
+    ["gold-800 on surface (label, facet count)", T.gold800, T.surface],
+    ["gold-800 on bg", T.gold800, T.bg],
+    ["gold-800 on bg-warm (footer, recessed panel)", T.gold800, T.bgWarm],
+    ["gold-800 on bg-tint (nav/rail hover plate)", T.gold800, T.bgTint]
   ] as const)("%s meets 4.5:1", (_label, fg, bg) => {
     expect(contrastRatio(fg, bg)).toBeGreaterThanOrEqual(WCAG_AA_NORMAL_TEXT);
     expect(meetsAA(fg, bg)).toBe(true);
@@ -112,6 +123,8 @@ describe("TC-PC08-003 WCAG AA contrast on token pairs actually used as text", ()
 
   it("documents that --gold-700 text alone fails AA normal text (large/bold only)", () => {
     expect(meetsAA(T.gold700, T.surface)).toBe(false);
+    // ...which is exactly why --gold-800 exists. Small gold text uses that one.
+    expect(meetsAA(T.gold800, T.surface)).toBe(true);
   });
 
   // Why the semantic status tokens exist at all. Before them, every app

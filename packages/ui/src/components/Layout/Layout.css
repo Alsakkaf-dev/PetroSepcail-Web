@@ -191,7 +191,7 @@
   gap: 0.55rem;
   font-weight: 700;
   font-size: var(--fs-300);
-  color: var(--gold-700);
+  color: var(--gold-800);
   letter-spacing: 0.02em;
   margin-block-end: var(--d-2);
 }

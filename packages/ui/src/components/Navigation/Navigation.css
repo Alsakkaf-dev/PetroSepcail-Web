@@ -143,11 +143,109 @@
 }
 
 .ps-breadcrumb__link:hover {
-  color: var(--gold-700);
+  color: var(--gold-800);
   text-decoration: underline;
 }
 
 .ps-breadcrumb__current {
   color: var(--ink);
   font-weight: 700;
+}
+
+/* ---- Chip --------------------------------------------------------------
+ * The marketing site's .brand-tab pill, at application density: a family
+ * filter, a facet value, an applied-filter chip. */
+
+.ps-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-block-size: 44px;
+  padding-inline: 1rem;
+  border-radius: var(--r-pill);
+  border: 2px solid var(--line);
+  background: var(--surface);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--fs-300);
+  color: var(--muted);
+  white-space: nowrap;
+  transition: color 0.25s, border-color 0.25s, background-color 0.25s, transform 0.3s var(--ease-out),
+    box-shadow 0.3s;
+}
+
+a.ps-chip:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+  color: var(--gold-800);
+  border-color: var(--gold);
+}
+
+/* Selected is a filled dark pill with gold text — the same inversion the
+   brochure's own selected brand tab uses, so the two read as one control. */
+.ps-chip--selected {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--gold);
+  box-shadow: var(--shadow-md);
+}
+
+a.ps-chip--selected:hover {
+  color: var(--gold);
+  border-color: var(--ink);
+}
+
+/* Family tones carry the product line's own colour on the border and the
+   label, alongside the family name — never colour alone. */
+.ps-chip--special {
+  border-color: var(--f-special);
+  color: var(--f-special);
+}
+
+.ps-chip--petro {
+  border-color: var(--f-petro);
+  color: var(--f-petro);
+}
+
+.ps-chip--raval {
+  border-color: var(--f-raval);
+  color: var(--f-raval);
+}
+
+.ps-chip--special.ps-chip--selected,
+.ps-chip--petro.ps-chip--selected,
+.ps-chip--raval.ps-chip--selected {
+  color: var(--gold);
+}
+
+.ps-chip__count {
+  font-family: var(--font-latin);
+  font-size: var(--fs-200);
+  font-weight: 700;
+  opacity: 0.8;
+}
+
+.ps-chip--removable {
+  padding-inline-end: 0.35rem;
+  border-color: var(--gold-600);
+  color: var(--ink);
+  background: var(--bg-tint);
+}
+
+/* Its own target, never sharing a hit area with the chip's label: "drop this
+   filter" and "go to this filter" are different intentions. */
+.ps-chip__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 2.25rem;
+  block-size: 2.25rem;
+  flex: none;
+  border-radius: var(--r-pill);
+  color: var(--muted);
+}
+
+.ps-chip__remove:hover {
+  background: var(--surface);
+  color: var(--danger);
 }

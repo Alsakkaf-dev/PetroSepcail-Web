@@ -57,6 +57,7 @@
 @import "./components/Motion/Motion.css";
 @import "./components/Navigation/Navigation.css";
 @import "./components/Overlay/Overlay.css";
+@import "./components/Product/Product.css";
 /* App chrome. After Header so the shell can position the bar it contains,
  * before the leaf components it frames. */
 @import "./components/Shell/Shell.css";

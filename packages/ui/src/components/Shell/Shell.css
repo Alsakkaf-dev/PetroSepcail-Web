@@ -44,7 +44,7 @@
 }
 
 a.ps-brand:hover .ps-brand__portal {
-  color: var(--gold-700);
+  color: var(--gold-800);
 }
 
 @media (max-width: 30em) {
@@ -158,7 +158,7 @@ a.ps-brand:hover .ps-brand__portal {
 
 .ps-rail-nav__link:hover {
   background: var(--bg-tint);
-  color: var(--gold-700);
+  color: var(--gold-800);
 }
 
 /* Current gets three signals, not one: a tinted plate, a start-edge marker
@@ -306,7 +306,7 @@ a.ps-brand:hover .ps-brand__portal {
 .ps-nav-tile__meta {
   font-weight: 700;
   font-size: var(--fs-300);
-  color: var(--gold-700);
+  color: var(--gold-800);
 }
 
 /* margin-inline-start: auto pushes the chevron to the end edge, which is the
@@ -385,7 +385,7 @@ a.ps-brand:hover .ps-brand__portal {
 }
 
 .ps-app-footer__link:hover {
-  color: var(--gold-700);
+  color: var(--gold-800);
 }
 
 .ps-app-footer__legal {

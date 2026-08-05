@@ -4,6 +4,7 @@ import "@testing-library/jest-dom/vitest";
 import { Tabs } from "./Tabs";
 import { Segmented } from "./Segmented";
 import { Breadcrumb } from "./Breadcrumb";
+import { Chip } from "./Chip";
 import { structuralSignature, withDocumentDirection } from "../../testing/domSnapshot";
 
 afterEach(cleanup);
@@ -177,5 +178,44 @@ describe("Breadcrumb", () => {
 
   it("renders identical DOM structure across RTL/ar and LTR/en (TC-PC08-002)", () => {
     parity(() => <Breadcrumb label="l" items={[{ label: "a", href: "/a" }, { label: "b" }]} />);
+  });
+});
+
+describe("Chip", () => {
+  it("is a link when the filter lives in the URL, which is what makes a filtered catalogue shareable", () => {
+    render(<Chip label="رافال" href="/catalog?family=raval" tone="raval" />);
+    expect(screen.getByRole("link", { name: /رافال/ })).toHaveAttribute("href", "/catalog?family=raval");
+  });
+
+  it("marks the selected filter for assistive tech, not only by inverting it", () => {
+    render(<Chip label="الكل" href="/catalog" selected />);
+    expect(screen.getByRole("link")).toHaveAttribute("aria-current", "true");
+  });
+
+  it("carries a facet count beside its label", () => {
+    render(<Chip label="سبيشل" href="/c" count="11" />);
+    expect(screen.getByRole("link")).toHaveTextContent("11");
+  });
+
+  it("gives removal its own labelled target, separate from the filter itself", () => {
+    render(<Chip label="5W-30" removeHref="/catalog" removeLabel="إزالة عامل التصفية 5W-30" />);
+    expect(screen.getByRole("link", { name: "إزالة عامل التصفية 5W-30" })).toHaveAttribute("href", "/catalog");
+  });
+
+  it("renders identical DOM structure across RTL/ar and LTR/en (TC-PC08-002)", () => {
+    const node = () => <Chip label="سبيشل" href="/c" count="11" tone="special" selected />;
+    const rtl = withDocumentDirection("rtl", "ar", () => {
+      const { container } = render(node());
+      const sig = structuralSignature(container.firstElementChild!);
+      cleanup();
+      return sig;
+    });
+    const ltr = withDocumentDirection("ltr", "en", () => {
+      const { container } = render(node());
+      const sig = structuralSignature(container.firstElementChild!);
+      cleanup();
+      return sig;
+    });
+    expect(rtl).toEqual(ltr);
   });
 });

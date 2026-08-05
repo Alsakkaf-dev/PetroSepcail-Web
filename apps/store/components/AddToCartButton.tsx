@@ -1,62 +1,56 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { Button, Icon, InlineError } from "@petrospecial/ui";
+import { useLocale } from "@petrospecial/app-shell/src/client";
+import { messageFor, t } from "@petrospecial/i18n";
 import { authedFetch, getToken, NETWORK_ERROR, SESSION_EXPIRED } from "../lib/authClient";
 
-export function AddToCartButton({ packSizeId, locale }: { packSizeId: string; locale: "ar" | "en" }) {
-  const [status, setStatus] = useState<"idle" | "added" | "error" | "signin" | "offline">("idle");
-  // The API's own message (out of stock, quantity cap, ...) — far more use to
-  // a customer than the blanket "Failed" this button used to show for every
-  // possible cause, including an expired session it could have recovered from.
-  const [detail, setDetail] = useState<string | null>(null);
+// Was a hand-rolled gold rectangle carrying its own private AR/EN dictionary —
+// the one component-local dictionary in the platform — and a `#b91c1c` error
+// line, which is --f-raval, the Raval product family, standing in for an
+// error red.
+//
+// The failure text now comes from the API error registry through the shared
+// bundle, so an out-of-stock line, a quantity cap and an expired session each
+// say what actually happened instead of one blanket "Could not add".
+export function AddToCartButton({ packSizeId, disabled }: { packSizeId: string; disabled?: boolean }) {
+  const locale = useLocale();
+  const [state, setState] = useState<"idle" | "busy" | "added">("idle");
+  const [error, setError] = useState<string | null>(null);
 
-  async function add() {
-    setDetail(null);
+  const add = useCallback(async () => {
+    setError(null);
     if (!getToken()) {
-      setStatus("signin");
+      setError(t(locale, "error.notLoggedIn"));
       return;
     }
+    setState("busy");
     try {
       await authedFetch("/api/v1/cart/lines", { method: "POST", body: JSON.stringify({ packSizeId, qty: 1 }) });
-      setStatus("added");
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "";
-      if (message === SESSION_EXPIRED || message === "NOT_LOGGED_IN") setStatus("signin");
-      else if (message === NETWORK_ERROR) setStatus("offline");
-      else {
-        setStatus("error");
-        setDetail(message || null);
-      }
+      setState("added");
+    } catch (thrown) {
+      setState("idle");
+      const message = thrown instanceof Error ? thrown.message : "";
+      if (message === SESSION_EXPIRED || message === "NOT_LOGGED_IN") setError(t(locale, "auth.sessionExpired"));
+      else if (message === NETWORK_ERROR) setError(t(locale, "error.network"));
+      else setError(messageFor(locale, thrown));
     }
-  }
-
-  const label = {
-    ar: {
-      idle: "أضف إلى السلة",
-      added: "أُضيف ✓",
-      error: "تعذّرت الإضافة",
-      signin: "سجّل الدخول من صفحة السلة أولًا",
-      offline: "تعذّر الاتصال، حاول مجددًا"
-    },
-    en: {
-      idle: "Add to cart",
-      added: "Added ✓",
-      error: "Could not add",
-      signin: "Sign in from the cart page first",
-      offline: "Connection failed, try again"
-    }
-  }[locale];
+  }, [locale, packSizeId]);
 
   return (
-    <div style={{ display: "grid", gap: 4, justifyItems: locale === "ar" ? "end" : "start" }}>
-      <button
-        type="button"
+    <>
+      <Button
+        variant="gold"
+        size="sm"
         onClick={add}
-        style={{ padding: "10px 20px", borderRadius: 8, background: "var(--gold)", border: "none", fontWeight: 700 }}
+        busy={state === "busy"}
+        disabled={disabled || state === "added"}
+        leadingIcon={<Icon name={state === "added" ? "check" : "cart"} size="sm" />}
       >
-        {label[status]}
-      </button>
-      {detail && <span style={{ color: "#b91c1c", fontSize: 12 }}>{detail}</span>}
-    </div>
+        {state === "added" ? t(locale, "product.added") : t(locale, "product.addToCart")}
+      </Button>
+      {error ? <InlineError>{error}</InlineError> : null}
+    </>
   );
 }
