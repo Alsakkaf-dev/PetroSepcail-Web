@@ -14,6 +14,7 @@ export * from "./components/Data";
 export * from "./components/Feedback";
 export * from "./components/Form";
 export * from "./components/Audit";
+export * from "./components/Commerce";
 export * from "./components/DataTable";
 export * from "./components/Display";
 export * from "./components/Finance";

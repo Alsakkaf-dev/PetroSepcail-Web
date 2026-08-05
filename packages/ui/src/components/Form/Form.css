@@ -596,3 +596,34 @@ fieldset.ps-field {
 .ps-keypad__gap {
   display: block;
 }
+
+/* ---- RangeSlider ------------------------------------------------------- */
+
+.ps-range {
+  display: grid;
+  gap: var(--d-2);
+}
+
+/* The native track, restyled rather than replaced. A custom-drawn slider
+   loses keyboard stepping, the platform's own touch handling and the value
+   announcement, and none of that is worth a nicer thumb. */
+.ps-range__input {
+  inline-size: 100%;
+  /* Tall enough that the whole strip is the target, not just the thumb —
+     this is the control someone drags with a thumb on a phone. */
+  min-block-size: 44px;
+  margin: 0;
+  padding: 0;
+  background: none;
+  accent-color: var(--gold-600);
+}
+
+.ps-range__input:disabled {
+  accent-color: var(--muted);
+}
+
+.ps-range__readout {
+  margin: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}

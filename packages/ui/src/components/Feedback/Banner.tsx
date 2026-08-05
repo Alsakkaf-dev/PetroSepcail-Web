@@ -14,6 +14,10 @@ export interface BannerProps {
   /** Override the tone's glyph where a more specific one says more — the
    * offline banner is the obvious case. */
   icon?: IconName;
+  /** So a control the banner explains can point at it with
+   * `aria-describedby` — a disabled checkout button and the sentence saying
+   * why it is disabled have to be connected, not merely adjacent. */
+  id?: string;
   className?: string;
 }
 
@@ -32,10 +36,11 @@ const TONE_ICON: Record<BannerTone, IconName> = {
  * `success` don't interrupt. The tone is carried by an icon and by the words,
  * never by the tint alone — and the text is `--ink`, because `--flame` and
  * `--gold` fail AA as body copy and are accents here, not foregrounds. */
-export function Banner({ tone = "info", title, children, action, icon, className }: BannerProps) {
+export function Banner({ tone = "info", title, children, action, icon, id, className }: BannerProps) {
   const assertive = tone === "danger" || tone === "warn";
   return (
     <div
+      id={id}
       className={cx("ps-banner", `ps-banner--${tone}`, className)}
       role={assertive ? "alert" : "status"}
       aria-live={assertive ? "assertive" : "polite"}

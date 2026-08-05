@@ -1,0 +1,172 @@
+/* Cart, wishlist and return lines, and the money panel that closes them off.
+ * Logical properties only — nothing here knows which way the page runs. */
+
+/* ---- LineList / LineItem ---------------------------------------------- */
+
+.ps-line-list {
+  display: grid;
+  gap: var(--d-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ps-line {
+  display: grid;
+  /* One column on a phone: the stepper is a 44px-tall control and it will not
+     share a row with a price and a remove button at 360px without one of the
+     three losing its target size. */
+  grid-template-columns: 1fr;
+  gap: var(--d-3);
+  align-items: center;
+  padding: var(--d-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+/* A line that is still in the cart but cannot be bought, or a wishlist entry
+   that has been discontinued. Dimmed as a second signal only — the note inside
+   it says so in words, which is the signal that actually carries. */
+.ps-line--muted {
+  background: var(--bg-warm);
+  box-shadow: none;
+}
+
+.ps-line__media {
+  inline-size: 5rem;
+  flex: none;
+}
+
+.ps-line__body {
+  display: grid;
+  gap: var(--d-1);
+  min-inline-size: 0;
+}
+
+.ps-line__title {
+  margin: 0;
+  font-weight: 700;
+  line-height: var(--lh-tight);
+}
+
+.ps-line__meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-300);
+}
+
+.ps-line__notes {
+  display: grid;
+  gap: var(--d-1);
+  margin-block-start: var(--d-1);
+}
+
+.ps-line__price {
+  font-weight: 700;
+}
+
+.ps-line__control,
+.ps-line__action {
+  display: flex;
+  align-items: center;
+  gap: var(--d-2);
+}
+
+/* From tablet up the line becomes a row: picture, product, control, price,
+   remove — each column sized to its content so the prices align down the
+   list and can be read as a column of figures. */
+@media (min-width: 40em) {
+  .ps-line {
+    grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+  }
+
+  .ps-line__price {
+    min-inline-size: 7rem;
+    text-align: end;
+  }
+}
+
+/* ---- LineNote ---------------------------------------------------------- */
+
+.ps-line-note {
+  margin: 0;
+  font-size: var(--fs-300);
+  line-height: var(--lh-tight);
+}
+
+.ps-line-note--info {
+  color: var(--info);
+}
+
+.ps-line-note--warn {
+  color: var(--warn);
+}
+
+.ps-line-note--danger {
+  color: var(--danger);
+}
+
+.ps-line-note--muted {
+  color: var(--muted);
+}
+
+/* ---- SummaryPanel ------------------------------------------------------ */
+
+.ps-summary {
+  display: grid;
+  gap: var(--d-4);
+}
+
+.ps-summary__rows {
+  display: grid;
+  gap: var(--d-2);
+  margin: 0;
+}
+
+.ps-summary__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--d-4);
+}
+
+.ps-summary__label {
+  color: var(--muted);
+}
+
+.ps-summary__value {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.ps-summary__row--muted .ps-summary__value {
+  color: var(--muted);
+}
+
+/* A line that takes money off rather than adding it. Green plus a leading
+   minus sign in the value itself — never the colour alone. */
+.ps-summary__row--credit .ps-summary__value {
+  color: var(--success);
+}
+
+/* The figure the screen is about. Ruled off above so the eye stops there,
+   which is the one place in a summary where an underline earns its keep. */
+.ps-summary__row--total {
+  margin-block-start: var(--d-2);
+  padding-block-start: var(--d-3);
+  border-block-start: 1px solid var(--line);
+  font-size: var(--fs-500);
+  font-weight: 700;
+}
+
+.ps-summary__row--total .ps-summary__label {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.ps-summary__foot {
+  display: grid;
+  gap: var(--d-3);
+}

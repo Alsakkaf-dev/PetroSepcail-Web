@@ -31,7 +31,22 @@ const EN_MESSAGE_TO_CODE: Record<string, string> = {
   "You do not have permission to do this.": "FORBIDDEN",
   "Not found.": "NOT_FOUND",
   "Too many requests. Please slow down.": "RATE_LIMITED",
-  "An unexpected error occurred.": "INTERNAL"
+  "The upload exceeds the size limit.": "PAYLOAD_TOO_LARGE",
+  "This conflicts with the current state.": "CONFLICT",
+  "An unexpected error occurred.": "INTERNAL",
+  // Storefront cart, checkout and returns. Added as the screens that can
+  // actually produce them were built — /checkout has to recognise
+  // OUT_OF_DELIVERY_RADIUS by code, because it does more with it than print
+  // it: the address step will not hand over until the server has quoted a
+  // deliverable address.
+  "Checkout attempted on an empty cart.": "CART_EMPTY",
+  "This item is out of stock.": "CART_LINE_UNAVAILABLE",
+  "A price changed since you added this item.": "PRICE_CHANGED",
+  "This address is outside our delivery area.": "OUT_OF_DELIVERY_RADIUS",
+  "This order total exceeds the cash-on-delivery limit. Please use bank transfer.": "COD_LIMIT_EXCEEDED",
+  "The payment window for this order has expired.": "PAYMENT_WINDOW_EXPIRED",
+  "This order can no longer be cancelled.": "ORDER_NOT_CANCELLABLE",
+  "This order is no longer eligible for return.": "RETURN_WINDOW_CLOSED"
 };
 
 /** Looks like an error code rather than a sentence: `OTP_MISMATCH`. */

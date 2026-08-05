@@ -9,6 +9,7 @@ import { Switch } from "./Switch";
 import { QtyStepper } from "./QtyStepper";
 import { FileUpload } from "./FileUpload";
 import { Keypad } from "./Keypad";
+import { RangeSlider } from "./RangeSlider";
 import { structuralSignature, withDocumentDirection } from "../../testing/domSnapshot";
 
 afterEach(cleanup);
@@ -251,5 +252,42 @@ describe("Keypad", () => {
 
   it("renders identical DOM structure across RTL/ar and LTR/en (TC-PC08-002)", () => {
     parity(() => <Keypad label="l" value="12" onChange={() => {}} deleteLabel="d" status="s" error="e" />);
+  });
+});
+
+describe("RangeSlider", () => {
+  it("cannot be moved past the cap the server quoted", () => {
+    render(<RangeSlider label="استخدام النقاط" value={120} max={400} onChange={() => {}} />);
+    const input = screen.getByLabelText("استخدام النقاط");
+    expect(input).toHaveAttribute("max", "400");
+    expect(input).toHaveAttribute("min", "0");
+  });
+
+  it("clamps a value that arrived above the cap rather than rendering it", () => {
+    render(<RangeSlider label="l" value={900} max={400} onChange={() => {}} />);
+    expect(screen.getByLabelText("l")).toHaveValue("400");
+  });
+
+  it("announces what the number means, not just the number", () => {
+    render(<RangeSlider label="l" value={300} max={400} onChange={() => {}} valueText="300 نقطة" />);
+    expect(screen.getByLabelText("l")).toHaveAttribute("aria-valuetext", "300 نقطة");
+  });
+
+  it("disables itself when there is nothing to choose between", () => {
+    render(<RangeSlider label="l" value={0} max={0} onChange={() => {}} />);
+    expect(screen.getByLabelText("l")).toBeDisabled();
+  });
+
+  it("reports the chosen value as a number", () => {
+    const onChange = vi.fn();
+    render(<RangeSlider label="l" value={0} max={400} onChange={onChange} />);
+    fireEvent.change(screen.getByLabelText("l"), { target: { value: "250" } });
+    expect(onChange).toHaveBeenCalledWith(250);
+  });
+
+  it("renders identical DOM structure across RTL/ar and LTR/en (TC-PC08-002)", () => {
+    parity(() => (
+      <RangeSlider label="l" value={100} max={400} onChange={() => {}} hint="h" readout="r" error="e" />
+    ));
   });
 });

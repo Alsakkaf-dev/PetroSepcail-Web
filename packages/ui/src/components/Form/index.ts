@@ -12,6 +12,8 @@ export { Switch } from "./Switch";
 export type { SwitchProps } from "./Switch";
 export { QtyStepper } from "./QtyStepper";
 export type { QtyStepperProps } from "./QtyStepper";
+export { RangeSlider } from "./RangeSlider";
+export type { RangeSliderProps } from "./RangeSlider";
 export { FileUpload } from "./FileUpload";
 export type { FileUploadProps } from "./FileUpload";
 export { Keypad } from "./Keypad";
