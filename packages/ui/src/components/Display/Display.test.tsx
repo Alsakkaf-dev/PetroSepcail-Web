@@ -36,6 +36,18 @@ describe("StatCard", () => {
     expect(screen.getByRole("link")).toHaveAttribute("href", "/orders");
   });
 
+  it("takes the app's own link component, so packages/ui never imports next", () => {
+    function FakeLink({ href, children, ...rest }: { href: string; children: React.ReactNode }) {
+      return (
+        <a href={href} data-router="true" {...rest}>
+          {children}
+        </a>
+      );
+    }
+    render(<StatCard label="l" value="1" href="/orders" linkAs={FakeLink} />);
+    expect(screen.getByRole("link")).toHaveAttribute("data-router", "true");
+  });
+
   it("renders identical DOM structure across RTL/ar and LTR/en (TC-PC08-002)", () => {
     parity(() => <StatCard label="l" value="1" caption="c" icon="cart" tone="gold" />);
   });

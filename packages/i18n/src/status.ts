@@ -85,11 +85,41 @@ export const PAYMENT_METHOD: Record<string, StatusEntry> = {
 /** Payment methods a checkout may actually offer today (D-11 / D-14 rule e). */
 export const ACTIVE_PAYMENT_METHODS = ["cod", "bank_transfer", "credit_terms"] as const;
 
+/**
+ * `return_status` — `orders.returns.status`, five values (0051).
+ *
+ * D-04 does not define this set: `03-domain-glossary.md` §9 lists
+ * order/delivery/invoice/payment and stops. The database has shipped these
+ * five since SF-07 landed, and a returns screen cannot render a bare
+ * `picked_up` at a customer — so the labels are written here, reusing D-04's
+ * own wording wherever the same value appears in a set it *does* define
+ * (`picked_up`, `refunded`), so the two never drift into two vocabularies for
+ * one word. Amending the glossary is the glossary owner's call; see
+ * DEFERRED-DECISIONS §4 item 21.
+ */
+export const RETURN_STATUS: Record<string, StatusEntry> = {
+  requested: { ar: "قيد المراجعة", en: "Under review", tone: "warn" },
+  approved: { ar: "مقبول", en: "Approved", tone: "success" },
+  rejected: { ar: "مرفوض", en: "Rejected", tone: "danger" },
+  picked_up: { ar: "تم الاستلام", en: "Collected", tone: "progress" },
+  refunded: { ar: "مسترد", en: "Refunded", tone: "success" }
+};
+
+/** `refund_status` — `orders.refunds.status`, three values (0051). Same
+ * note as above. */
+export const REFUND_STATUS: Record<string, StatusEntry> = {
+  pending: { ar: "قيد التنفيذ", en: "In progress", tone: "progress" },
+  completed: { ar: "تم التحويل", en: "Paid out", tone: "success" },
+  failed: { ar: "تعذّر التحويل", en: "Transfer failed", tone: "danger" }
+};
+
 export const STATUS_SETS = {
   order: ORDER_STATUS,
   delivery: DELIVERY_STATUS,
   invoice: INVOICE_STATUS,
-  payment: PAYMENT_METHOD
+  payment: PAYMENT_METHOD,
+  return: RETURN_STATUS,
+  refund: REFUND_STATUS
 } as const;
 
 export type StatusKind = keyof typeof STATUS_SETS;

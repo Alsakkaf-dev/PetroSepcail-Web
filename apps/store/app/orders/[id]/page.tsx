@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
   Banner,
   Breadcrumb,
   Button,
+  ButtonLink,
   Card,
   Cluster,
   Container,
@@ -47,6 +49,11 @@ interface OrderDetail {
 // only from 'delivered'. Mirrors the same status set the backend enforces
 // (orders.cancel_order/confirm_receipt, db/migrations/0035/0037).
 const CANCELLABLE_STATUSES = new Set(["pending_payment", "paid", "confirmed"]);
+
+// SF-07 — a return is only conceivable once the order has arrived. Whether it
+// is still inside the seven-day window is EP-SF-050's decision, not this
+// file's.
+const RETURNABLE_STATUSES = new Set(["delivered", "confirmed_received"]);
 
 // SCR-SF05-002. The screen that rendered the order's raw UUID as its order
 // number, and put "failed" — the literal string — in front of anyone whose
@@ -200,6 +207,17 @@ export default function OrderDetailPage() {
                     <Button variant="gold" busy={busy} onClick={() => act("confirm-receipt")}>
                       {t(locale, "orders.confirmReceipt")}
                     </Button>
+                  ) : null}
+                  {/* SCR-SF07-001's entry point. The eligibility endpoint has
+                      been callable since S13 and nothing in the UI ever
+                      reached it, so the return form had no way in. Whether
+                      the seven-day window is still open is the server's call,
+                      which is why this is a link to the form rather than a
+                      decision made here. */}
+                  {RETURNABLE_STATUSES.has(order.status) ? (
+                    <ButtonLink linkAs={Link} href={`/returns?order=${order.orderId}`} variant="ghost">
+                      {t(locale, "orders.requestReturn")}
+                    </ButtonLink>
                   ) : null}
                 </Cluster>
 

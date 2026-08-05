@@ -10,6 +10,7 @@ import { QtyStepper } from "./QtyStepper";
 import { FileUpload } from "./FileUpload";
 import { Keypad } from "./Keypad";
 import { RangeSlider } from "./RangeSlider";
+import { Combobox } from "./Combobox";
 import { structuralSignature, withDocumentDirection } from "../../testing/domSnapshot";
 
 afterEach(cleanup);
@@ -288,6 +289,113 @@ describe("RangeSlider", () => {
   it("renders identical DOM structure across RTL/ar and LTR/en (TC-PC08-002)", () => {
     parity(() => (
       <RangeSlider label="l" value={100} max={400} onChange={() => {}} hint="h" readout="r" error="e" />
+    ));
+  });
+});
+
+const SUGGESTIONS = [
+  { value: "سوبر سبيشل 10W-30", label: "سوبر سبيشل 10W-30", meta: "super-special-10w30" },
+  { value: "رافال 5W-30", label: "رافال 5W-30", meta: "raval-5w30" }
+];
+
+describe("Combobox", () => {
+  it("states the relationship between the field and its list rather than implying it", () => {
+    render(<Combobox label="بحث" value="" onChange={() => {}} options={[]} onSelect={() => {}} />);
+    const input = screen.getByRole("combobox", { name: "بحث" });
+    expect(input).toHaveAttribute("aria-expanded", "false");
+    expect(input).toHaveAttribute("aria-autocomplete", "list");
+    expect(input.getAttribute("aria-controls")).toBeTruthy();
+  });
+
+  it("opens on typing and closes on Escape", () => {
+    render(<Combobox label="بحث" value="سو" onChange={() => {}} options={SUGGESTIONS} onSelect={() => {}} />);
+    const input = screen.getByRole("combobox");
+    fireEvent.focus(input);
+    expect(input).toHaveAttribute("aria-expanded", "true");
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(input).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("moves the highlight without moving focus off the input", () => {
+    render(<Combobox label="بحث" value="س" onChange={() => {}} options={SUGGESTIONS} onSelect={() => {}} />);
+    const input = screen.getByRole("combobox");
+    fireEvent.focus(input);
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    const activeId = input.getAttribute("aria-activedescendant");
+    expect(activeId).toBeTruthy();
+    expect(document.getElementById(activeId!)).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("wraps the highlight around both ends", () => {
+    render(<Combobox label="بحث" value="س" onChange={() => {}} options={SUGGESTIONS} onSelect={() => {}} />);
+    const input = screen.getByRole("combobox");
+    fireEvent.focus(input);
+    fireEvent.keyDown(input, { key: "ArrowUp" });
+    expect(input.getAttribute("aria-activedescendant")).toMatch(/-1$/);
+  });
+
+  it("takes the highlighted option on Enter, and never navigates on a bare keystroke", () => {
+    const onSelect = vi.fn();
+    const onSubmit = vi.fn();
+    render(
+      <Combobox
+        label="بحث"
+        value="س"
+        onChange={() => {}}
+        options={SUGGESTIONS}
+        onSelect={onSelect}
+        onSubmit={onSubmit}
+      />
+    );
+    const input = screen.getByRole("combobox");
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "سوب" } });
+    expect(onSelect).not.toHaveBeenCalled();
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(onSelect).toHaveBeenCalledWith(SUGGESTIONS[0]);
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("submits the raw text when nothing is highlighted — searching for a term not in the list", () => {
+    const onSubmit = vi.fn();
+    render(
+      <Combobox label="بحث" value="زيت" onChange={() => {}} options={SUGGESTIONS} onSelect={() => {}} onSubmit={onSubmit} />
+    );
+    const input = screen.getByRole("combobox");
+    fireEvent.focus(input);
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(onSubmit).toHaveBeenCalledWith("زيت");
+  });
+
+  it("announces how many suggestions there are", () => {
+    render(
+      <Combobox label="بحث" value="س" onChange={() => {}} options={SUGGESTIONS} onSelect={() => {}} status="اقتراحان" />
+    );
+    fireEvent.focus(screen.getByRole("combobox"));
+    expect(screen.getByRole("status")).toHaveTextContent("اقتراحان");
+  });
+
+  it("clears the field without clearing the page", () => {
+    const onChange = vi.fn();
+    render(
+      <Combobox label="بحث" value="سوبر" onChange={onChange} options={[]} onSelect={() => {}} clearLabel="مسح" />
+    );
+    fireEvent.click(screen.getByRole("button", { name: "مسح" }));
+    expect(onChange).toHaveBeenCalledWith("");
+  });
+
+  it("renders identical DOM structure across RTL/ar and LTR/en (TC-PC08-002)", () => {
+    parity(() => (
+      <Combobox
+        label="l"
+        value="v"
+        onChange={() => {}}
+        options={SUGGESTIONS}
+        onSelect={() => {}}
+        hint="h"
+        clearLabel="c"
+      />
     ));
   });
 });

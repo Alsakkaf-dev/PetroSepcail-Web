@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ElementType, ReactNode } from "react";
 import { cx } from "../../utils/cx";
 import { Icon, type IconName } from "../../icons";
 
@@ -12,6 +12,8 @@ export interface StatCardProps {
   tone?: "neutral" | "gold" | "blue" | "success" | "warn" | "danger";
   /** Wraps the whole tile in a link. */
   href?: string;
+  /** `next/link` in an app; a plain anchor everywhere else. */
+  linkAs?: ElementType;
   className?: string;
 }
 
@@ -23,7 +25,8 @@ export interface StatCardProps {
  * what the eye is looking for. That is a deliberate divergence and the only
  * one here — CSS reorders two elements inside one small tile, where either
  * sequence is a complete sentence. */
-export function StatCard({ label, value, caption, icon, tone = "neutral", href, className }: StatCardProps) {
+export function StatCard({ label, value, caption, icon, tone = "neutral", href, linkAs, className }: StatCardProps) {
+  const Link: ElementType = linkAs ?? "a";
   const body = (
     <>
       <span className="ps-stat__label">{label}</span>
@@ -38,9 +41,9 @@ export function StatCard({ label, value, caption, icon, tone = "neutral", href, 
   );
   const classes = cx("ps-stat", `ps-stat--${tone}`, href && "ps-stat--link", className);
   return href ? (
-    <a href={href} className={classes}>
+    <Link href={href} className={classes}>
       {body}
-    </a>
+    </Link>
   ) : (
     <div className={classes}>{body}</div>
   );

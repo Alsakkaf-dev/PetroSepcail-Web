@@ -627,3 +627,95 @@ fieldset.ps-field {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
+
+/* ---- Combobox ---------------------------------------------------------- */
+
+.ps-combobox__control {
+  display: flex;
+  align-items: center;
+  gap: var(--d-2);
+  padding-inline: var(--d-3);
+  border: 2px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.ps-combobox__control:focus-within {
+  border-color: var(--gold-600);
+  box-shadow: var(--shadow-sm);
+}
+
+.ps-combobox__icon {
+  display: inline-flex;
+  color: var(--muted);
+}
+
+.ps-combobox__input {
+  flex: 1;
+  min-inline-size: 0;
+  min-block-size: 44px;
+  border: 0;
+  background: none;
+  color: var(--ink);
+}
+
+.ps-combobox__input:focus {
+  outline: none;
+}
+
+.ps-combobox__clear {
+  display: grid;
+  place-items: center;
+  inline-size: 44px;
+  min-block-size: 44px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+}
+
+.ps-combobox__clear:hover {
+  color: var(--ink);
+}
+
+/* Closed, the list is empty and takes no space — but it stays in the DOM so
+   aria-controls always points at something that exists. */
+.ps-combobox__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ps-combobox__list.is-open {
+  position: relative;
+  z-index: 20;
+  margin-block-start: var(--d-2);
+  padding: var(--d-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+  max-block-size: 22rem;
+  overflow-y: auto;
+}
+
+.ps-combobox__option {
+  display: grid;
+  gap: var(--d-1);
+  padding: var(--d-3);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+
+.ps-combobox__option.is-active {
+  background: var(--bg-tint);
+}
+
+.ps-combobox__option-label {
+  font-weight: 700;
+}
+
+.ps-combobox__option-desc {
+  color: var(--muted);
+  font-size: var(--fs-300);
+}

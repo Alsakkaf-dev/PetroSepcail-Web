@@ -1,5 +1,7 @@
 export { FieldShell, useFieldIds, describedBy } from "./Field";
 export type { FieldIds, FieldShellProps } from "./Field";
+export { Combobox } from "./Combobox";
+export type { ComboboxProps, ComboboxOption } from "./Combobox";
 export { Select } from "./Select";
 export type { SelectProps, SelectOption } from "./Select";
 export { Textarea } from "./Textarea";
