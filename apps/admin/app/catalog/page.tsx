@@ -1,23 +1,28 @@
 "use client";
 
 import type { AdminSkuListResponse } from "@petrospecial/contracts";
-import { useEffect, useState } from "react";
-
-// AC-02 (S07). This is a client component (runs in the browser, a different
-// origin from the API under the Vercel pivot, D-15 — no Caddy same-origin
-// proxy exists anymore), so every call is built into an absolute URL from
-// NEXT_PUBLIC_API_URL (the browser-safe counterpart of the server-only
-// API_URL apps/store/lib/api.ts uses).
-//
-// No console shell/session yet (AC-M5-0 is a later, separate M5 task) — this
-// page is a self-contained login + CRUD screen, not wired into a broader
-// authenticated layout.
-
-function apiUrl(path: string): string {
-  const base = process.env.NEXT_PUBLIC_API_URL;
-  if (!base) throw new Error("missing required env var NEXT_PUBLIC_API_URL");
-  return `${base}${path}`;
-}
+import { useCallback, useEffect, useState } from "react";
+import {
+  Badge,
+  Banner,
+  Button,
+  Cluster,
+  Container,
+  DataTable,
+  Icon,
+  Ltr,
+  Money,
+  Page,
+  QtyStepper,
+  Section,
+  SectionHead,
+  Stack,
+  TextField
+} from "@petrospecial/ui";
+import { useLocale } from "@petrospecial/app-shell/src/client";
+import { count, messageFor, t } from "@petrospecial/i18n";
+import { authedFetch } from "../../lib/authClient";
+import { LoginGate } from "../../lib/LoginGate";
 
 interface Row {
   skuId: string;
@@ -31,176 +36,197 @@ interface Row {
   reserved: number;
 }
 
-async function api<T>(path: string, token: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(apiUrl(path), {
-    ...init,
-    headers: { ...init?.headers, authorization: `Bearer ${token}`, "content-type": "application/json" }
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error?.message ?? `${path} failed: ${res.status}`);
-  }
-  return res.json() as Promise<T>;
-}
-
-function LoginForm({ onLoggedIn }: { onLoggedIn: (token: string) => void }) {
-  const [email, setEmail] = useState("admin.seed@petrospecial.internal");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await fetch(apiUrl("/api/v1/auth/login"), {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email, password })
-      });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error?.message ?? "Login failed");
-      onLoggedIn(body.accessToken);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <form onSubmit={submit} style={{ maxWidth: 360, display: "grid", gap: 12 }}>
-      <label>
-        Email
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          style={{ display: "block", width: "100%", padding: 8, borderRadius: 6, border: "1px solid var(--line)" }}
-        />
-      </label>
-      <label>
-        Password
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          style={{ display: "block", width: "100%", padding: 8, borderRadius: 6, border: "1px solid var(--line)" }}
-        />
-      </label>
-      {error && <p style={{ color: "#b91c1c" }}>{error}</p>}
-      <button type="submit" disabled={busy} style={{ padding: "8px 16px", borderRadius: 6, background: "var(--gold)", border: "none" }}>
-        {busy ? "Signing in..." : "Sign in"}
-      </button>
-    </form>
-  );
-}
-
-function RowEditor({ row, token, onSaved }: { row: Row; token: string; onSaved: (row: Row) => void }) {
-  const [price, setPrice] = useState(row.retailPrice ?? "0.00");
-  const [qty, setQty] = useState(row.qtyOnHand);
-  const [status, setStatus] = useState<string | null>(null);
-
-  async function savePrice() {
-    setStatus("saving price…");
-    try {
-      await api("/api/v1/admin/catalog/prices", token, {
-        method: "PUT",
-        body: JSON.stringify({ packSizeId: row.packSizeId, retailPrice: price })
-      });
-      setStatus("price saved");
-      onSaved({ ...row, retailPrice: price });
-    } catch (err) {
-      setStatus(err instanceof Error ? err.message : "failed");
-    }
-  }
-
-  async function saveInventory() {
-    setStatus("saving stock…");
-    try {
-      await api("/api/v1/admin/catalog/inventory", token, {
-        method: "PUT",
-        body: JSON.stringify({ packSizeId: row.packSizeId, qtyOnHand: qty })
-      });
-      setStatus("stock saved");
-      onSaved({ ...row, qtyOnHand: qty });
-    } catch (err) {
-      setStatus(err instanceof Error ? err.message : "failed");
-    }
-  }
-
-  return (
-    <tr>
-      <td>{row.nameAr}</td>
-      <td className="ps-ltr">{row.nameEn}</td>
-      <td className="ps-ltr">{row.sizeLabel}</td>
-      <td>
-        <input value={price} onChange={(e) => setPrice(e.target.value)} style={{ width: 80 }} />
-        <button onClick={savePrice} type="button">
-          Save
-        </button>
-      </td>
-      <td>
-        <input
-          type="number"
-          value={qty}
-          onChange={(e) => setQty(Number(e.target.value))}
-          style={{ width: 70 }}
-        />
-        <button onClick={saveInventory} type="button">
-          Save
-        </button>
-      </td>
-      <td style={{ fontSize: 12, color: "var(--muted)" }}>{status}</td>
-    </tr>
-  );
-}
-
-export default function AdminCatalogPage() {
-  const [token, setToken] = useState<string | null>(null);
+// SCR-AC02-002 — AC-02, prices and inventory.
+//
+// Was twelve inline styles, a raw <table>, and — the part that mattered most —
+// its own private sign-in form and its own private `api()` helper, because
+// this screen predates the console shell. Both are gone: it goes through the
+// same LoginGate and the same authedFetch as every other page, so a session
+// that expires here behaves the way it does everywhere else.
+//
+// The forward-only notice is permanent, not conditional: a price change never
+// re-prices an invoice that has already been issued, and an operator has to
+// know that before they type a number, not after a distributor calls.
+function CatalogInner() {
+  const locale = useLocale();
   const [rows, setRows] = useState<Row[] | null>(null);
+  const [prices, setPrices] = useState<Record<string, string>>({});
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!token) return;
-    api<AdminSkuListResponse>("/api/v1/admin/catalog/skus", token)
-      .then((res) => setRows(res.items))
-      .catch((err) => setError(err instanceof Error ? err.message : "failed to load"));
-  }, [token]);
+  const load = useCallback(() => {
+    setError(null);
+    authedFetch<AdminSkuListResponse>("/api/v1/admin/catalog/skus")
+      .then((res) => {
+        const items = res.items as Row[];
+        setRows(items);
+        setPrices(Object.fromEntries(items.map((row) => [row.packSizeId, row.retailPrice ?? ""])));
+        setQuantities(Object.fromEntries(items.map((row) => [row.packSizeId, row.qtyOnHand])));
+      })
+      .catch((thrown) => setError(messageFor(locale, thrown)));
+  }, [locale]);
+
+  useEffect(load, [load]);
+
+  async function savePrice(row: Row) {
+    setBusy(`${row.packSizeId}-price`);
+    setDone(null);
+    try {
+      await authedFetch("/api/v1/admin/catalog/prices", {
+        method: "PUT",
+        body: JSON.stringify({ packSizeId: row.packSizeId, retailPrice: prices[row.packSizeId] })
+      });
+      setDone(t(locale, "common.saved"));
+      load();
+    } catch (thrown) {
+      setError(messageFor(locale, thrown));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function saveStock(row: Row) {
+    setBusy(`${row.packSizeId}-stock`);
+    setDone(null);
+    try {
+      await authedFetch("/api/v1/admin/catalog/inventory", {
+        method: "PUT",
+        body: JSON.stringify({ packSizeId: row.packSizeId, qtyOnHand: quantities[row.packSizeId] })
+      });
+      setDone(t(locale, "common.saved"));
+      load();
+    } catch (thrown) {
+      setError(messageFor(locale, thrown));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const state = error ? "error" : rows === null ? "loading" : rows.length === 0 ? "empty" : "ready";
 
   return (
-    <main style={{ maxWidth: 1100, margin: "0 auto", padding: 24 }}>
-      <h1 style={{ fontFamily: "var(--font-display)" }}>Catalog — Prices &amp; Inventory (AC-02)</h1>
+    <Page width="flush">
+      <Section air="app" aria-labelledby="catalog-title">
+        <Container width="wide">
+          <Stack gap="lg">
+            <SectionHead level={1} titleId="catalog-title" title={t(locale, "nav.catalog")} />
 
-      {!token && <LoginForm onLoggedIn={setToken} />}
+            <Banner tone="info">{t(locale, "admin.pricesForwardOnly")}</Banner>
 
-      {token && error && <p style={{ color: "#b91c1c" }}>{error}</p>}
+            {error ? (
+              <Banner
+                tone="danger"
+                action={
+                  <Button variant="ghost" size="sm" onClick={load}>
+                    {t(locale, "common.retry")}
+                  </Button>
+                }
+              >
+                {error}
+              </Banner>
+            ) : null}
 
-      {token && rows && (
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr>
-              <th>Name (AR)</th>
-              <th>Name (EN)</th>
-              <th>Size</th>
-              <th>Retail price (ex-VAT)</th>
-              <th>Qty on hand</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <RowEditor
-                key={row.packSizeId}
-                row={row}
-                token={token}
-                onSaved={(updated) => setRows((prev) => prev!.map((r) => (r.packSizeId === updated.packSizeId ? updated : r)))}
-              />
-            ))}
-          </tbody>
-        </table>
-      )}
-    </main>
+            {done ? (
+              <span role="status">
+                <Badge variant="success">
+                  <Icon name="check-circle" size="sm" />
+                  {done}
+                </Badge>
+              </span>
+            ) : null}
+
+            <DataTable
+              caption={t(locale, "nav.catalog")}
+              state={state}
+              stickyHeader
+              errorMessage={error ?? undefined}
+              onRetry={load}
+              retryLabel={t(locale, "common.retry")}
+              emptyTitle={t(locale, "admin.catalogEmpty")}
+              emptyDescription={t(locale, "admin.catalogEmptyHint")}
+              rows={rows ?? []}
+              getRowKey={(row) => row.packSizeId}
+              columns={[
+                { key: "nameAr", header: t(locale, "admin.skuNameAr"), emphasis: "primary", render: (row) => row.nameAr },
+                { key: "nameEn", header: t(locale, "admin.skuNameEn"), render: (row) => <Ltr>{row.nameEn}</Ltr> },
+                { key: "size", header: t(locale, "catalog.packSize"), render: (row) => <Ltr>{row.sizeLabel}</Ltr> },
+                {
+                  key: "currentPrice",
+                  header: t(locale, "admin.retailPrice"),
+                  align: "end",
+                  render: (row) => (row.retailPrice ? <Money amount={row.retailPrice} locale={locale} /> : "—")
+                },
+                {
+                  key: "price",
+                  header: t(locale, "admin.savePrice"),
+                  render: (row) => (
+                    <Cluster gap="sm">
+                      <TextField
+                        label={t(locale, "admin.retailPrice")}
+                        forceLtr
+                        inputMode="decimal"
+                        value={prices[row.packSizeId] ?? ""}
+                        onChange={(event) =>
+                          setPrices((prev) => ({ ...prev, [row.packSizeId]: event.target.value }))
+                        }
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        busy={busy === `${row.packSizeId}-price`}
+                        onClick={() => savePrice(row)}
+                      >
+                        {t(locale, "admin.savePrice")}
+                      </Button>
+                    </Cluster>
+                  )
+                },
+                {
+                  key: "reserved",
+                  header: t(locale, "admin.reserved"),
+                  align: "end",
+                  render: (row) => <Ltr>{count(row.reserved)}</Ltr>
+                },
+                {
+                  key: "stock",
+                  header: t(locale, "admin.saveStock"),
+                  render: (row) => (
+                    <Cluster gap="sm">
+                      <QtyStepper
+                        label={t(locale, "admin.qtyOnHand")}
+                        value={quantities[row.packSizeId] ?? 0}
+                        min={0}
+                        max={9999}
+                        increaseLabel={t(locale, "cart.increase")}
+                        decreaseLabel={t(locale, "cart.decrease")}
+                        onChange={(next) => setQuantities((prev) => ({ ...prev, [row.packSizeId]: next }))}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        busy={busy === `${row.packSizeId}-stock`}
+                        onClick={() => saveStock(row)}
+                      >
+                        {t(locale, "admin.saveStock")}
+                      </Button>
+                    </Cluster>
+                  )
+                }
+              ]}
+            />
+          </Stack>
+        </Container>
+      </Section>
+    </Page>
+  );
+}
+
+export default function CatalogPage() {
+  return (
+    <LoginGate>
+      <CatalogInner />
+    </LoginGate>
   );
 }

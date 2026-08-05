@@ -1,91 +1,195 @@
 "use client";
 
 import type { AdminSupplierListResponse } from "@petrospecial/contracts";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import {
+  Badge,
+  Banner,
+  Button,
+  Cluster,
+  Container,
+  DataTable,
+  DualControl,
+  Money,
+  Page,
+  Section,
+  SectionHead,
+  Stack,
+  TextField
+} from "@petrospecial/ui";
+import { useLocale } from "@petrospecial/app-shell/src/client";
+import { messageFor, t } from "@petrospecial/i18n";
 import { authedFetch } from "../../lib/authClient";
 import { LoginGate } from "../../lib/LoginGate";
 
-// AC-03 (S17). SCR-AC03-001. A dual-control request (>SAR 100,000) returns
-// status "pending_dual_control" instead of applying — this screen surfaces
-// that state as-is rather than silently retrying, since acknowledging it
-// requires a genuinely different super_admin (EP-AC-022, not built into this
-// screen yet — the ack endpoint exists and is callable, just not wired to a
-// UI control here).
+type Supplier = AdminSupplierListResponse["items"][number];
+type RowState = "below-threshold" | "pending" | "approved" | "rejected";
+
+// SCR-AC03-001 — AC-03.
+//
+// A credit-limit change above SAR 100,000 does not apply: EP-AC-021 answers
+// `pending_dual_control` and acknowledging it requires a genuinely different
+// super-admin. The old console reported that as the bare string "pending a
+// second admin's ack" in a table cell, which reads as an error rather than as
+// the control working exactly as designed.
+//
+// It is a DualControl panel now, and the threshold is stated before anyone
+// types a number into the field rather than after.
 function SuppliersCreditInner() {
-  const [items, setItems] = useState<AdminSupplierListResponse["items"] | null>(null);
+  const locale = useLocale();
+  const [items, setItems] = useState<Supplier[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
-  const [status, setStatus] = useState<Record<string, string>>({});
+  const [rowState, setRowState] = useState<Record<string, RowState>>({});
 
-  function load() {
+  const load = useCallback(() => {
+    setError(null);
     authedFetch<AdminSupplierListResponse>("/api/v1/admin/suppliers")
       .then((res) => setItems(res.items))
-      .catch((err) => setError(err instanceof Error ? err.message : "failed to load"));
-  }
+      .catch((thrown) => setError(messageFor(locale, thrown)));
+  }, [locale]);
 
-  useEffect(load, []);
+  useEffect(load, [load]);
 
   async function saveLimit(supplierId: string) {
     const newLimit = Number(drafts[supplierId]);
     if (!newLimit || newLimit <= 0) return;
     setBusyId(supplierId);
+    setError(null);
     try {
-      const res = await authedFetch<{ status: string; newLimit?: string }>(`/api/v1/admin/suppliers/${supplierId}/credit-limit`, {
-        method: "PUT",
-        body: JSON.stringify({ newLimit, reason: "admin console adjustment" })
-      });
-      setStatus((s) => ({ ...s, [supplierId]: res.status === "pending_dual_control" ? "pending a second admin's ack" : `applied: ${res.newLimit}` }));
+      const res = await authedFetch<{ status: string; newLimit?: string }>(
+        `/api/v1/admin/suppliers/${supplierId}/credit-limit`,
+        { method: "PUT", body: JSON.stringify({ newLimit, reason: "admin console adjustment" }) }
+      );
+      setRowState((prev) => ({
+        ...prev,
+        [supplierId]: res.status === "pending_dual_control" ? "pending" : "approved"
+      }));
       load();
-    } catch (err) {
-      setStatus((s) => ({ ...s, [supplierId]: err instanceof Error ? err.message : "failed" }));
+    } catch (thrown) {
+      setRowState((prev) => ({ ...prev, [supplierId]: "rejected" }));
+      setError(messageFor(locale, thrown));
     } finally {
       setBusyId(null);
     }
   }
 
+  const state = error ? "error" : items === null ? "loading" : items.length === 0 ? "empty" : "ready";
+
   return (
-    <main style={{ maxWidth: 1100, margin: "0 auto", padding: 24 }}>
-      <h1 style={{ fontFamily: "var(--font-display)" }}>Suppliers &amp; Credit (AC-03)</h1>
-      {error && <p style={{ color: "#b91c1c" }}>{error}</p>}
-      {items && (
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr>
-              <th>Business (EN)</th>
-              <th>Tier</th>
-              <th>Credit limit</th>
-              <th>Exposure</th>
-              <th>Headroom</th>
-              <th>Set new limit</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((r) => (
-              <tr key={r.supplierId}>
-                <td>{r.businessNameEn}</td>
-                <td>{r.tier}</td>
-                <td>{r.creditLimit}</td>
-                <td>{r.exposure}</td>
-                <td>{r.headroom}</td>
-                <td>
-                  <input
-                    style={{ width: 90 }}
-                    value={drafts[r.supplierId] ?? ""}
-                    onChange={(e) => setDrafts((d) => ({ ...d, [r.supplierId]: e.target.value }))}
-                    placeholder="SAR"
-                  />
-                  <button type="button" disabled={busyId === r.supplierId} onClick={() => saveLimit(r.supplierId)}>
-                    Save
-                  </button>
-                  <div style={{ fontSize: 12, color: "var(--muted)" }}>{status[r.supplierId]}</div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </main>
+    <Page width="flush">
+      <Section air="app" aria-labelledby="credit-title">
+        <Container width="wide">
+          <Stack gap="lg">
+            <SectionHead level={1} titleId="credit-title" title={t(locale, "nav.suppliersCredit")} />
+
+            {/* The rule is learned before it bites, not after a change
+                silently fails to apply. */}
+            <DualControl
+              state="below-threshold"
+              thresholdNote={t(locale, "admin.dualThreshold")}
+              pendingLabel={t(locale, "admin.dualPending")}
+              approvedLabel={t(locale, "admin.dualApproved")}
+              rejectedLabel={t(locale, "admin.dualRejected")}
+            />
+
+            {error ? (
+              <Banner
+                tone="danger"
+                action={
+                  <Button variant="ghost" size="sm" onClick={load}>
+                    {t(locale, "common.retry")}
+                  </Button>
+                }
+              >
+                {error}
+              </Banner>
+            ) : null}
+
+            <DataTable
+              caption={t(locale, "nav.suppliersCredit")}
+              state={state}
+              stickyHeader
+              errorMessage={error ?? undefined}
+              onRetry={load}
+              retryLabel={t(locale, "common.retry")}
+              emptyTitle={t(locale, "admin.creditEmpty")}
+              rows={items ?? []}
+              getRowKey={(row) => row.supplierId}
+              columns={[
+                {
+                  key: "business",
+                  header: t(locale, "admin.businessName"),
+                  emphasis: "primary",
+                  render: (row) => row.businessNameEn
+                },
+                {
+                  key: "tier",
+                  header: t(locale, "supplier.tier"),
+                  render: (row) => <Badge variant="gold">{row.tier}</Badge>
+                },
+                {
+                  key: "creditLimit",
+                  header: t(locale, "supplier.creditLimit"),
+                  align: "end",
+                  render: (row) => <Money amount={row.creditLimit} locale={locale} />
+                },
+                {
+                  key: "exposure",
+                  header: t(locale, "supplier.exposure"),
+                  align: "end",
+                  render: (row) => <Money amount={row.exposure} locale={locale} />
+                },
+                {
+                  key: "headroom",
+                  header: t(locale, "supplier.headroom"),
+                  align: "end",
+                  render: (row) => <Money amount={row.headroom} locale={locale} emphasis="strong" />
+                },
+                {
+                  key: "newLimit",
+                  header: t(locale, "admin.newLimit"),
+                  render: (row) => (
+                    <Stack gap="sm">
+                      <Cluster gap="sm">
+                        <TextField
+                          label={t(locale, "admin.newLimit")}
+                          forceLtr
+                          inputMode="decimal"
+                          value={drafts[row.supplierId] ?? ""}
+                          onChange={(event) =>
+                            setDrafts((prev) => ({ ...prev, [row.supplierId]: event.target.value }))
+                          }
+                        />
+                        <Button
+                          variant="gold"
+                          size="sm"
+                          busy={busyId === row.supplierId}
+                          disabled={!drafts[row.supplierId]}
+                          onClick={() => saveLimit(row.supplierId)}
+                        >
+                          {t(locale, "admin.applyLimit")}
+                        </Button>
+                      </Cluster>
+                      {rowState[row.supplierId] ? (
+                        <DualControl
+                          state={rowState[row.supplierId] as RowState}
+                          thresholdNote={t(locale, "admin.dualThreshold")}
+                          pendingLabel={t(locale, "admin.dualPending")}
+                          approvedLabel={t(locale, "admin.dualApproved")}
+                          rejectedLabel={t(locale, "admin.dualRejected")}
+                        />
+                      ) : null}
+                    </Stack>
+                  )
+                }
+              ]}
+            />
+          </Stack>
+        </Container>
+      </Section>
+    </Page>
   );
 }
 

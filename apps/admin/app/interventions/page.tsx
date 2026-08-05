@@ -1,172 +1,344 @@
 "use client";
 
 import type { InterventionListResponse } from "@petrospecial/contracts";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import {
+  Banner,
+  Button,
+  Card,
+  Container,
+  DataTable,
+  DateTime,
+  IdDisplay,
+  Page,
+  ReasonGate,
+  Section,
+  SectionHead,
+  Select,
+  Stack,
+  TextField,
+  type ReasonOption
+} from "@petrospecial/ui";
+import { useLocale } from "@petrospecial/app-shell/src/client";
+import { messageFor, t, type Locale, type StringKey } from "@petrospecial/i18n";
 import { authedFetch } from "../../lib/authClient";
 import { LoginGate } from "../../lib/LoginGate";
 
-// AC-05 (S18). SCR-AC05-001. Reason codes are the fixed list
-// audit.reason_codes seeds (0064) — free-text reasons are rejected
-// server-side (INVALID_REASON_CODE), so this screen offers the same fixed
-// set rather than a free-text field.
-const REASON_CODES = [
-  "customer_request",
-  "fraud_suspected",
-  "address_unreachable",
-  "stock_unavailable",
-  "duplicate_order",
-  "payment_issue",
-  "quality_complaint",
-  "policy_violation",
-  "other_with_note"
+type Intervention = InterventionListResponse["items"][number];
+
+// `audit.reason_codes` (0064) is a fixed list and the API rejects anything
+// outside it with INVALID_REASON_CODE, so the console offers exactly this set
+// and never a free-text reason. `other_with_note` is the one that needs the
+// note, and until the note is written the commit control stays disabled.
+const REASON_KEYS: Array<{ value: string; labelKey: StringKey; requiresNote?: boolean }> = [
+  { value: "customer_request", labelKey: "admin.reasonCustomerRequest" },
+  { value: "fraud_suspected", labelKey: "admin.reasonFraudSuspected" },
+  { value: "address_unreachable", labelKey: "admin.reasonAddressUnreachable" },
+  { value: "stock_unavailable", labelKey: "admin.reasonStockUnavailable" },
+  { value: "duplicate_order", labelKey: "admin.reasonDuplicateOrder" },
+  { value: "payment_issue", labelKey: "admin.reasonPaymentIssue" },
+  { value: "quality_complaint", labelKey: "admin.reasonQualityComplaint" },
+  { value: "policy_violation", labelKey: "admin.reasonPolicyViolation" },
+  { value: "other_with_note", labelKey: "admin.reasonOtherWithNote", requiresNote: true }
 ];
 
+function reasonOptions(locale: Locale): ReasonOption[] {
+  return REASON_KEYS.map((reason) => ({
+    value: reason.value,
+    label: t(locale, reason.labelKey),
+    ...(reason.requiresNote ? { requiresNote: true } : {})
+  }));
+}
+
+const KIND_LABEL: Record<string, StringKey> = {
+  force_cancel: "admin.kindForceCancel",
+  address_edit: "admin.kindAddressEdit",
+  refund_override: "admin.kindRefundOverride",
+  failed_delivery: "admin.kindFailedDelivery",
+  return_decision: "admin.kindReturnDecision",
+  review_moderation: "admin.kindReviewModeration"
+};
+
+const OUTCOME_LABEL: Record<string, StringKey> = {
+  open: "admin.outcomeOpen",
+  resolved: "admin.outcomeResolved",
+  rejected: "admin.outcomeRejected"
+};
+
+// SCR-AC05-001 — AC-05.
+//
+// Was thirteen inline styles, three ungrouped forms each with a bare `<select>`
+// of raw enum codes ("other_with_note" shown to an operator as-is), a literal
+// green status line, headings carrying endpoint ids ("Force-cancel order
+// (EP-AC-041)"), and a raw <table> printing the raw reason code back.
+//
+// Each action is a ReasonGate now: the fixed list, the conditional note, and a
+// commit control that stays disabled until the reason is valid — the same rule
+// the server enforces, enforced here first so nobody meets it as a 422.
 function InterventionsInner() {
-  const [items, setItems] = useState<InterventionListResponse["items"] | null>(null);
+  const locale = useLocale();
+  const options = reasonOptions(locale);
+
+  const [items, setItems] = useState<Intervention[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [status, setStatus] = useState<string | null>(null);
+  const [done, setDone] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
 
   const [cancelOrderId, setCancelOrderId] = useState("");
-  const [cancelReason, setCancelReason] = useState(REASON_CODES[0]);
+  const [cancelReason, setCancelReason] = useState("");
   const [cancelNote, setCancelNote] = useState("");
 
   const [returnId, setReturnId] = useState("");
-  const [returnDecision, setReturnDecision] = useState<"approve" | "reject">("approve");
-  const [returnReason, setReturnReason] = useState(REASON_CODES[0]);
+  const [returnDecision, setReturnDecision] = useState("approve");
+  const [returnReason, setReturnReason] = useState("");
+  const [returnNote, setReturnNote] = useState("");
 
   const [reviewId, setReviewId] = useState("");
-  const [reviewAction, setReviewAction] = useState<"hide" | "remove">("hide");
-  const [reviewReason, setReviewReason] = useState(REASON_CODES[0]);
+  const [reviewAction, setReviewAction] = useState("hide");
+  const [reviewReason, setReviewReason] = useState("");
+  const [reviewNote, setReviewNote] = useState("");
 
-  function load() {
+  const load = useCallback(() => {
+    setError(null);
     authedFetch<InterventionListResponse>("/api/v1/admin/interventions")
       .then((res) => setItems(res.items))
-      .catch((err) => setError(err instanceof Error ? err.message : "failed to load"));
-  }
+      .catch((thrown) => setError(messageFor(locale, thrown)));
+  }, [locale]);
 
-  useEffect(load, []);
+  useEffect(load, [load]);
 
-  async function forceCancel(e: React.FormEvent) {
-    e.preventDefault();
-    setStatus(null);
+  async function run(key: string, path: string, body: Record<string, unknown>) {
+    setBusy(key);
+    setError(null);
+    setDone(null);
     try {
-      const res = await authedFetch<{ status: string }>(`/api/v1/admin/orders/${cancelOrderId}/cancel`, {
-        method: "POST",
-        body: JSON.stringify({ reasonCode: cancelReason, note: cancelNote || undefined })
-      });
-      setStatus(`Order ${cancelOrderId}: ${res.status}`);
+      await authedFetch(path, { method: "POST", body: JSON.stringify(body) });
+      setDone(t(locale, "admin.outcomeResolved"));
       load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "failed");
+    } catch (thrown) {
+      setError(messageFor(locale, thrown));
+    } finally {
+      setBusy(null);
     }
   }
 
-  async function decideReturn(e: React.FormEvent) {
-    e.preventDefault();
-    setStatus(null);
-    try {
-      const res = await authedFetch<{ status: string }>(`/api/v1/admin/returns/${returnId}/decision`, {
-        method: "POST",
-        body: JSON.stringify({ decision: returnDecision, reasonCode: returnReason })
-      });
-      setStatus(`Return ${returnId}: ${res.status}`);
-      load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "failed");
-    }
-  }
-
-  async function moderateReview(e: React.FormEvent) {
-    e.preventDefault();
-    setStatus(null);
-    try {
-      const res = await authedFetch<{ status: string }>(`/api/v1/admin/reviews/${reviewId}/moderate`, {
-        method: "POST",
-        body: JSON.stringify({ action: reviewAction, reasonCode: reviewReason })
-      });
-      setStatus(`Review ${reviewId}: ${res.status}`);
-      load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "failed");
-    }
-  }
+  const state = error ? "error" : items === null ? "loading" : items.length === 0 ? "empty" : "ready";
 
   return (
-    <main style={{ maxWidth: 900, margin: "0 auto", padding: 24 }}>
-      <h1 style={{ fontFamily: "var(--font-display)" }}>Interventions (AC-05)</h1>
-      {error && <p style={{ color: "#b91c1c" }}>{error}</p>}
-      {status && <p style={{ color: "#1a7f4e" }}>{status}</p>}
+    <Page width="flush">
+      <Section air="app" aria-labelledby="interventions-title">
+        <Container width="wide">
+          <Stack gap="lg">
+            <SectionHead
+              level={1}
+              titleId="interventions-title"
+              title={t(locale, "nav.interventions")}
+              lead={t(locale, "admin.allActionsLogged")}
+            />
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 24, marginBottom: 24 }}>
-        <form onSubmit={forceCancel} style={{ display: "grid", gap: 8, flex: "1 1 260px" }}>
-          <h2 style={{ fontSize: 14 }}>Force-cancel order (EP-AC-041)</h2>
-          <input placeholder="Order ID" value={cancelOrderId} onChange={(e) => setCancelOrderId(e.target.value)} className="ps-ltr" />
-          <select value={cancelReason} onChange={(e) => setCancelReason(e.target.value)}>
-            {REASON_CODES.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-          <input placeholder="Note (optional)" value={cancelNote} onChange={(e) => setCancelNote(e.target.value)} />
-          <button type="submit">Cancel order</button>
-        </form>
+            {error ? <Banner tone="danger">{error}</Banner> : null}
+            {done ? <Banner tone="success">{done}</Banner> : null}
 
-        <form onSubmit={decideReturn} style={{ display: "grid", gap: 8, flex: "1 1 260px" }}>
-          <h2 style={{ fontSize: 14 }}>Decide return (EP-AC-043)</h2>
-          <input placeholder="Return ID" value={returnId} onChange={(e) => setReturnId(e.target.value)} className="ps-ltr" />
-          <select value={returnDecision} onChange={(e) => setReturnDecision(e.target.value as "approve" | "reject")}>
-            <option value="approve">Approve</option>
-            <option value="reject">Reject</option>
-          </select>
-          <select value={returnReason} onChange={(e) => setReturnReason(e.target.value)}>
-            {REASON_CODES.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-          <button type="submit">Submit decision</button>
-        </form>
+            <Card>
+              <Stack gap="md">
+                <h2 className="ps-section-head__title">{t(locale, "admin.forceCancel")}</h2>
+                <TextField
+                  label={t(locale, "admin.orderId")}
+                  required
+                  forceLtr
+                  value={cancelOrderId}
+                  onChange={(event) => setCancelOrderId(event.target.value)}
+                />
+                <ReasonGate
+                  label={t(locale, "admin.reasonCode")}
+                  name="cancel-reason"
+                  options={options}
+                  value={cancelReason}
+                  onChange={setCancelReason}
+                  note={cancelNote}
+                  onNoteChange={setCancelNote}
+                  noteLabel={t(locale, "admin.reasonNote")}
+                  noteHint={t(locale, "admin.reasonNoteHint")}
+                  hint={t(locale, "admin.reasonRequired")}
+                >
+                  {(ready) => (
+                    <Button
+                      variant="danger"
+                      busy={busy === "cancel"}
+                      disabled={!ready || !cancelOrderId}
+                      onClick={() =>
+                        run("cancel", `/api/v1/admin/orders/${cancelOrderId}/cancel`, {
+                          reasonCode: cancelReason,
+                          ...(cancelNote.trim() ? { note: cancelNote.trim() } : {})
+                        })
+                      }
+                    >
+                      {t(locale, "admin.forceCancel")}
+                    </Button>
+                  )}
+                </ReasonGate>
+              </Stack>
+            </Card>
 
-        <form onSubmit={moderateReview} style={{ display: "grid", gap: 8, flex: "1 1 260px" }}>
-          <h2 style={{ fontSize: 14 }}>Moderate review (EP-AC-044)</h2>
-          <input placeholder="Review ID" value={reviewId} onChange={(e) => setReviewId(e.target.value)} className="ps-ltr" />
-          <select value={reviewAction} onChange={(e) => setReviewAction(e.target.value as "hide" | "remove")}>
-            <option value="hide">Hide</option>
-            <option value="remove">Remove</option>
-          </select>
-          <select value={reviewReason} onChange={(e) => setReviewReason(e.target.value)}>
-            {REASON_CODES.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-          <button type="submit">Moderate</button>
-        </form>
-      </div>
+            <Card>
+              <Stack gap="md">
+                <h2 className="ps-section-head__title">{t(locale, "admin.decideReturn")}</h2>
+                <TextField
+                  label={t(locale, "admin.returnId")}
+                  required
+                  forceLtr
+                  value={returnId}
+                  onChange={(event) => setReturnId(event.target.value)}
+                />
+                <Select
+                  label={t(locale, "admin.decision")}
+                  value={returnDecision}
+                  onChange={(event) => setReturnDecision(event.target.value)}
+                  options={[
+                    { value: "approve", label: t(locale, "admin.approve") },
+                    { value: "reject", label: t(locale, "admin.reject") }
+                  ]}
+                />
+                <ReasonGate
+                  label={t(locale, "admin.reasonCode")}
+                  name="return-reason"
+                  options={options}
+                  value={returnReason}
+                  onChange={setReturnReason}
+                  note={returnNote}
+                  onNoteChange={setReturnNote}
+                  noteLabel={t(locale, "admin.reasonNote")}
+                  noteHint={t(locale, "admin.reasonNoteHint")}
+                  hint={t(locale, "admin.reasonRequired")}
+                >
+                  {(ready) => (
+                    <Button
+                      variant="gold"
+                      busy={busy === "return"}
+                      disabled={!ready || !returnId}
+                      onClick={() =>
+                        run("return", `/api/v1/admin/returns/${returnId}/decision`, {
+                          decision: returnDecision,
+                          reasonCode: returnReason
+                        })
+                      }
+                    >
+                      {t(locale, "admin.decideReturn")}
+                    </Button>
+                  )}
+                </ReasonGate>
+              </Stack>
+            </Card>
 
-      <h2 style={{ fontSize: 16 }}>Recent interventions</h2>
-      {items && (
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr>
-              <th>At</th>
-              <th>Kind</th>
-              <th>Order</th>
-              <th>Reason</th>
-              <th>Outcome</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((r) => (
-              <tr key={r.id}>
-                <td>{new Date(r.createdAt).toLocaleString()}</td>
-                <td>{r.kind}</td>
-                <td className="ps-ltr">{r.orderId}</td>
-                <td>{r.reasonCode}</td>
-                <td>{r.outcome}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </main>
+            <Card>
+              <Stack gap="md">
+                <h2 className="ps-section-head__title">{t(locale, "admin.moderateReview")}</h2>
+                <TextField
+                  label={t(locale, "admin.reviewId")}
+                  required
+                  forceLtr
+                  value={reviewId}
+                  onChange={(event) => setReviewId(event.target.value)}
+                />
+                <Select
+                  label={t(locale, "admin.action")}
+                  value={reviewAction}
+                  onChange={(event) => setReviewAction(event.target.value)}
+                  options={[
+                    { value: "hide", label: t(locale, "admin.hide") },
+                    { value: "remove", label: t(locale, "admin.removeReview") }
+                  ]}
+                />
+                <ReasonGate
+                  label={t(locale, "admin.reasonCode")}
+                  name="review-reason"
+                  options={options}
+                  value={reviewReason}
+                  onChange={setReviewReason}
+                  note={reviewNote}
+                  onNoteChange={setReviewNote}
+                  noteLabel={t(locale, "admin.reasonNote")}
+                  noteHint={t(locale, "admin.reasonNoteHint")}
+                  hint={t(locale, "admin.reasonRequired")}
+                >
+                  {(ready) => (
+                    <Button
+                      variant="gold"
+                      busy={busy === "review"}
+                      disabled={!ready || !reviewId}
+                      onClick={() =>
+                        run("review", `/api/v1/admin/reviews/${reviewId}/moderate`, {
+                          action: reviewAction,
+                          reasonCode: reviewReason
+                        })
+                      }
+                    >
+                      {t(locale, "admin.moderateReview")}
+                    </Button>
+                  )}
+                </ReasonGate>
+              </Stack>
+            </Card>
+
+            <Stack gap="md">
+              <h2 className="ps-section-head__title">{t(locale, "admin.recentInterventions")}</h2>
+              <DataTable
+                caption={t(locale, "admin.recentInterventions")}
+                state={state}
+                stickyHeader
+                errorMessage={error ?? undefined}
+                onRetry={load}
+                retryLabel={t(locale, "common.retry")}
+                emptyTitle={t(locale, "admin.interventionsEmpty")}
+                rows={items ?? []}
+                getRowKey={(row) => row.id}
+                columns={[
+                  {
+                    key: "kind",
+                    header: t(locale, "admin.kind"),
+                    emphasis: "primary",
+                    render: (row) => t(locale, KIND_LABEL[row.kind] ?? "admin.action")
+                  },
+                  {
+                    key: "at",
+                    header: t(locale, "admin.auditAt"),
+                    render: (row) => <DateTime iso={row.createdAt} locale={locale} />
+                  },
+                  {
+                    key: "order",
+                    header: t(locale, "admin.orderId"),
+                    render: (row) =>
+                      row.orderId ? (
+                        <IdDisplay
+                          id={row.orderId}
+                          copy={{ label: t(locale, "common.copy"), copiedLabel: t(locale, "common.copied") }}
+                        />
+                      ) : (
+                        "—"
+                      )
+                  },
+                  {
+                    key: "reason",
+                    header: t(locale, "admin.reasonCode"),
+                    // The raw code reached the screen before this. Every
+                    // reason now reads as the sentence it stands for.
+                    render: (row) => {
+                      const known = REASON_KEYS.find((reason) => reason.value === row.reasonCode);
+                      return known ? t(locale, known.labelKey) : row.reasonCode;
+                    }
+                  },
+                  {
+                    key: "outcome",
+                    header: t(locale, "admin.outcome"),
+                    render: (row) => t(locale, OUTCOME_LABEL[row.outcome] ?? "admin.outcomeOpen")
+                  }
+                ]}
+              />
+            </Stack>
+          </Stack>
+        </Container>
+      </Section>
+    </Page>
   );
 }
 

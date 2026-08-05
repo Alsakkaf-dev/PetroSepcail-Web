@@ -1,0 +1,141 @@
+/* The three controls that stand between an admin and someone else's data:
+ * a reason code, a second pair of eyes, and a rule nobody has to deploy. */
+
+/* ---- ReasonGate -------------------------------------------------------- */
+
+.ps-reason {
+  display: grid;
+  gap: var(--d-4);
+}
+
+.ps-reason__hint {
+  display: flex;
+  align-items: center;
+  gap: var(--d-2);
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-300);
+}
+
+.ps-reason__commit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--d-3);
+}
+
+/* ---- DualControl ------------------------------------------------------- */
+
+.ps-dual {
+  display: grid;
+  gap: var(--d-3);
+  padding: var(--d-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg-warm);
+}
+
+/* Waiting on a second person is a normal, correct state — informational,
+   not an error. It only becomes a warning tint when it is the thing standing
+   between an operator and a change they expected to have made. */
+.ps-dual--pending {
+  border-color: var(--warn);
+  background: var(--warn-bg);
+}
+
+.ps-dual--approved {
+  border-color: var(--success);
+  background: var(--success-bg);
+}
+
+.ps-dual--rejected {
+  border-color: var(--danger);
+  background: var(--danger-bg);
+}
+
+.ps-dual__threshold,
+.ps-dual__state {
+  display: flex;
+  align-items: center;
+  gap: var(--d-2);
+  margin: 0;
+}
+
+.ps-dual__threshold {
+  color: var(--muted);
+  font-size: var(--fs-300);
+}
+
+.ps-dual__state {
+  font-weight: 700;
+}
+
+.ps-dual__summary {
+  display: grid;
+  gap: var(--d-2);
+}
+
+.ps-dual__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--d-3);
+}
+
+/* ---- RuleBuilder ------------------------------------------------------- */
+
+.ps-rules {
+  display: grid;
+  gap: var(--d-4);
+  margin: 0;
+  padding: var(--d-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+
+.ps-rules__legend {
+  padding-inline: var(--d-2);
+  font-weight: 700;
+}
+
+.ps-rules__empty {
+  display: flex;
+  align-items: center;
+  gap: var(--d-2);
+  margin: 0;
+  padding: var(--d-4);
+  border-radius: var(--r-sm);
+  background: var(--bg-warm);
+  color: var(--muted);
+  font-size: var(--fs-300);
+}
+
+.ps-rules__list {
+  display: grid;
+  gap: var(--d-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ps-rules__row {
+  display: grid;
+  gap: var(--d-3);
+  align-items: end;
+  padding-block-end: var(--d-4);
+  border-block-end: 1px solid var(--line-soft);
+}
+
+/* From tablet up a condition reads as one sentence across the row. Below
+   that it stacks, because three selects and a text field abreast at 360px is
+   four unusable controls. */
+@media (min-width: 48em) {
+  .ps-rules__row {
+    grid-template-columns: 1fr 1fr 1fr auto;
+  }
+}
+
+.ps-rules__preview {
+  padding: var(--d-4);
+  border-radius: var(--r-sm);
+  background: var(--bg-tint);
+}

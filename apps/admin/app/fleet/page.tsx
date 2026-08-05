@@ -1,65 +1,182 @@
 "use client";
 
 import type { FleetAlertsResponse, FleetKpisResponse } from "@petrospecial/contracts";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import {
+  Badge,
+  Banner,
+  Button,
+  Container,
+  DataList,
+  DataTable,
+  IdDisplay,
+  Ltr,
+  Page,
+  Section,
+  SectionHead,
+  Stack
+} from "@petrospecial/ui";
+import { useLocale } from "@petrospecial/app-shell/src/client";
+import { messageFor, percent, t, type StringKey } from "@petrospecial/i18n";
 import { authedFetch } from "../../lib/authClient";
 import { LoginGate } from "../../lib/LoginGate";
 
-// AC-09 (S18). SCR-AC09-001. No live map yet (would need a MapLibre/OSM tile
-// integration — DEFERRED-DECISIONS.md Section 3's own vendor-free default
-// for maps, not wired into any frontend anywhere in this codebase yet); KPIs
-// + alerts are real and live.
+type KpiRow = FleetKpisResponse["rows"][number];
+type Alert = FleetAlertsResponse["items"][number];
+
+const SEVERITY_LABEL: Record<string, StringKey> = {
+  low: "admin.severityLow",
+  medium: "admin.severityMedium",
+  high: "admin.severityHigh"
+};
+
+const SEVERITY_TONE: Record<string, "neutral" | "warn" | "danger"> = {
+  low: "neutral",
+  medium: "warn",
+  high: "danger"
+};
+
+// SCR-AC09-001 — AC-09. KPIs and alerts are real and live; the map is Phase 8
+// (MapLibre + OSM per DEFERRED-DECISIONS §3), and it is named as pending here
+// rather than left as an unexplained absence.
+//
+// Was four inline styles, a raw <table>, a bulleted list rendering each alert
+// as "[high] custody_open — <uuid>", and percentages as bare numbers.
 function FleetInner() {
-  const [kpis, setKpis] = useState<FleetKpisResponse["rows"] | null>(null);
-  const [alerts, setAlerts] = useState<FleetAlertsResponse["items"] | null>(null);
+  const locale = useLocale();
+  const [kpis, setKpis] = useState<KpiRow[] | null>(null);
+  const [alerts, setAlerts] = useState<Alert[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    Promise.all([authedFetch<FleetKpisResponse>("/api/v1/admin/fleet/kpis"), authedFetch<FleetAlertsResponse>("/api/v1/admin/fleet/alerts")])
+  const load = useCallback(() => {
+    setError(null);
+    Promise.all([
+      authedFetch<FleetKpisResponse>("/api/v1/admin/fleet/kpis"),
+      authedFetch<FleetAlertsResponse>("/api/v1/admin/fleet/alerts")
+    ])
       .then(([k, a]) => {
         setKpis(k.rows);
         setAlerts(a.items);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "failed to load"));
-  }, []);
+      .catch((thrown) => setError(messageFor(locale, thrown)));
+  }, [locale]);
+
+  useEffect(load, [load]);
+
+  const alertsState = error ? "error" : alerts === null ? "loading" : alerts.length === 0 ? "empty" : "ready";
+  const kpiState = error ? "error" : kpis === null ? "loading" : kpis.length === 0 ? "empty" : "ready";
+
+  /** A percentage the API may not have — null is "not computed", not zero. */
+  const pct = (value: number | null) => (value === null ? "—" : <Ltr>{percent(locale, value, 1)}</Ltr>);
 
   return (
-    <main style={{ maxWidth: 1100, margin: "0 auto", padding: 24 }}>
-      <h1 style={{ fontFamily: "var(--font-display)" }}>Fleet Oversight (AC-09)</h1>
-      {error && <p style={{ color: "#b91c1c" }}>{error}</p>}
+    <Page width="flush">
+      <Section air="app" aria-labelledby="fleet-title">
+        <Container width="wide">
+          <Stack gap="lg">
+            <SectionHead level={1} titleId="fleet-title" title={t(locale, "nav.fleet")} />
 
-      <h2>Alerts</h2>
-      {alerts && (
-        <ul>
-          {alerts.length === 0 && <li>No open alerts.</li>}
-          {alerts.map((a, i) => (
-            <li key={i}>
-              [{a.severity}] {a.kind} — <span className="ps-ltr">{a.ref}</span>
-            </li>
-          ))}
-        </ul>
-      )}
+            <Banner tone="info">{t(locale, "admin.mapPending")}</Banner>
 
-      <h2>Driver KPIs</h2>
-      {kpis && (
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr>
-              <th>Driver</th>
-              <th>Failed %</th>
-            </tr>
-          </thead>
-          <tbody>
-            {kpis.map((k) => (
-              <tr key={k.driverId}>
-                <td className="ps-ltr">{k.driverId}</td>
-                <td>{k.failedPct ?? "—"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </main>
+            {error ? (
+              <Banner
+                tone="danger"
+                action={
+                  <Button variant="ghost" size="sm" onClick={load}>
+                    {t(locale, "common.retry")}
+                  </Button>
+                }
+              >
+                {error}
+              </Banner>
+            ) : null}
+
+            <Stack gap="md">
+              <h2 className="ps-section-head__title">{t(locale, "admin.alerts")}</h2>
+              <DataList
+                label={t(locale, "admin.alerts")}
+                state={alertsState}
+                errorMessage={error ?? undefined}
+                onRetry={load}
+                retryLabel={t(locale, "common.retry")}
+                emptyTitle={t(locale, "admin.noAlerts")}
+                emptyDescription={t(locale, "admin.noAlertsHint")}
+                items={(alerts ?? []).map((alert, index) => ({
+                  id: `${alert.kind}-${alert.ref}-${index}`,
+                  title: <Ltr>{alert.kind}</Ltr>,
+                  status: (
+                    <Badge variant={SEVERITY_TONE[alert.severity] ?? "neutral"}>
+                      {t(locale, SEVERITY_LABEL[alert.severity] ?? "admin.severityLow")}
+                    </Badge>
+                  ),
+                  fields: [
+                    {
+                      label: t(locale, "admin.auditResourceId"),
+                      value: (
+                        <IdDisplay
+                          id={alert.ref}
+                          copy={{ label: t(locale, "common.copy"), copiedLabel: t(locale, "common.copied") }}
+                        />
+                      )
+                    }
+                  ]
+                }))}
+              />
+            </Stack>
+
+            <Stack gap="md">
+              <h2 className="ps-section-head__title">{t(locale, "admin.driverKpis")}</h2>
+              <DataTable
+                caption={t(locale, "admin.driverKpis")}
+                state={kpiState}
+                stickyHeader
+                errorMessage={error ?? undefined}
+                onRetry={load}
+                retryLabel={t(locale, "common.retry")}
+                emptyTitle={t(locale, "admin.noData")}
+                emptyDescription={t(locale, "admin.noDataHint")}
+                rows={kpis ?? []}
+                getRowKey={(row) => row.driverId}
+                columns={[
+                  {
+                    key: "driver",
+                    header: t(locale, "admin.driver"),
+                    emphasis: "primary",
+                    render: (row) => (
+                      <IdDisplay
+                        id={row.driverId}
+                        copy={{ label: t(locale, "common.copy"), copiedLabel: t(locale, "common.copied") }}
+                      />
+                    )
+                  },
+                  { key: "onTime", header: t(locale, "driver.kpiOnTime"), align: "end", render: (row) => pct(row.onTimePct) },
+                  {
+                    key: "avgTime",
+                    header: t(locale, "driver.kpiAvgTime"),
+                    align: "end",
+                    render: (row) =>
+                      row.avgTimeToDeliverMin === null ? "—" : <Ltr>{String(row.avgTimeToDeliverMin)}</Ltr>
+                  },
+                  { key: "failed", header: t(locale, "admin.failedPct"), align: "end", render: (row) => pct(row.failedPct) },
+                  {
+                    key: "recon",
+                    header: t(locale, "driver.kpiRecon"),
+                    align: "end",
+                    render: (row) => pct(row.reconAccuracyPct)
+                  },
+                  {
+                    key: "custody",
+                    header: t(locale, "driver.kpiCustody"),
+                    align: "end",
+                    render: (row) => pct(row.custodyOnTimePct)
+                  }
+                ]}
+              />
+            </Stack>
+          </Stack>
+        </Container>
+      </Section>
+    </Page>
   );
 }
 

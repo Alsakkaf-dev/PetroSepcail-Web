@@ -1,0 +1,124 @@
+/* Bars, trends and sparklines. Every one of them is a drawing laid over data
+ * that is still readable as text — no canvas, nothing that a screen reader,
+ * a find-in-page or a printer cannot follow. */
+
+/* ---- Bar --------------------------------------------------------------- */
+
+.ps-bar {
+  display: block;
+  inline-size: 100%;
+  block-size: 0.6rem;
+  border-radius: var(--r-pill);
+  background: var(--bg-warm);
+  overflow: hidden;
+}
+
+.ps-bar__fill {
+  display: block;
+  block-size: 100%;
+  border-radius: var(--r-pill);
+}
+
+.ps-bar__fill--gold {
+  background: var(--gold-metal);
+}
+
+.ps-bar__fill--blue {
+  background: var(--blue-600);
+}
+
+.ps-bar__fill--success {
+  background: var(--success);
+}
+
+.ps-bar__fill--warn {
+  background: var(--warn);
+}
+
+.ps-bar__fill--danger {
+  background: var(--danger);
+}
+
+.ps-bar__fill--muted {
+  background: var(--muted);
+}
+
+/* ---- TrendChart -------------------------------------------------------- */
+
+.ps-trend {
+  inline-size: 100%;
+  border-collapse: collapse;
+}
+
+.ps-trend__caption {
+  margin-block-end: var(--d-3);
+  color: var(--muted);
+  font-size: var(--fs-300);
+  text-align: start;
+}
+
+.ps-trend__row + .ps-trend__row .ps-trend__label,
+.ps-trend__row + .ps-trend__row .ps-trend__cell {
+  padding-block-start: var(--d-2);
+}
+
+.ps-trend__label {
+  padding-inline-end: var(--d-4);
+  color: var(--muted);
+  font-weight: 400;
+  font-size: var(--fs-300);
+  text-align: start;
+  white-space: nowrap;
+}
+
+.ps-trend__cell {
+  inline-size: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--d-3);
+}
+
+.ps-trend__value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* ---- Sparkline --------------------------------------------------------- */
+
+.ps-sparkline {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  block-size: 1.75rem;
+  min-inline-size: 4rem;
+}
+
+.ps-sparkline__bar {
+  inline-size: 0.25rem;
+  border-radius: var(--r-pill);
+}
+
+.ps-sparkline__bar--gold {
+  background: var(--gold-600);
+}
+
+.ps-sparkline__bar--blue {
+  background: var(--blue-600);
+}
+
+.ps-sparkline__bar--success {
+  background: var(--success);
+}
+
+.ps-sparkline__bar--warn {
+  background: var(--warn);
+}
+
+.ps-sparkline__bar--danger {
+  background: var(--danger);
+}
+
+.ps-sparkline__bar--muted {
+  background: var(--muted);
+}
