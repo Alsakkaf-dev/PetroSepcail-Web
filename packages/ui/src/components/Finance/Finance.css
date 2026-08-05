@@ -239,3 +239,84 @@
     gap: var(--d-1);
   }
 }
+
+/* ---- QrPanel (SP-04) --------------------------------------------------- */
+
+.ps-qr {
+  display: grid;
+  gap: var(--d-3);
+  padding: var(--d-5);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+
+.ps-qr__title {
+  margin: 0;
+  font-size: var(--fs-500);
+}
+
+.ps-qr__code {
+  inline-size: 12rem;
+  max-inline-size: 100%;
+}
+
+/* A QR is not a picture of a thing — it never mirrors, and it never inverts.
+   The light square is drawn explicitly rather than inherited, so the quiet
+   zone survives whatever surface the panel is dropped onto. */
+.ps-qr__svg {
+  inline-size: 100%;
+  block-size: auto;
+  display: block;
+}
+
+.ps-qr__quiet {
+  fill: var(--surface);
+}
+
+.ps-qr__modules {
+  fill: var(--ink);
+}
+
+.ps-qr__hint,
+.ps-qr__missing,
+.ps-qr__alt-label {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-300);
+}
+
+.ps-qr__missing {
+  display: flex;
+  align-items: center;
+  gap: var(--d-2);
+  padding: var(--d-4);
+  border-radius: var(--r-sm);
+  background: var(--bg-warm);
+}
+
+.ps-qr__alt {
+  display: grid;
+  gap: var(--d-2);
+  padding-block-start: var(--d-3);
+  border-block-start: 1px solid var(--line-soft);
+}
+
+.ps-qr__uuid {
+  display: grid;
+  gap: var(--d-1);
+  margin: 0;
+}
+
+.ps-qr__uuid dt {
+  color: var(--muted);
+  font-size: var(--fs-300);
+}
+
+.ps-qr__uuid dd {
+  display: flex;
+  align-items: center;
+  gap: var(--d-2);
+  margin: 0;
+  flex-wrap: wrap;
+}

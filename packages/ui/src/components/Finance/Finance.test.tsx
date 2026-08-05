@@ -4,6 +4,7 @@ import "@testing-library/jest-dom/vitest";
 import { FinancePanel } from "./FinancePanel";
 import { CreditHeadroom } from "./CreditHeadroom";
 import { AgingBars } from "./AgingBars";
+import { QrPanel } from "./QrPanel";
 import { structuralSignature, withDocumentDirection } from "../../testing/domSnapshot";
 
 afterEach(cleanup);
@@ -168,5 +169,53 @@ describe("AgingBars", () => {
         ]}
       />
     ));
+  });
+});
+
+const QR_LABELS = {
+  title: "رمز التحقق (ZATCA)",
+  hint: "امسح الرمز للتحقق من الفاتورة",
+  uuidLabel: "المعرّف الضريبي للفاتورة",
+  altLabel: "بديل نصّي",
+  missingLabel: "لم يصدر رمز التحقق بعد"
+};
+
+// A real ZATCA Phase-2 payload shape: base64 TLV. Content is what matters
+// here, not validity — the encoder takes bytes.
+const TLV = "AQ5QZXRyb1NwZWNpYWwCDzMxMDEyMzQ1Njc4OTAwMwMUMjAyNi0wOC0wNVQxMDoxNTowMFoEBjExNS4wMAUFMTUuMDA=";
+
+describe("QrPanel", () => {
+  it("draws a scannable code from the payload, as a named image", () => {
+    const { container } = render(<QrPanel payload={TLV} uuid="11111111-2222-3333-4444-555555555555" {...QR_LABELS} />);
+    const svg = screen.getByRole("img", { name: QR_LABELS.title });
+    expect(svg).toBeInTheDocument();
+    // Non-empty module path — a blank square would render and scan as nothing.
+    expect(container.querySelector(".ps-qr__modules")?.getAttribute("d")?.length ?? 0).toBeGreaterThan(100);
+  });
+
+  it("never emits an xmlns attribute — parity-grep fails the build on any URL in a .tsx", () => {
+    const { container } = render(<QrPanel payload={TLV} uuid="u" {...QR_LABELS} />);
+    expect(container.querySelector("svg")?.hasAttribute("xmlns")).toBe(false);
+  });
+
+  it("carries the identifier as selectable text, not only as a picture", () => {
+    render(<QrPanel payload={TLV} uuid="11111111-2222-3333-4444-555555555555" {...QR_LABELS} />);
+    expect(screen.getByText("11111111-2222-3333-4444-555555555555")).toBeInTheDocument();
+    expect(screen.getByText(QR_LABELS.uuidLabel)).toBeInTheDocument();
+  });
+
+  it("forces the identifier LTR inside Arabic copy", () => {
+    const { container } = render(<QrPanel payload={TLV} uuid="11111111-2222" {...QR_LABELS} />);
+    expect(container.querySelector(".ps-qr__uuid code")).toHaveClass("ps-ltr");
+  });
+
+  it("says the code has not been issued rather than drawing an empty square", () => {
+    const { container } = render(<QrPanel payload={null} uuid={null} {...QR_LABELS} />);
+    expect(screen.getByText(QR_LABELS.missingLabel)).toBeInTheDocument();
+    expect(container.querySelector("svg.ps-qr__svg")).toBeNull();
+  });
+
+  it("renders identical DOM structure across RTL/ar and LTR/en (TC-PC08-002)", () => {
+    parity(() => <QrPanel payload={TLV} uuid="11111111-2222" {...QR_LABELS} copyControl={<button type="button">c</button>} />);
   });
 });

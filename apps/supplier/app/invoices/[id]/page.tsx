@@ -1,10 +1,34 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import {
+  Banner,
+  Breadcrumb,
+  Button,
+  Card,
+  Cluster,
+  Container,
+  CopyButton,
+  DataTable,
+  DateTime,
+  IdDisplay,
+  Ltr,
+  Money,
+  Page,
+  QrPanel,
+  Rail,
+  Section,
+  SectionHead,
+  Skeleton,
+  Stack,
+  StatusBadge,
+  SummaryPanel,
+  TextField
+} from "@petrospecial/ui";
+import { useLocale } from "@petrospecial/app-shell/src/client";
+import { count, messageFor, t } from "@petrospecial/i18n";
 import { authedFetch, getToken } from "../../../lib/authClient";
-import { dirFor, t } from "../../../lib/locale";
-import { useLocale } from "../../../lib/useLocale";
 
 interface InvoiceListItem {
   invoiceId: string;
@@ -31,38 +55,43 @@ interface InvoiceDetail {
   deliveryDate: string | null;
 }
 
+const SETTLED = new Set(["paid", "written_off"]);
+
 function apiUrl(path: string): string {
   const base = process.env.NEXT_PUBLIC_API_URL;
   if (!base) throw new Error("missing required env var NEXT_PUBLIC_API_URL");
   return `${base}${path}`;
 }
 
-// EP-SP-031/033/040 (SP-04/05, S15). UBL is real XML (content-type
-// application/xml) — a plain <a href> can't attach the bearer token
-// (separate origin, D-15), so it's fetched authenticated and handed to the
-// browser as a Blob, same technique apps/admin's CSV export already uses.
+// EP-SP-033 returns real XML with content-type application/xml. A plain
+// <a href> cannot attach the bearer token — the API has been a separate
+// origin since D-15 — so it is fetched authenticated and handed to the
+// browser as a Blob.
 async function downloadUbl(invoiceId: string): Promise<void> {
   const token = window.localStorage.getItem("ps-supplier-token");
   if (!token) return;
-  const res = await fetch(apiUrl(`/api/v1/supplier/invoices/${invoiceId}/ubl`), { headers: { authorization: `Bearer ${token}` } });
+  const res = await fetch(apiUrl(`/api/v1/supplier/invoices/${invoiceId}/ubl`), {
+    headers: { authorization: `Bearer ${token}` }
+  });
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `invoice-${invoiceId}.xml`;
-  a.click();
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `invoice-${invoiceId}.xml`;
+  anchor.click();
   URL.revokeObjectURL(url);
 }
 
+// SCR-SP04-001, the detail half — EP-SP-031/033/040.
+//
+// Was seven inline styles, a raw <table>, the raw status enum, dates through
+// toLocaleDateString() and a literal green "pending verification".
+//
+// The ZATCA QR the spec asks for did not exist at all: `qrTlv` came back in
+// the response and nothing rendered it. It is drawn now, with `zatca_uuid`
+// written out beside it as the text alternative SP-04 requires — the half
+// that survives a photocopy, a screen reader and a phone call to accounts.
 export default function InvoiceDetailPage() {
-  return (
-    <Suspense fallback={null}>
-      <InvoiceDetailPageInner />
-    </Suspense>
-  );
-}
-
-function InvoiceDetailPageInner() {
   const locale = useLocale();
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -70,95 +99,252 @@ function InvoiceDetailPageInner() {
   const [amount, setAmount] = useState("");
   const [bankRef, setBankRef] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!getToken()) {
-      router.push(`/login?lang=${locale}`);
-      return;
-    }
+  const load = useCallback(() => {
+    setError(null);
     authedFetch<InvoiceDetail>(`/api/v1/supplier/invoices/${params.id}`)
       .then((res) => {
         setDetail(res);
         setAmount(res.invoice.openBalance);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : t(locale, "errorGeneric")));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locale, router, params.id]);
+      .catch((thrown) => setError(messageFor(locale, thrown)));
+  }, [locale, params.id]);
 
-  async function submitProof(e: React.FormEvent) {
-    e.preventDefault();
+  useEffect(() => {
+    if (!getToken()) {
+      router.push("/login");
+      return;
+    }
+    load();
+  }, [load, router]);
+
+  async function submitProof(event: React.FormEvent) {
+    event.preventDefault();
+    setBusy(true);
     setError(null);
     try {
-      // Real proof upload needs EP-PC-050 (media upload-url) + a real file
-      // picker — this screen uses the same documented placeholder media id
-      // apps/store's own bank-transfer-proof screen already established
-      // (no file-upload UI wired into any app in this codebase yet).
+      // A real proof upload needs EP-PC-050 (media upload-url) and a file
+      // picker, which is Phase 8's own work. This path carries the amount and
+      // the bank reference, which is the half that already exists.
       await authedFetch(`/api/v1/supplier/invoices/${params.id}/pay-proof`, {
         method: "POST",
-        body: JSON.stringify({ amount: Number(amount), bankRef, proofMediaId: "00000000-0000-0000-0000-000000000000" })
+        body: JSON.stringify({
+          amount: Number(amount),
+          bankRef,
+          proofMediaId: "00000000-0000-0000-0000-000000000000"
+        })
       });
       setSubmitted(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t(locale, "errorGeneric"));
+    } catch (thrown) {
+      setError(messageFor(locale, thrown));
+    } finally {
+      setBusy(false);
     }
   }
 
+  if (!detail) {
+    return (
+      <Page>
+        {error ? (
+          <Banner
+            tone="danger"
+            action={
+              <Button variant="ghost" size="sm" onClick={load}>
+                {t(locale, "common.retry")}
+              </Button>
+            }
+          >
+            {error}
+          </Banner>
+        ) : (
+          <div role="status" aria-live="polite" aria-busy="true">
+            <span className="ps-visually-hidden">{t(locale, "state.loadingLabel")}</span>
+            <Stack gap="md">
+              <Skeleton width="1/3" />
+              <Skeleton variant="block" size="lg" />
+            </Stack>
+          </div>
+        )}
+      </Page>
+    );
+  }
+
+  const settled = SETTLED.has(detail.invoice.status);
 
   return (
-    <main dir={dirFor(locale)} style={{ maxWidth: 700, margin: "0 auto", padding: 24 }}>
-      <h1>{t(locale, "invoiceDetailTitle")}</h1>
-      {error && <p role="alert">{error}</p>}
+    <Page width="flush">
+      <Section air="app" aria-labelledby="invoice-title">
+        <Container width="wide">
+          <Stack gap="lg">
+            <Breadcrumb
+              label={t(locale, "nav.invoices")}
+              items={[
+                { label: t(locale, "nav.dashboard"), href: "/dashboard" },
+                { label: t(locale, "nav.invoices"), href: "/invoices" },
+                { label: t(locale, "supplier.invoiceNumber") }
+              ]}
+            />
 
-      {detail && (
-        <>
-          <p>{t(locale, "statusLabel")} {detail.invoice.status}</p>
-          <p className="ps-ltr">{t(locale, "issuedAtLabel")} {new Date(detail.invoice.issuedAt).toLocaleDateString()}</p>
-          <p className="ps-ltr">{t(locale, "dueAtLabel")} {new Date(detail.invoice.dueAt).toLocaleDateString()}</p>
-          <p className="ps-ltr" style={{ fontWeight: 700 }}>{t(locale, "openBalance")} {detail.invoice.openBalance}</p>
+            <SectionHead
+              level={1}
+              titleId="invoice-title"
+              title={t(locale, "supplier.invoiceNumber")}
+              lead={
+                <IdDisplay
+                  id={detail.invoice.invoiceId}
+                  copy={{ label: t(locale, "common.copy"), copiedLabel: t(locale, "common.copied") }}
+                />
+              }
+              actions={<StatusBadge kind="invoice" value={detail.invoice.status} locale={locale} />}
+            />
 
-          <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 12 }}>
-            <thead>
-              <tr>
-                <th>{locale === "ar" ? "الصنف" : "Item"}</th>
-                <th>{t(locale, "qtyLabel")}</th>
-                <th>{t(locale, "total")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {detail.lines.map((l, i) => (
-                <tr key={i}>
-                  <td>{locale === "ar" ? l.nameAr : l.nameEn}</td>
-                  <td>{l.qty}</td>
-                  <td className="ps-ltr">{l.lineTotal}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            {error ? <Banner tone="danger">{error}</Banner> : null}
 
-          {detail.invoice.zatcaUuid && (
-            // No PDF anchor: /invoices/{id}/pdf is a documented SPEC-GAP
-            // (packages/contracts/src/sp-invoicing.ts's invoicePdfResponse
-            // comment) — it returns a same-origin JSON pointer back to this
-            // same detail endpoint, not real PDF bytes, since no PDF
-            // renderer/object storage is wired anywhere in this codebase yet.
-            // The UBL XML download below is the one real export this screen has.
-            <p style={{ marginTop: 12 }}>
-              <button type="button" onClick={() => downloadUbl(detail.invoice.invoiceId)}>{t(locale, "downloadUbl")}</button>
-            </p>
-          )}
+            <Rail
+              placement="end"
+              rail={
+                <Stack gap="md">
+                  <Card>
+                    <SummaryPanel
+                      label={t(locale, "cart.summary")}
+                      rows={[
+                        {
+                          id: "issued",
+                          label: t(locale, "supplier.issuedAt"),
+                          value: <DateTime iso={detail.invoice.issuedAt} locale={locale} />
+                        },
+                        {
+                          id: "due",
+                          label: t(locale, "supplier.dueAt"),
+                          value: <DateTime iso={detail.invoice.dueAt} locale={locale} />
+                        },
+                        {
+                          id: "total",
+                          label: t(locale, "cart.total"),
+                          value: <Money amount={detail.invoice.total} locale={locale} />
+                        },
+                        {
+                          id: "open",
+                          label: t(locale, "supplier.openBalance"),
+                          value: <Money amount={detail.invoice.openBalance} locale={locale} emphasis="strong" />,
+                          emphasis: "total" as const
+                        }
+                      ]}
+                    >
+                      <Cluster gap="sm">
+                        {/* No PDF control. /invoices/{id}/pdf is a documented
+                            SPEC-GAP that returns a JSON pointer back to this
+                            same endpoint, not PDF bytes — no renderer and no
+                            object storage are wired anywhere yet. A button
+                            that downloads a JSON file named "invoice.pdf" is
+                            worse than no button. */}
+                        <Button variant="ghost" size="sm" onClick={() => downloadUbl(detail.invoice.invoiceId)}>
+                          {t(locale, "supplier.downloadXml")}
+                        </Button>
+                      </Cluster>
+                    </SummaryPanel>
+                  </Card>
 
-          {detail.invoice.status !== "paid" && detail.invoice.status !== "written_off" && (
-            <form onSubmit={submitProof} style={{ display: "grid", gap: 8, marginTop: 16, maxWidth: 320 }}>
-              <h2 style={{ fontSize: 16 }}>{t(locale, "payProof")}</h2>
-              <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={t(locale, "amountLabel")} className="ps-ltr" />
-              <input value={bankRef} onChange={(e) => setBankRef(e.target.value)} placeholder={t(locale, "bankRefLabel")} />
-              <button type="submit">{t(locale, "submitProof")}</button>
-              {submitted && <p style={{ color: "#1a7f4e" }}>{t(locale, "pendingVerification")}</p>}
-            </form>
-          )}
-        </>
-      )}
-    </main>
+                  <QrPanel
+                    payload={detail.qrTlv}
+                    uuid={detail.invoice.zatcaUuid}
+                    title={t(locale, "supplier.qrTitle")}
+                    hint={t(locale, "supplier.qrHint")}
+                    uuidLabel={t(locale, "supplier.zatcaUuid")}
+                    altLabel={t(locale, "supplier.qrTextAlternative")}
+                    missingLabel={t(locale, "supplier.qrMissing")}
+                    copyControl={
+                      detail.invoice.zatcaUuid ? (
+                        <CopyButton
+                          value={detail.invoice.zatcaUuid}
+                          label={t(locale, "common.copy")}
+                          copiedLabel={t(locale, "common.copied")}
+                        />
+                      ) : null
+                    }
+                  />
+
+                  {/* An issued invoice is never edited — it is corrected by a
+                      credit note. Said on the screen, not only in the ledger. */}
+                  <Banner tone="info">{t(locale, "supplier.invoiceImmutable")}</Banner>
+
+                  {!settled ? (
+                    <Card>
+                      {submitted ? (
+                        <Banner tone="success">{t(locale, "orders.pendingVerification")}</Banner>
+                      ) : (
+                        <form onSubmit={submitProof}>
+                          <Stack gap="sm">
+                            <h2 className="ps-section-head__title">{t(locale, "supplier.payInvoice")}</h2>
+                            <TextField
+                              label={t(locale, "form.amount")}
+                              required
+                              forceLtr
+                              inputMode="decimal"
+                              value={amount}
+                              onChange={(event) => setAmount(event.target.value)}
+                            />
+                            <TextField
+                              label={t(locale, "supplier.paymentRef")}
+                              required
+                              forceLtr
+                              value={bankRef}
+                              onChange={(event) => setBankRef(event.target.value)}
+                            />
+                            <Button type="submit" variant="gold" busy={busy}>
+                              {t(locale, "orders.uploadProof")}
+                            </Button>
+                          </Stack>
+                        </form>
+                      )}
+                    </Card>
+                  ) : null}
+                </Stack>
+              }
+            >
+              <DataTable
+                caption={t(locale, "orders.items")}
+                rows={detail.lines}
+                getRowKey={(row) => `${row.nameEn}-${row.qty}-${row.lineTotal}`}
+                columns={[
+                  {
+                    key: "name",
+                    header: t(locale, "orders.items"),
+                    emphasis: "primary",
+                    render: (row) => (locale === "ar" ? row.nameAr : row.nameEn)
+                  },
+                  {
+                    key: "qty",
+                    header: t(locale, "orders.qty"),
+                    align: "end",
+                    render: (row) => <Ltr>{count(row.qty)}</Ltr>
+                  },
+                  {
+                    key: "unitPrice",
+                    header: t(locale, "cart.unitPrice"),
+                    align: "end",
+                    render: (row) => <Money amount={row.unitPrice} locale={locale} />
+                  },
+                  {
+                    key: "vat",
+                    header: t(locale, "cart.vat"),
+                    align: "end",
+                    render: (row) => <Money amount={row.vatAmount} locale={locale} />
+                  },
+                  {
+                    key: "lineTotal",
+                    header: t(locale, "cart.total"),
+                    align: "end",
+                    render: (row) => <Money amount={row.lineTotal} locale={locale} emphasis="strong" />
+                  }
+                ]}
+              />
+            </Rail>
+          </Stack>
+        </Container>
+      </Section>
+    </Page>
   );
 }

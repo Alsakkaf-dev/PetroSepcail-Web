@@ -1,10 +1,28 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import {
+  Banner,
+  Breadcrumb,
+  Button,
+  Card,
+  Container,
+  DateTime,
+  IdDisplay,
+  Page,
+  Section,
+  SectionHead,
+  Skeleton,
+  Stack,
+  StatusBadge,
+  SummaryPanel,
+  Timeline
+} from "@petrospecial/ui";
+import { useLocale } from "@petrospecial/app-shell/src/client";
+import { messageFor, statusLabel, t } from "@petrospecial/i18n";
 import { authedFetch, getToken } from "../../../lib/authClient";
-import { dirFor, t } from "../../../lib/locale";
-import { useLocale } from "../../../lib/useLocale";
 
 interface TrackingResponse {
   status: string;
@@ -19,17 +37,17 @@ interface PodResponse {
   deliveredAt: string;
 }
 
-// EP-SP-060/062 (SP-08, S16) — B2B tracking reuses SF-06's own
-// tracking/POD shapes verbatim (identical underlying delivery tables).
-export default function SupplierOrderTrackingPage() {
-  return (
-    <Suspense fallback={null}>
-      <TrackingPageInner />
-    </Suspense>
-  );
-}
+const DELIVERED = new Set(["delivered", "confirmed_received"]);
 
-function TrackingPageInner() {
+// SCR-SP08-001 — EP-SP-060/062. B2B tracking reuses SF-06's own tracking and
+// POD shapes, since the underlying delivery tables are identical.
+//
+// Was three inline styles printing the raw delivery status, a raw
+// toLocaleString() timestamp and nothing else. The live map the spec calls for
+// is Phase 8 (Map/MapMarker/MapFallbackList); what stands in until then is the
+// textual next-step account that every map on this platform has to ship
+// alongside it anyway.
+export default function SupplierOrderTrackingPage() {
   const locale = useLocale();
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -37,49 +55,137 @@ function TrackingPageInner() {
   const [pod, setPod] = useState<PodResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!getToken()) {
-      router.push(`/login?lang=${locale}`);
-      return;
-    }
+  const load = useCallback(() => {
+    setError(null);
     authedFetch<TrackingResponse>(`/api/v1/supplier/orders/${params.id}/tracking`)
       .then((res) => {
         setTracking(res);
-        if (res.status === "delivered" || res.status === "confirmed_received") {
+        if (DELIVERED.has(res.status)) {
           authedFetch<PodResponse>(`/api/v1/supplier/orders/${params.id}/pod`)
             .then(setPod)
-            .catch(() => {});
+            .catch(() => setPod(null));
         }
       })
-      .catch((err) => setError(err instanceof Error ? err.message : t(locale, "errorGeneric")));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locale, router, params.id]);
+      .catch((thrown) => setError(messageFor(locale, thrown)));
+  }, [locale, params.id]);
 
+  useEffect(() => {
+    if (!getToken()) {
+      router.push("/login");
+      return;
+    }
+    load();
+  }, [load, router]);
 
   return (
-    <main dir={dirFor(locale)} style={{ maxWidth: 700, margin: "0 auto", padding: 24 }}>
-      <h1>{t(locale, "orderTrackingTitle")}</h1>
-      {error && <p role="alert">{error}</p>}
+    <Page width="flush">
+      <Section air="app" aria-labelledby="tracking-title">
+        <Container>
+          <Stack gap="lg">
+            <Breadcrumb
+              label={t(locale, "orders.title")}
+              items={[
+                { label: t(locale, "nav.dashboard"), href: "/dashboard" },
+                { label: t(locale, "orders.title"), href: "/orders" },
+                { label: t(locale, "supplier.trackingTitle") }
+              ]}
+            />
 
-      {tracking && (
-        <div>
-          <p>{t(locale, "statusLabel")} {tracking.status}</p>
-          {tracking.eta && <p>{t(locale, "etaLabel")} {new Date(tracking.eta).toLocaleString()}</p>}
-          {tracking.driver ? (
-            <p>
-              {t(locale, "driverLabel")} {tracking.driver.displayName} {tracking.driver.vehicle ? `(${tracking.driver.vehicle})` : ""}
-            </p>
-          ) : (
-            <p>{t(locale, "noDriverYet")}</p>
-          )}
-          {pod && (
-            <div style={{ marginTop: 16 }}>
-              <p style={{ fontWeight: 700 }}>{t(locale, "podStatus")}</p>
-              <p>{new Date(pod.deliveredAt).toLocaleString()}</p>
-            </div>
-          )}
-        </div>
-      )}
-    </main>
+            <SectionHead
+              level={1}
+              titleId="tracking-title"
+              title={t(locale, "supplier.trackingTitle")}
+              lead={
+                <IdDisplay
+                  id={params.id}
+                  label={t(locale, "orders.orderNumber")}
+                  copy={{ label: t(locale, "common.copy"), copiedLabel: t(locale, "common.copied") }}
+                />
+              }
+              actions={tracking ? <StatusBadge kind="delivery" value={tracking.status} locale={locale} /> : null}
+            />
+
+            {error ? (
+              <Banner
+                tone="danger"
+                action={
+                  <Button variant="ghost" size="sm" onClick={load}>
+                    {t(locale, "common.retry")}
+                  </Button>
+                }
+              >
+                {error}
+              </Banner>
+            ) : null}
+
+            {!tracking && !error ? (
+              <div role="status" aria-live="polite" aria-busy="true">
+                <span className="ps-visually-hidden">{t(locale, "state.loadingLabel")}</span>
+                <Stack gap="md">
+                  <Skeleton width="1/2" />
+                  <Skeleton variant="block" size="md" />
+                </Stack>
+              </div>
+            ) : null}
+
+            {tracking ? (
+              <Stack gap="md">
+                <Card>
+                  <SummaryPanel
+                    label={t(locale, "supplier.trackingTitle")}
+                    rows={[
+                      {
+                        id: "status",
+                        label: t(locale, "orders.timeline"),
+                        value: statusLabel("delivery", locale, tracking.status)
+                      },
+                      {
+                        id: "eta",
+                        label: t(locale, "supplier.eta"),
+                        value: tracking.eta ? <DateTime iso={tracking.eta} locale={locale} /> : "—"
+                      },
+                      {
+                        id: "driver",
+                        label: t(locale, "supplier.driver"),
+                        value: tracking.driver
+                          ? `${tracking.driver.displayName}${tracking.driver.vehicle ? ` — ${tracking.driver.vehicle}` : ""}`
+                          : t(locale, "supplier.noDriverYet")
+                      }
+                    ]}
+                  />
+                </Card>
+
+                {pod ? (
+                  <Card>
+                    <Stack gap="sm">
+                      <h2 className="ps-section-head__title">{t(locale, "driver.capturePod")}</h2>
+                      <Timeline
+                        label={t(locale, "orders.timeline")}
+                        entries={[
+                          {
+                            id: "delivered",
+                            title: statusLabel("delivery", locale, "delivered"),
+                            timestamp: <DateTime iso={pod.deliveredAt} locale={locale} />,
+                            tone: "current"
+                          }
+                        ]}
+                      />
+                    </Stack>
+                  </Card>
+                ) : null}
+
+                <Button variant="ghost" size="sm" onClick={load}>
+                  {t(locale, "common.retry")}
+                </Button>
+              </Stack>
+            ) : null}
+
+            <Link href="/orders" className="ps-datalist__link">
+              {t(locale, "orders.title")}
+            </Link>
+          </Stack>
+        </Container>
+      </Section>
+    </Page>
   );
 }

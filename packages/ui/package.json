@@ -9,7 +9,8 @@
     "tokens:generate": "node ../../scripts/generate-ui-tokens.mjs"
   },
   "dependencies": {
-    "@petrospecial/i18n": "*"
+    "@petrospecial/i18n": "*",
+    "qrcode-generator": "2.0.4"
   },
   "peerDependencies": {
     "react": "^18.3.1",

@@ -1,11 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  Banner,
+  Button,
+  ButtonLink,
+  Cluster,
+  Container,
+  DataTable,
+  DateTime,
+  IdDisplay,
+  Money,
+  Page,
+  Section,
+  SectionHead,
+  Stack,
+  StatusBadge
+} from "@petrospecial/ui";
+import { useLocale } from "@petrospecial/app-shell/src/client";
+import { messageFor, t } from "@petrospecial/i18n";
 import { authedFetch, getToken } from "../../lib/authClient";
-import { dirFor, t } from "../../lib/locale";
-import { useLocale } from "../../lib/useLocale";
 
 interface OrderItem {
   orderId: string;
@@ -24,19 +40,12 @@ interface ReorderDropped {
   reason: "discontinued" | "out_of_stock";
 }
 
-// EP-SP-004/005 (SP-01, S14) + EP-SP-072 (SP-09, S16) — cancel and reorder
-// both act on this list; reorder re-prices at the current tier and drops
-// discontinued/out-of-stock lines with a notice (FR-SP09-002) rather than
-// silently omitting them.
+// SCR-SP08-001's list — EP-SP-004/005 + EP-SP-072. Was a raw <table> with the
+// raw order-status enum in its first column and four inline styles.
+//
+// Reorder re-prices at the current tier and drops discontinued or unavailable
+// lines with a notice rather than silently omitting them (FR-SP09-002).
 export default function OrdersPage() {
-  return (
-    <Suspense fallback={null}>
-      <OrdersPageInner />
-    </Suspense>
-  );
-}
-
-function OrdersPageInner() {
   const locale = useLocale();
   const router = useRouter();
   const [items, setItems] = useState<OrderItem[] | null>(null);
@@ -44,28 +53,29 @@ function OrdersPageInner() {
   const [dropped, setDropped] = useState<ReorderDropped[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  function refresh() {
+  const load = useCallback(() => {
+    setError(null);
+    setItems(null);
     authedFetch<{ items: OrderItem[] }>("/api/v1/supplier/orders?limit=50")
       .then((res) => setItems(res.items))
-      .catch((err) => setError(err instanceof Error ? err.message : t(locale, "errorGeneric")));
-  }
+      .catch((thrown) => setError(messageFor(locale, thrown)));
+  }, [locale]);
 
   useEffect(() => {
     if (!getToken()) {
-      router.push(`/login?lang=${locale}`);
+      router.push("/login");
       return;
     }
-    refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locale, router]);
+    load();
+  }, [load, router]);
 
   async function cancelOrder(orderId: string) {
     setBusyId(orderId);
     try {
       await authedFetch(`/api/v1/supplier/orders/${orderId}/cancel`, { method: "POST" });
-      refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t(locale, "errorGeneric"));
+      load();
+    } catch (thrown) {
+      setError(messageFor(locale, thrown));
     } finally {
       setBusyId(null);
     }
@@ -80,60 +90,111 @@ function OrdersPageInner() {
         { method: "POST" }
       );
       for (const line of result.lines) {
-        await authedFetch("/api/v1/supplier/cart", { method: "POST", body: JSON.stringify({ packSizeId: line.packSizeId, qty: line.qty }) });
+        await authedFetch("/api/v1/supplier/cart", {
+          method: "POST",
+          body: JSON.stringify({ packSizeId: line.packSizeId, qty: line.qty })
+        });
       }
       setDropped(result.dropped);
-      router.push(`/cart?lang=${locale}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t(locale, "errorGeneric"));
+      router.push("/cart");
+    } catch (thrown) {
+      setError(messageFor(locale, thrown));
     } finally {
       setBusyId(null);
     }
   }
 
+  const state = error ? "error" : items === null ? "loading" : items.length === 0 ? "empty" : "ready";
 
   return (
-    <main dir={dirFor(locale)} style={{ maxWidth: 900, margin: "0 auto", padding: 24 }}>
-      <h1>{t(locale, "ordersTitle")}</h1>
-      {error && <p role="alert">{error}</p>}
-      {dropped.length > 0 && (
-        <p style={{ color: "var(--flame, #b45309)" }}>
-          {t(locale, "droppedLinesNotice")} ({dropped.map((d) => d.skuSlug).join(", ")})
-        </p>
-      )}
+    <Page width="flush">
+      <Section air="app" aria-labelledby="orders-title">
+        <Container width="wide">
+          <Stack gap="lg">
+            <SectionHead level={1} titleId="orders-title" title={t(locale, "orders.title")} />
 
-      {items && items.length === 0 && <p>{t(locale, "noOrders")}</p>}
+            {dropped.length > 0 ? (
+              <Banner tone="warn" title={t(locale, "supplier.templateDropped")}>
+                <span className="ps-ltr">{dropped.map((line) => line.skuSlug).join(", ")}</span>
+              </Banner>
+            ) : null}
 
-      {items && items.length > 0 && (
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr>
-              <th>{t(locale, "statusLabel")}</th>
-              <th>{t(locale, "total")}</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((o) => (
-              <tr key={o.orderId}>
-                <td>{o.status}</td>
-                <td className="ps-ltr">{o.total}</td>
-                <td style={{ display: "flex", gap: 8 }}>
-                  <Link href={`/orders/${o.orderId}?lang=${locale}`}>{t(locale, "viewTracking")}</Link>
-                  <button type="button" disabled={busyId === o.orderId} onClick={() => reorder(o.orderId)}>
-                    {t(locale, "reorder")}
-                  </button>
-                  {o.status === "pending_payment" && (
-                    <button type="button" disabled={busyId === o.orderId} onClick={() => cancelOrder(o.orderId)}>
-                      {t(locale, "cancelOrder")}
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </main>
+            <DataTable
+              caption={t(locale, "orders.title")}
+              state={state}
+              stickyHeader
+              errorMessage={error ?? undefined}
+              onRetry={load}
+              retryLabel={t(locale, "common.retry")}
+              emptyTitle={t(locale, "orders.empty")}
+              emptyAction={
+                <ButtonLink linkAs={Link} href="/catalog" variant="gold">
+                  {t(locale, "nav.catalog")}
+                </ButtonLink>
+              }
+              rows={items ?? []}
+              getRowKey={(row) => row.orderId}
+              columns={[
+                {
+                  key: "orderId",
+                  header: t(locale, "orders.orderNumber"),
+                  emphasis: "primary",
+                  render: (row) => (
+                    <IdDisplay
+                      id={row.orderId}
+                      copy={{ label: t(locale, "common.copy"), copiedLabel: t(locale, "common.copied") }}
+                    />
+                  )
+                },
+                {
+                  key: "status",
+                  header: t(locale, "orders.timeline"),
+                  render: (row) => <StatusBadge kind="order" value={row.status} locale={locale} />
+                },
+                {
+                  key: "placedAt",
+                  header: t(locale, "orders.placedAt"),
+                  render: (row) => <DateTime iso={row.placedAt} locale={locale} />
+                },
+                {
+                  key: "total",
+                  header: t(locale, "cart.total"),
+                  align: "end",
+                  render: (row) => <Money amount={row.total} locale={locale} emphasis="strong" />
+                },
+                {
+                  key: "actions",
+                  header: t(locale, "common.showMore"),
+                  headerHidden: true,
+                  align: "end",
+                  render: (row) => (
+                    <Cluster gap="sm" justify="end">
+                      <ButtonLink linkAs={Link} href={`/orders/${row.orderId}`} variant="ghost" size="sm">
+                        {t(locale, "orders.track")}
+                      </ButtonLink>
+                      <Button variant="ghost" size="sm" busy={busyId === row.orderId} onClick={() => reorder(row.orderId)}>
+                        {t(locale, "orders.reorder")}
+                      </Button>
+                      {/* Cancel is absent, not disabled, once the order has
+                          moved past payment — there is no state behind it. */}
+                      {row.status === "pending_payment" ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          busy={busyId === row.orderId}
+                          onClick={() => cancelOrder(row.orderId)}
+                        >
+                          {t(locale, "orders.cancel")}
+                        </Button>
+                      ) : null}
+                    </Cluster>
+                  )
+                }
+              ]}
+            />
+          </Stack>
+        </Container>
+      </Section>
+    </Page>
   );
 }

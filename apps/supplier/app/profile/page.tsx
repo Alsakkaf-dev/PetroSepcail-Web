@@ -1,10 +1,27 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  Badge,
+  Banner,
+  Button,
+  Card,
+  Cluster,
+  Container,
+  Icon,
+  Ltr,
+  Money,
+  Page,
+  Section,
+  SectionHead,
+  Skeleton,
+  Stack,
+  TextField
+} from "@petrospecial/ui";
+import { useLocale } from "@petrospecial/app-shell/src/client";
+import { messageFor, t } from "@petrospecial/i18n";
 import { authedFetch, getToken } from "../../lib/authClient";
-import { dirFor, t } from "../../lib/locale";
-import { useLocale } from "../../lib/useLocale";
 
 interface ProfileResponse {
   businessNameAr: string;
@@ -16,18 +33,16 @@ interface ProfileResponse {
   bank: { name: string | null; ibanMasked: string | null };
 }
 
-// EP-SP-010/011 (SP-01, S14) — tier/creditLimit/isPickupPoint are
-// admin-only (AC-03); this screen only ever submits contact+bank fields,
-// enforced structurally server-side too (PATCH rejects those keys 403).
+// SCR-SP01-003 — EP-SP-010/011.
+//
+// Tier, credit limit and pickup-point status are admin-owned (AC-03); a PATCH
+// carrying any of them is rejected 403 server-side. They are therefore shown
+// as facts with no control on them and a line saying who sets them — rather
+// than as greyed-out fields somebody will keep trying to click.
+//
+// Was six inline styles, a literal #666 for the masked IBAN, unlabelled
+// placeholder-only inputs and a literal green tick for "saved".
 export default function ProfilePage() {
-  return (
-    <Suspense fallback={null}>
-      <ProfilePageInner />
-    </Suspense>
-  );
-}
-
-function ProfilePageInner() {
   const locale = useLocale();
   const router = useRouter();
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
@@ -36,13 +51,11 @@ function ProfilePageInner() {
   const [bankName, setBankName] = useState("");
   const [iban, setIban] = useState("");
   const [saved, setSaved] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!getToken()) {
-      router.push(`/login?lang=${locale}`);
-      return;
-    }
+  const load = useCallback(() => {
+    setError(null);
     authedFetch<ProfileResponse>("/api/v1/supplier/profile")
       .then((res) => {
         setProfile(res);
@@ -50,12 +63,20 @@ function ProfilePageInner() {
         setBusinessNameEn(res.businessNameEn);
         setBankName(res.bank.name ?? "");
       })
-      .catch((err) => setError(err instanceof Error ? err.message : t(locale, "errorGeneric")));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locale, router]);
+      .catch((thrown) => setError(messageFor(locale, thrown)));
+  }, [locale]);
 
-  async function save(e: React.FormEvent) {
-    e.preventDefault();
+  useEffect(() => {
+    if (!getToken()) {
+      router.push("/login");
+      return;
+    }
+    load();
+  }, [load, router]);
+
+  async function save(event: React.FormEvent) {
+    event.preventDefault();
+    setBusy(true);
     setSaved(false);
     setError(null);
     try {
@@ -67,40 +88,129 @@ function ProfilePageInner() {
         })
       });
       setSaved(true);
+      // The full IBAN is never held on screen after it is sent — the response
+      // gives back a masked one, and that is what the account should show.
       setIban("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t(locale, "errorGeneric"));
+      load();
+    } catch (thrown) {
+      setError(messageFor(locale, thrown));
+    } finally {
+      setBusy(false);
     }
   }
 
-
   return (
-    <main dir={dirFor(locale)} style={{ maxWidth: 600, margin: "0 auto", padding: 24 }}>
-      <h1>{t(locale, "profileTitle")}</h1>
-      {error && <p role="alert">{error}</p>}
+    <Page width="flush">
+      <Section air="app" aria-labelledby="profile-title">
+        <Container>
+          <Stack gap="lg">
+            <SectionHead level={1} titleId="profile-title" title={t(locale, "nav.profile")} />
 
-      {profile && (
-        <>
-          <p>
-            {t(locale, "tierLabel")}: {profile.tier} — {t(locale, "headroomLabel")}: <span className="ps-ltr">{profile.creditLimit}</span>
-          </p>
-          {profile.isPickupPoint && <p>{t(locale, "pickupPointLabel")}</p>}
+            {error ? (
+              <Banner
+                tone="danger"
+                action={
+                  <Button variant="ghost" size="sm" onClick={load}>
+                    {t(locale, "common.retry")}
+                  </Button>
+                }
+              >
+                {error}
+              </Banner>
+            ) : null}
 
-          <form onSubmit={save} style={{ display: "grid", gap: 12, marginTop: 16 }}>
-            <h2 style={{ fontSize: 16 }}>{t(locale, "contactSectionTitle")}</h2>
-            <input value={businessNameAr} onChange={(e) => setBusinessNameAr(e.target.value)} placeholder={t(locale, "businessNameArLabel")} />
-            <input value={businessNameEn} onChange={(e) => setBusinessNameEn(e.target.value)} placeholder={t(locale, "businessNameEnLabel")} />
+            {!profile && !error ? (
+              <div role="status" aria-live="polite" aria-busy="true">
+                <span className="ps-visually-hidden">{t(locale, "state.loadingLabel")}</span>
+                <Stack gap="md">
+                  <Skeleton variant="block" size="md" />
+                  <Skeleton variant="block" size="lg" />
+                </Stack>
+              </div>
+            ) : null}
 
-            <h2 style={{ fontSize: 16 }}>{t(locale, "bankSectionTitle")}</h2>
-            <p className="ps-ltr" style={{ fontSize: 13, color: "#666" }}>{profile.bank.ibanMasked ?? "—"}</p>
-            <input value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder={t(locale, "bankNameLabel")} />
-            <input value={iban} onChange={(e) => setIban(e.target.value)} placeholder={t(locale, "ibanLabel")} className="ps-ltr" />
+            {profile ? (
+              <Stack gap="lg">
+                <Card>
+                  <Stack gap="md">
+                    <Cluster gap="sm">
+                      <Badge variant="gold">
+                        {t(locale, "supplier.tier")}: {profile.tier}
+                      </Badge>
+                      <Badge variant="neutral">
+                        {t(locale, "supplier.creditLimit")}: <Money amount={profile.creditLimit} locale={locale} />
+                      </Badge>
+                      {profile.isPickupPoint ? (
+                        <Badge variant="blue">
+                          <Icon name="package" size="sm" />
+                          {t(locale, "supplier.pickupPoint")}
+                        </Badge>
+                      ) : null}
+                    </Cluster>
+                    <p className="ps-line-note ps-line-note--muted">{t(locale, "supplier.profileReadOnly")}</p>
+                  </Stack>
+                </Card>
 
-            <button type="submit">{t(locale, "save")}</button>
-            {saved && <p style={{ color: "#1a7f4e" }}>✓</p>}
-          </form>
-        </>
-      )}
-    </main>
+                <Card>
+                  <form onSubmit={save}>
+                    <Stack gap="md">
+                      <h2 className="ps-section-head__title">{t(locale, "supplier.contactSection")}</h2>
+                      <TextField
+                        label={t(locale, "supplier.businessNameAr")}
+                        required
+                        value={businessNameAr}
+                        onChange={(event) => setBusinessNameAr(event.target.value)}
+                      />
+                      <TextField
+                        label={t(locale, "supplier.businessNameEn")}
+                        required
+                        forceLtr
+                        value={businessNameEn}
+                        onChange={(event) => setBusinessNameEn(event.target.value)}
+                      />
+
+                      <h2 className="ps-section-head__title">{t(locale, "supplier.bankSection")}</h2>
+                      <Stack gap="xs">
+                        <p className="ps-eyebrow">{t(locale, "supplier.ibanMasked")}</p>
+                        {/* A masked IBAN is still an IBAN: forced LTR, or the
+                            digits reorder inside Arabic copy. */}
+                        <Ltr as="code">{profile.bank.ibanMasked ?? "—"}</Ltr>
+                      </Stack>
+                      <TextField
+                        label={t(locale, "supplier.bankName")}
+                        value={bankName}
+                        onChange={(event) => setBankName(event.target.value)}
+                      />
+                      <TextField
+                        label={t(locale, "orders.iban")}
+                        hint={t(locale, "common.optional")}
+                        forceLtr
+                        autoComplete="off"
+                        value={iban}
+                        onChange={(event) => setIban(event.target.value)}
+                      />
+
+                      <Cluster gap="sm">
+                        <Button type="submit" variant="gold" busy={busy}>
+                          {t(locale, "common.save")}
+                        </Button>
+                        {saved ? (
+                          <span role="status">
+                            <Badge variant="success">
+                              <Icon name="check-circle" size="sm" />
+                              {t(locale, "common.saved")}
+                            </Badge>
+                          </span>
+                        ) : null}
+                      </Cluster>
+                    </Stack>
+                  </form>
+                </Card>
+              </Stack>
+            ) : null}
+          </Stack>
+        </Container>
+      </Section>
+    </Page>
   );
 }

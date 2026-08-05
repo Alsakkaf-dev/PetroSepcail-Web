@@ -1,11 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  Banner,
+  ButtonLink,
+  Container,
+  DataTable,
+  DateTime,
+  IdDisplay,
+  Money,
+  Page,
+  Section,
+  SectionHead,
+  Stack,
+  StatusBadge
+} from "@petrospecial/ui";
+import { useLocale } from "@petrospecial/app-shell/src/client";
+import { messageFor, t } from "@petrospecial/i18n";
 import { authedFetch, getToken } from "../../lib/authClient";
-import { dirFor, t } from "../../lib/locale";
-import { useLocale } from "../../lib/useLocale";
 
 interface InvoiceItem {
   invoiceId: string;
@@ -18,64 +32,113 @@ interface InvoiceItem {
   zatcaUuid: string | null;
 }
 
-// EP-SP-030 (SP-04, S15).
+// SCR-SP04-001, the list half — EP-SP-030. Was a raw <table> printing each
+// invoice's raw UUID and its raw status enum, with dates through
+// toLocaleDateString() and amounts with no currency at all.
 export default function InvoicesPage() {
-  return (
-    <Suspense fallback={null}>
-      <InvoicesPageInner />
-    </Suspense>
-  );
-}
-
-function InvoicesPageInner() {
   const locale = useLocale();
   const router = useRouter();
   const [items, setItems] = useState<InvoiceItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!getToken()) {
-      router.push(`/login?lang=${locale}`);
-      return;
-    }
+  const load = useCallback(() => {
+    setError(null);
+    setItems(null);
     authedFetch<{ items: InvoiceItem[] }>("/api/v1/supplier/invoices?limit=50")
       .then((res) => setItems(res.items))
-      .catch((err) => setError(err instanceof Error ? err.message : t(locale, "errorGeneric")));
-  }, [locale, router]);
+      .catch((thrown) => setError(messageFor(locale, thrown)));
+  }, [locale]);
 
+  useEffect(() => {
+    if (!getToken()) {
+      router.push("/login");
+      return;
+    }
+    load();
+  }, [load, router]);
+
+  const state = error ? "error" : items === null ? "loading" : items.length === 0 ? "empty" : "ready";
 
   return (
-    <main dir={dirFor(locale)} style={{ maxWidth: 900, margin: "0 auto", padding: 24 }}>
-      <h1>{t(locale, "invoicesTitle")}</h1>
-      {error && <p role="alert">{error}</p>}
-      {items && items.length === 0 && <p>{t(locale, "noInvoices")}</p>}
+    <Page width="flush">
+      <Section air="app" aria-labelledby="invoices-title">
+        <Container width="wide">
+          <Stack gap="lg">
+            <SectionHead level={1} titleId="invoices-title" title={t(locale, "nav.invoices")} />
 
-      {items && items.length > 0 && (
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr>
-              <th>{t(locale, "statusLabel")}</th>
-              <th>{t(locale, "total")}</th>
-              <th>{t(locale, "openBalance")}</th>
-              <th>{t(locale, "dueAtLabel")}</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((inv) => (
-              <tr key={inv.invoiceId}>
-                <td>{inv.status}</td>
-                <td className="ps-ltr">{inv.total}</td>
-                <td className="ps-ltr">{inv.openBalance}</td>
-                <td>{new Date(inv.dueAt).toLocaleDateString()}</td>
-                <td>
-                  <Link href={`/invoices/${inv.invoiceId}?lang=${locale}`}>{t(locale, "invoiceDetailTitle")}</Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </main>
+            <Banner tone="info">{t(locale, "supplier.invoiceImmutable")}</Banner>
+
+            <DataTable
+              caption={t(locale, "nav.invoices")}
+              state={state}
+              stickyHeader
+              errorMessage={error ?? undefined}
+              onRetry={load}
+              retryLabel={t(locale, "common.retry")}
+              emptyTitle={t(locale, "supplier.noInvoices")}
+              emptyDescription={t(locale, "supplier.noInvoicesHint")}
+              emptyAction={
+                <ButtonLink linkAs={Link} href="/catalog" variant="gold">
+                  {t(locale, "nav.catalog")}
+                </ButtonLink>
+              }
+              rows={items ?? []}
+              getRowKey={(row) => row.invoiceId}
+              columns={[
+                {
+                  key: "invoiceId",
+                  header: t(locale, "supplier.invoiceNumber"),
+                  emphasis: "primary",
+                  render: (row) => (
+                    <IdDisplay
+                      id={row.invoiceId}
+                      copy={{ label: t(locale, "common.copy"), copiedLabel: t(locale, "common.copied") }}
+                    />
+                  )
+                },
+                {
+                  key: "status",
+                  header: t(locale, "supplier.openInvoices"),
+                  render: (row) => <StatusBadge kind="invoice" value={row.status} locale={locale} />
+                },
+                {
+                  key: "issuedAt",
+                  header: t(locale, "supplier.issuedAt"),
+                  render: (row) => <DateTime iso={row.issuedAt} locale={locale} />
+                },
+                {
+                  key: "dueAt",
+                  header: t(locale, "supplier.dueAt"),
+                  render: (row) => <DateTime iso={row.dueAt} locale={locale} />
+                },
+                {
+                  key: "total",
+                  header: t(locale, "cart.total"),
+                  align: "end",
+                  render: (row) => <Money amount={row.total} locale={locale} />
+                },
+                {
+                  key: "openBalance",
+                  header: t(locale, "supplier.openBalance"),
+                  align: "end",
+                  render: (row) => <Money amount={row.openBalance} locale={locale} emphasis="strong" />
+                },
+                {
+                  key: "actions",
+                  header: t(locale, "common.showMore"),
+                  headerHidden: true,
+                  align: "end",
+                  render: (row) => (
+                    <ButtonLink linkAs={Link} href={`/invoices/${row.invoiceId}`} variant="ghost" size="sm">
+                      {t(locale, "common.showMore")}
+                    </ButtonLink>
+                  )
+                }
+              ]}
+            />
+          </Stack>
+        </Container>
+      </Section>
+    </Page>
   );
 }

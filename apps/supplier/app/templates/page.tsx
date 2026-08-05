@@ -1,10 +1,24 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  Banner,
+  Button,
+  Card,
+  Cluster,
+  Container,
+  DataList,
+  Ltr,
+  Page,
+  Section,
+  SectionHead,
+  Stack,
+  TextField
+} from "@petrospecial/ui";
+import { useLocale } from "@petrospecial/app-shell/src/client";
+import { count, messageFor, t } from "@petrospecial/i18n";
 import { authedFetch, getToken } from "../../lib/authClient";
-import { dirFor, t } from "../../lib/locale";
-import { useLocale } from "../../lib/useLocale";
 
 interface TemplateLine {
   packSizeId: string;
@@ -24,19 +38,14 @@ interface ReorderDropped {
   reason: "discontinued" | "out_of_stock";
 }
 
-// EP-SP-070/071 (SP-09, S16) — templates store no price (FR-SP09-001),
-// re-priced fresh at reorder. "Create template" saves the current cart's
-// lines under a name — reuses the cart the supplier already built instead
-// of duplicating the catalog picker UI on this screen too.
+// SCR-SP09-001 — EP-SP-070/071. Templates store no price (FR-SP09-001): they
+// are re-priced at the current tier every time they are used, which is what
+// the note under the heading says rather than leaving it to be discovered.
+//
+// Was six inline styles, literal #ddd borders and a `var(--flame, #b45309)`
+// fallback colour for the dropped-lines notice — a token with a hardcoded
+// escape hatch behind it.
 export default function TemplatesPage() {
-  return (
-    <Suspense fallback={null}>
-      <TemplatesPageInner />
-    </Suspense>
-  );
-}
-
-function TemplatesPageInner() {
   const locale = useLocale();
   const router = useRouter();
   const [items, setItems] = useState<TemplateItem[] | null>(null);
@@ -44,40 +53,50 @@ function TemplatesPageInner() {
   const [error, setError] = useState<string | null>(null);
   const [dropped, setDropped] = useState<ReorderDropped[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
 
-  function refresh() {
+  const load = useCallback(() => {
+    setError(null);
     authedFetch<{ items: TemplateItem[] }>("/api/v1/supplier/templates")
       .then((res) => setItems(res.items))
-      .catch((err) => setError(err instanceof Error ? err.message : t(locale, "errorGeneric")));
-  }
+      .catch((thrown) => setError(messageFor(locale, thrown)));
+  }, [locale]);
 
   useEffect(() => {
     if (!getToken()) {
-      router.push(`/login?lang=${locale}`);
+      router.push("/login");
       return;
     }
-    refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locale, router]);
+    load();
+  }, [load, router]);
 
-  async function createFromCart(e: React.FormEvent) {
-    e.preventDefault();
+  // Saving the current cart under a name reuses the cart the distributor has
+  // already built, rather than duplicating the catalogue picker on this screen
+  // as well.
+  async function createFromCart(event: React.FormEvent) {
+    event.preventDefault();
     if (!name.trim()) return;
+    setCreating(true);
     setError(null);
     try {
       const cart = await authedFetch<{ lines: CartLine[] }>("/api/v1/supplier/cart");
       if (cart.lines.length === 0) {
-        setError(t(locale, "cartEmpty"));
+        setError(t(locale, "cart.empty"));
         return;
       }
       await authedFetch("/api/v1/supplier/templates", {
         method: "POST",
-        body: JSON.stringify({ name, lines: cart.lines.map((l) => ({ packSizeId: l.packSizeId, qty: l.qty })) })
+        body: JSON.stringify({
+          name: name.trim(),
+          lines: cart.lines.map((line) => ({ packSizeId: line.packSizeId, qty: line.qty }))
+        })
       });
       setName("");
-      refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t(locale, "errorGeneric"));
+      load();
+    } catch (thrown) {
+      setError(messageFor(locale, thrown));
+    } finally {
+      setCreating(false);
     }
   }
 
@@ -85,9 +104,9 @@ function TemplatesPageInner() {
     setBusyId(id);
     try {
       await authedFetch(`/api/v1/supplier/templates/${id}`, { method: "DELETE" });
-      refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t(locale, "errorGeneric"));
+      load();
+    } catch (thrown) {
+      setError(messageFor(locale, thrown));
     } finally {
       setBusyId(null);
     }
@@ -102,54 +121,93 @@ function TemplatesPageInner() {
         { method: "POST" }
       );
       for (const line of result.lines) {
-        await authedFetch("/api/v1/supplier/cart", { method: "POST", body: JSON.stringify({ packSizeId: line.packSizeId, qty: line.qty }) });
+        await authedFetch("/api/v1/supplier/cart", {
+          method: "POST",
+          body: JSON.stringify({ packSizeId: line.packSizeId, qty: line.qty })
+        });
       }
       setDropped(result.dropped);
-      router.push(`/cart?lang=${locale}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t(locale, "errorGeneric"));
+      router.push("/cart");
+    } catch (thrown) {
+      setError(messageFor(locale, thrown));
     } finally {
       setBusyId(null);
     }
   }
 
+  const state = error ? "error" : items === null ? "loading" : items.length === 0 ? "empty" : "ready";
 
   return (
-    <main dir={dirFor(locale)} style={{ maxWidth: 700, margin: "0 auto", padding: 24 }}>
-      <h1>{t(locale, "templatesTitle")}</h1>
-      {error && <p role="alert">{error}</p>}
-      {dropped.length > 0 && (
-        <p style={{ color: "var(--flame, #b45309)" }}>
-          {t(locale, "droppedLinesNotice")} ({dropped.map((d) => d.skuSlug).join(", ")})
-        </p>
-      )}
+    <Page width="flush">
+      <Section air="app" aria-labelledby="templates-title">
+        <Container>
+          <Stack gap="lg">
+            <SectionHead
+              level={1}
+              titleId="templates-title"
+              title={t(locale, "nav.templates")}
+              lead={t(locale, "supplier.templateRepriced")}
+            />
 
-      <form onSubmit={createFromCart} style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t(locale, "templateName")} />
-        <button type="submit">{t(locale, "createTemplate")}</button>
-      </form>
+            {dropped.length > 0 ? (
+              <Banner tone="warn" title={t(locale, "supplier.templateDropped")}>
+                <Ltr>{dropped.map((line) => line.skuSlug).join(", ")}</Ltr>
+              </Banner>
+            ) : null}
 
-      {items && items.length === 0 && <p>{t(locale, "noTemplates")}</p>}
+            <Card>
+              <form onSubmit={createFromCart}>
+                <Cluster gap="md" align="end">
+                  <TextField
+                    label={t(locale, "supplier.templateName")}
+                    required
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
+                  />
+                  <Button type="submit" variant="gold" busy={creating}>
+                    {t(locale, "supplier.createTemplate")}
+                  </Button>
+                </Cluster>
+              </form>
+            </Card>
 
-      {items && items.length > 0 && (
-        <ul style={{ listStyle: "none", padding: 0, display: "grid", gap: 8 }}>
-          {items.map((tpl) => (
-            <li key={tpl.templateId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", border: "1px solid #ddd", borderRadius: 8, padding: 12 }}>
-              <span>
-                {tpl.name} ({tpl.lines.length})
-              </span>
-              <span style={{ display: "flex", gap: 8 }}>
-                <button type="button" disabled={busyId === tpl.templateId} onClick={() => reorderFromTemplate(tpl.templateId)}>
-                  {t(locale, "reorderAction")}
-                </button>
-                <button type="button" disabled={busyId === tpl.templateId} onClick={() => deleteTemplate(tpl.templateId)}>
-                  {t(locale, "remove")}
-                </button>
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </main>
+            <DataList
+              label={t(locale, "nav.templates")}
+              state={state}
+              errorMessage={error ?? undefined}
+              onRetry={load}
+              retryLabel={t(locale, "common.retry")}
+              emptyTitle={t(locale, "supplier.noTemplates")}
+              emptyDescription={t(locale, "supplier.noTemplatesHint")}
+              items={(items ?? []).map((template) => ({
+                id: template.templateId,
+                title: template.name,
+                fields: [{ label: t(locale, "orders.items"), value: <Ltr>{count(template.lines.length)}</Ltr> }],
+                actions: (
+                  <Cluster gap="sm">
+                    <Button
+                      variant="gold"
+                      size="sm"
+                      busy={busyId === template.templateId}
+                      onClick={() => reorderFromTemplate(template.templateId)}
+                    >
+                      {t(locale, "supplier.reorderFromTemplate")}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      busy={busyId === template.templateId}
+                      onClick={() => deleteTemplate(template.templateId)}
+                    >
+                      {t(locale, "common.remove")}
+                    </Button>
+                  </Cluster>
+                )
+              }))}
+            />
+          </Stack>
+        </Container>
+      </Section>
+    </Page>
   );
 }
