@@ -9,6 +9,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import EmbeddedPostgres from "embedded-postgres";
+import { Client } from "pg";
 
 export interface EphemeralPostgres {
   dbUrl: string;
@@ -33,6 +34,19 @@ export async function startEphemeralPostgres(port: number): Promise<EphemeralPos
   await pg.start();
 
   const dbUrl = `postgres://postgres:${password}@127.0.0.1:${port}/postgres`;
+
+  // Supabase pre-provisions every project with an `extensions` schema before
+  // any of our own migrations run (0033's own comment documents this: pgcrypto
+  // lives in `extensions` on the real deployment, `public` on a fresh local
+  // Postgres). 0072 grants `usage on schema extensions`, which fails outright
+  // if the schema doesn't exist at all - it's never been exercised against a
+  // truly fresh Postgres before now. Replicate Supabase's pre-provisioning
+  // rather than editing the already-applied 0072 (GIT-COMMIT-LAW: never edit
+  // an applied migration).
+  const bootstrap = new Client({ connectionString: dbUrl });
+  await bootstrap.connect();
+  await bootstrap.query("create schema if not exists extensions;");
+  await bootstrap.end();
 
   execFileSync(
     "npx",

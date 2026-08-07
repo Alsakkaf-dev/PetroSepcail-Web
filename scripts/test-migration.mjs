@@ -31,6 +31,18 @@ async function main() {
   await pg.start();
 
   try {
+    // Supabase pre-provisions every project with an `extensions` schema
+    // before any of our own migrations run (0033's own comment documents
+    // this). 0072 grants `usage on schema extensions`, which fails outright
+    // if the schema doesn't exist - replicate Supabase's pre-provisioning
+    // rather than editing the already-applied 0072.
+    const bootstrap = new Client({
+      connectionString: `postgres://postgres:${PASSWORD}@127.0.0.1:${PORT}/postgres`
+    });
+    await bootstrap.connect();
+    await bootstrap.query("create schema if not exists extensions;");
+    await bootstrap.end();
+
     execFileSync(
       "npx",
       ["node-pg-migrate", "-m", "db/migrations", "--migration-file-language", "sql", "up"],
