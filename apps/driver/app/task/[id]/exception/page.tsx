@@ -21,8 +21,9 @@ import {
 } from "@petrospecial/ui";
 import { useLocale } from "@petrospecial/app-shell/src/client";
 import { messageFor, t, type StringKey } from "@petrospecial/i18n";
-import { authedFetch } from "../../../../lib/authClient";
-import { uploadFile } from "../../../../lib/uploadFile";
+import { QUEUED_MEDIA } from "../../../../lib/actionQueue";
+import { sendOrQueue } from "../../../../lib/syncClient";
+import { OfflineNotice } from "../../../../components/OfflineNotice";
 
 /** EP-DL-060's fixed list. `other` is the only one that needs a note, and the
  * gate is what enforces that rather than a hopeful placeholder. */
@@ -52,29 +53,18 @@ export default function ExceptionPage() {
   const params = useParams<{ id: string }>();
   const [reason, setReason] = useState("");
   const [note, setNote] = useState("");
-  const [photoMediaId, setPhotoMediaId] = useState("");
-  const [photoName, setPhotoName] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [queued, setQueued] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const pickPhoto = useCallback(
-    async (files: File[]) => {
-      const file = files[0];
-      if (!file) return;
-      setUploading(true);
-      setError(null);
-      try {
-        setPhotoMediaId(await uploadFile(file, "pod_photo"));
-        setPhotoName(file.name);
-      } catch (thrown) {
-        setError(messageFor(locale, thrown));
-      } finally {
-        setUploading(false);
-      }
-    },
-    [locale]
-  );
+  /** Held rather than uploaded on selection. An exception filed in a dead spot
+   * keeps its photo and reaches the server whole, later. */
+  const pickPhoto = useCallback((files: File[]) => {
+    const file = files[0];
+    if (file) setPhotoFile(file);
+  }, []);
 
   const options = REASONS.map((r) => ({
     value: r.value,
@@ -85,29 +75,37 @@ export default function ExceptionPage() {
   const submit = useCallback(async () => {
     if (!reason) return;
     setBusy(true);
+    setUploading(Boolean(photoFile));
     setError(null);
     try {
-      await authedFetch(`/api/v1/driver/tasks/${params.id}/fail`, {
-        method: "POST",
-        body: JSON.stringify({
+      const outcome = await sendOrQueue(
+        `/api/v1/driver/tasks/${params.id}/fail`,
+        {
           reasonCode: reason,
           // EP-DL-060 takes a reason code and a note and nothing else — there
           // is no media field on it. The photo is really uploaded, and its id
           // is appended to the note on its own line so support can find it;
           // that is the only place the contract leaves for it. See
           // DEFERRED-DECISIONS §4 item 26.
-          ...(note.trim() || photoMediaId
-            ? { note: [note.trim(), photoMediaId ? `photo: ${photoMediaId}` : ""].filter(Boolean).join("\n") }
+          ...(note.trim() || photoFile
+            ? { note: [note.trim(), photoFile ? `photo: ${QUEUED_MEDIA}` : ""].filter(Boolean).join("\n") }
             : {}),
           clientActionId: `${params.id}-fail`
-        })
-      });
-      router.push("/manifest");
+        },
+        {
+          clientActionId: `${params.id}-fail`,
+          ...(photoFile ? { photo: { file: photoFile, purpose: "pod_photo" as const } } : {})
+        }
+      );
+      if (outcome === "queued") setQueued(true);
+      else router.push("/manifest");
     } catch (thrown) {
       setError(messageFor(locale, thrown));
+    } finally {
       setBusy(false);
+      setUploading(false);
     }
-  }, [locale, note, params.id, photoMediaId, reason, router]);
+  }, [locale, note, params.id, photoFile, reason, router]);
 
   return (
     <Page width="flush">
@@ -130,7 +128,15 @@ export default function ExceptionPage() {
               {t(locale, "driver.exceptionNotice")}
             </Banner>
 
+            <OfflineNotice />
+
             {error ? <Banner tone="danger">{error}</Banner> : null}
+
+            {queued ? (
+              <Banner tone="info" icon="offline" title={t(locale, "common.willSync")}>
+                {t(locale, "driver.queued")}
+              </Banner>
+            ) : null}
 
             <Card>
               <Stack gap="md">
@@ -143,11 +149,11 @@ export default function ExceptionPage() {
                   onFiles={(files) => void pickPhoto(files)}
                 />
                 {uploading ? <Banner tone="info">{t(locale, "driver.uploading")}</Banner> : null}
-                {photoMediaId ? (
+                {photoFile ? (
                   <span role="status">
                     <Badge variant="success">
                       <Icon name="check-circle" size="sm" />
-                      {photoName ?? t(locale, "driver.photoReady")}
+                      {photoFile.name}
                     </Badge>
                   </span>
                 ) : null}

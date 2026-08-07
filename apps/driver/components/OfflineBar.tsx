@@ -1,19 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ConnectivityBadge } from "@petrospecial/ui";
+import { Cluster, ConnectivityBadge, SyncQueueBadge } from "@petrospecial/ui";
 import { useLocale } from "@petrospecial/app-shell/src/client";
-import { t } from "@petrospecial/i18n";
+import { count, t } from "@petrospecial/i18n";
+import { onQueueChange, watchConnection } from "../lib/syncClient";
 
 /**
- * Connectivity in the header, and the service-worker registration that makes
- * being offline survivable.
+ * Connectivity, the pending-work count, and the service-worker registration
+ * that makes being offline survivable — one component, because they are one
+ * fact.
  *
- * Two jobs in one component because they are one fact: the worker is what
- * keeps the app usable with no signal, and the badge is how the driver knows
- * that is the state they are in. A driver in a basement car park needs to
- * know *before* they tap whether what they are about to do will leave the
- * device.
+ * A driver in a basement car park needs to know two things before they tap:
+ * whether what they are about to do will leave the device, and whether
+ * anything they already did is still waiting. A queue that drains invisibly
+ * is indistinguishable from one that dropped everything, which is why the
+ * count is in the header and not in a console.
  *
  * The badge starts as online and corrects itself on mount rather than
  * guessing: the server has no idea, and rendering "offline" for a frame to
@@ -22,6 +24,7 @@ import { t } from "@petrospecial/i18n";
 export function OfflineBar() {
   const locale = useLocale();
   const [online, setOnline] = useState(true);
+  const [pending, setPending] = useState(0);
 
   useEffect(() => {
     setOnline(navigator.onLine);
@@ -29,6 +32,10 @@ export function OfflineBar() {
     const down = () => setOnline(false);
     window.addEventListener("online", up);
     window.addEventListener("offline", down);
+
+    // Drains the queue now and again on every reconnect.
+    const stopWatching = watchConnection();
+    const unsubscribe = onQueueChange(setPending);
 
     // Registered after paint, never before: a worker that competes with the
     // first render for bandwidth makes the first visit slower to help the
@@ -43,14 +50,21 @@ export function OfflineBar() {
     return () => {
       window.removeEventListener("online", up);
       window.removeEventListener("offline", down);
+      stopWatching();
+      unsubscribe();
     };
   }, []);
 
   return (
-    <ConnectivityBadge
-      online={online}
-      onlineLabel={t(locale, "common.online")}
-      offlineLabel={t(locale, "common.offline")}
-    />
+    <Cluster gap="sm">
+      <ConnectivityBadge
+        online={online}
+        onlineLabel={t(locale, "common.online")}
+        offlineLabel={t(locale, "common.offline")}
+      />
+      {/* No `syncedLabel`: an empty queue is the normal state and does not
+          need a permanent line in the header saying so. */}
+      <SyncQueueBadge pending={pending} label={t(locale, "driver.queueCount", { count: count(pending) })} />
+    </Cluster>
   );
 }

@@ -1051,6 +1051,11 @@ const ar = {
   "driver.kpisTitle": "مؤشراتي",
   "driver.kpisOwnOnly": "تخص هذه المؤشرات مهامك أنت وحدك",
   "driver.kpiNotComputed": "لا يحتسب النظام هذا المؤشر بعد",
+  "driver.queued": "حُفظ على الجهاز وسيُرسل عند عودة الاتصال",
+  "driver.queueCount": "{count} إجراء بانتظار الإرسال",
+  "driver.queueSynced": "لا شيء بانتظار الإرسال",
+  "driver.queueOffline": "أنت غير متصل — يُحفظ ما تسجّله على الجهاز ويُرسل تلقائياً عند عودة الشبكة",
+  "driver.queueUnsupported": "لا يدعم هذا المتصفح الحفظ على الجهاز — تأكد من الاتصال قبل التسجيل",
 
   // ---- supplier: pickup directory & collection (Phase 8) ----------------
   "supplier.pickupDirLead": "اعثر على أقرب نقطة استلام معتمدة",
@@ -2159,6 +2164,11 @@ const en: Record<StringKey, string> = {
   "driver.kpisTitle": "My KPIs",
   "driver.kpisOwnOnly": "These figures cover your own tasks only",
   "driver.kpiNotComputed": "Not computed yet",
+  "driver.queued": "Saved on this device and will be sent when you are back online",
+  "driver.queueCount": "{count} waiting to send",
+  "driver.queueSynced": "Nothing waiting to send",
+  "driver.queueOffline": "You are offline — what you record is kept on this device and sent automatically when the signal returns",
+  "driver.queueUnsupported": "This browser cannot hold work offline — check your signal before recording anything",
 
   // ---- supplier: pickup directory & collection (Phase 8) ----------------
   "supplier.pickupDirLead": "Find the nearest approved pickup point",

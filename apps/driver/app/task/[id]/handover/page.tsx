@@ -26,7 +26,9 @@ import {
 import { useLocale } from "@petrospecial/app-shell/src/client";
 import { count, messageFor, t } from "@petrospecial/i18n";
 import { authedFetch } from "../../../../lib/authClient";
-import { uploadFile } from "../../../../lib/uploadFile";
+import { QUEUED_MEDIA } from "../../../../lib/actionQueue";
+import { sendOrQueue } from "../../../../lib/syncClient";
+import { OfflineNotice } from "../../../../components/OfflineNotice";
 
 // SCR-DL08-002 — handing a parcel to a pickup point.
 //
@@ -49,8 +51,8 @@ export default function HandoverPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [photoMediaId, setPhotoMediaId] = useState("");
-  const [photoName, setPhotoName] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [queued, setQueued] = useState(false);
   const [otp, setOtp] = useState("");
 
   const load = useCallback(() => {
@@ -62,43 +64,38 @@ export default function HandoverPage() {
 
   useEffect(load, [load]);
 
-  const pickPhoto = useCallback(
-    async (files: File[]) => {
-      const file = files[0];
-      if (!file) return;
-      setUploading(true);
-      setError(null);
-      try {
-        setPhotoMediaId(await uploadFile(file, "pod_photo"));
-        setPhotoName(file.name);
-      } catch (thrown) {
-        setError(messageFor(locale, thrown));
-      } finally {
-        setUploading(false);
-      }
-    },
-    [locale]
-  );
+  /** Held, not uploaded on selection: the bytes and the action travel
+   * together, so a handover captured with no signal is not half-queued. */
+  const pickPhoto = useCallback((files: File[]) => {
+    const file = files[0];
+    if (file) setPhotoFile(file);
+  }, []);
 
   const submit = useCallback(async () => {
+    if (!photoFile) return;
     setBusy(true);
+    setUploading(true);
     setError(null);
     try {
-      await authedFetch(`/api/v1/driver/tasks/${params.id}/pod`, {
-        method: "POST",
-        body: JSON.stringify({
-          photoMediaId,
+      const outcome = await sendOrQueue(
+        `/api/v1/driver/tasks/${params.id}/pod`,
+        {
+          photoMediaId: QUEUED_MEDIA,
           ...(otp ? { otp } : {}),
           collectorKind: "supplier",
           clientActionId: `${params.id}-handover`
-        })
-      });
-      router.push("/manifest");
+        },
+        { clientActionId: `${params.id}-handover`, photo: { file: photoFile, purpose: "pod_photo" } }
+      );
+      if (outcome === "queued") setQueued(true);
+      else router.push("/manifest");
     } catch (thrown) {
       setError(messageFor(locale, thrown));
+    } finally {
       setBusy(false);
+      setUploading(false);
     }
-  }, [locale, otp, params.id, photoMediaId, router]);
+  }, [locale, otp, params.id, photoFile, router]);
 
   return (
     <Page width="flush">
@@ -121,6 +118,8 @@ export default function HandoverPage() {
               {t(locale, "driver.pickupHandoverNotice")}
             </Banner>
 
+            <OfflineNotice />
+
             {error ? (
               <Banner
                 tone="danger"
@@ -131,6 +130,12 @@ export default function HandoverPage() {
                 }
               >
                 {error}
+              </Banner>
+            ) : null}
+
+            {queued ? (
+              <Banner tone="info" icon="offline" title={t(locale, "common.willSync")}>
+                {t(locale, "driver.queued")}
               </Banner>
             ) : null}
 
@@ -168,11 +173,11 @@ export default function HandoverPage() {
                       onFiles={(files) => void pickPhoto(files)}
                     />
                     {uploading ? <Banner tone="info">{t(locale, "driver.uploading")}</Banner> : null}
-                    {photoMediaId ? (
+                    {photoFile ? (
                       <span role="status">
                         <Badge variant="success">
                           <Icon name="check-circle" size="sm" />
-                          {photoName ?? t(locale, "driver.photoReady")}
+                          {photoFile.name}
                         </Badge>
                       </span>
                     ) : null}
@@ -185,7 +190,7 @@ export default function HandoverPage() {
                     />
                     <p className="ps-field__hint">{t(locale, "driver.handoverOtpHint")}</p>
 
-                    {!photoMediaId ? <Banner tone="info">{t(locale, "driver.podNeedsPhoto")}</Banner> : null}
+                    {!photoFile ? <Banner tone="info">{t(locale, "driver.podNeedsPhoto")}</Banner> : null}
 
                     <Banner tone="warn" icon="package">
                       {t(locale, "driver.pickupHandoverNotice")}
@@ -195,7 +200,7 @@ export default function HandoverPage() {
                       variant="gold"
                       size="lg"
                       busy={busy}
-                      disabled={uploading || !photoMediaId}
+                      disabled={uploading || !photoFile}
                       onClick={() => void submit()}
                     >
                       {t(locale, "driver.handoverSubmit")}

@@ -31,7 +31,9 @@ import {
 import { useLocale } from "@petrospecial/app-shell/src/client";
 import { count, messageFor, t, type StringKey } from "@petrospecial/i18n";
 import { authedFetch } from "../../../lib/authClient";
-import { uploadFile } from "../../../lib/uploadFile";
+import { QUEUED_MEDIA } from "../../../lib/actionQueue";
+import { sendOrQueue } from "../../../lib/syncClient";
+import { OfflineNotice } from "../../../components/OfflineNotice";
 
 // EP-DL-020's four accepted transitions. A status with no entry here has no
 // button — an illegal transition is *absent*, not disabled, because a greyed
@@ -74,8 +76,8 @@ export default function TaskPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [otp, setOtp] = useState("");
-  const [photoMediaId, setPhotoMediaId] = useState("");
-  const [photoName, setPhotoName] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [queued, setQueued] = useState(false);
   const [codCollected, setCodCollected] = useState("");
 
   const load = useCallback(() => {
@@ -87,6 +89,9 @@ export default function TaskPage() {
 
   useEffect(load, [load]);
 
+  /** Accept, decline, regenerate-OTP and return-to-hub carry no idempotency
+   * key, so replaying one is not provably safe. They fail loudly with no
+   * signal, exactly as they always have. */
   async function call(key: string, path: string, body?: Record<string, unknown>) {
     setBusy(key);
     setError(null);
@@ -100,19 +105,33 @@ export default function TaskPage() {
     }
   }
 
-  async function pickPhoto(files: File[]) {
-    const file = files[0];
-    if (!file) return;
-    setUploading(true);
+  /** Transition and POD both take a clientActionId, so both survive no
+   * signal: the action is held on the device and replayed when the phone
+   * finds a network, and the server treats the replay as the same action. */
+  async function commit(key: string, path: string, body: Record<string, unknown>, photo?: File) {
+    setBusy(key);
+    setUploading(Boolean(photo));
     setError(null);
     try {
-      setPhotoMediaId(await uploadFile(file, "pod_photo"));
-      setPhotoName(file.name);
+      const outcome = await sendOrQueue(path, body, {
+        clientActionId: String(body.clientActionId),
+        ...(photo ? { photo: { file: photo, purpose: "pod_photo" as const } } : {})
+      });
+      if (outcome === "queued") setQueued(true);
+      else load();
     } catch (thrown) {
       setError(messageFor(locale, thrown));
     } finally {
+      setBusy(null);
       setUploading(false);
     }
+  }
+
+  /** The file is held, not uploaded on selection. One failure point at submit
+   * instead of two, and nothing is uploaded for a proof the driver abandons. */
+  function pickPhoto(files: File[]) {
+    const file = files[0];
+    if (file) setPhotoFile(file);
   }
 
   if (!detail) {
@@ -166,7 +185,17 @@ export default function TaskPage() {
               actions={<StatusBadge kind="delivery" value={status} locale={locale} />}
             />
 
+            <OfflineNotice />
+
             {error ? <Banner tone="danger">{error}</Banner> : null}
+
+            {/* The promise the queue exists to make. Shown where the action
+                was taken, not only as a number in the header. */}
+            {queued ? (
+              <Banner tone="info" icon="offline" title={t(locale, "common.willSync")}>
+                {t(locale, "driver.queued")}
+              </Banner>
+            ) : null}
 
             <Stepper
               label={t(locale, "orders.timeline")}
@@ -240,11 +269,11 @@ export default function TaskPage() {
                     onFiles={(files) => void pickPhoto(files)}
                   />
                   {uploading ? <Banner tone="info">{t(locale, "driver.uploading")}</Banner> : null}
-                  {photoMediaId ? (
+                  {photoFile ? (
                     <span role="status">
                       <Badge variant="success">
                         <Icon name="check-circle" size="sm" />
-                        {photoName ?? t(locale, "driver.photoReady")}
+                        {photoFile.name}
                       </Badge>
                     </span>
                   ) : null}
@@ -289,21 +318,28 @@ export default function TaskPage() {
                     />
                   ) : null}
 
-                  {!photoMediaId ? <Banner tone="info">{t(locale, "driver.podNeedsPhoto")}</Banner> : null}
+                  {!photoFile ? <Banner tone="info">{t(locale, "driver.podNeedsPhoto")}</Banner> : null}
 
                   <Button
                     variant="gold"
                     size="lg"
                     busy={busy === "pod"}
-                    disabled={uploading || !photoMediaId}
+                    disabled={uploading || !photoFile}
                     onClick={() =>
-                      call("pod", `/api/v1/driver/tasks/${params.id}/pod`, {
-                        photoMediaId,
-                        ...(otp ? { otp } : {}),
-                        collectorKind: "customer",
-                        ...(codCollected ? { codCollectedAmount: Number(codCollected) } : {}),
-                        clientActionId: `${params.id}-pod`
-                      })
+                      void commit(
+                        "pod",
+                        `/api/v1/driver/tasks/${params.id}/pod`,
+                        {
+                          // The real media id is substituted at the moment the
+                          // bytes actually land, which offline is later.
+                          photoMediaId: QUEUED_MEDIA,
+                          ...(otp ? { otp } : {}),
+                          collectorKind: "customer",
+                          ...(codCollected ? { codCollectedAmount: Number(codCollected) } : {}),
+                          clientActionId: `${params.id}-pod`
+                        },
+                        photoFile ?? undefined
+                      )
                     }
                   >
                     {t(locale, "driver.submitPod")}
@@ -343,7 +379,7 @@ export default function TaskPage() {
                 size="lg"
                 busy={busy === "transition"}
                 onClick={() =>
-                  call("transition", `/api/v1/driver/tasks/${params.id}/transition`, {
+                  void commit("transition", `/api/v1/driver/tasks/${params.id}/transition`, {
                     to: next.to,
                     clientActionId: `${params.id}-${next.to}`
                   })

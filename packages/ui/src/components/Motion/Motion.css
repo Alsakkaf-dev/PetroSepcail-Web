@@ -36,6 +36,13 @@
 .ps-reveal--in {
   opacity: 1;
   transform: none;
+  /* The hint is released once the entrance is over. `will-change` promotes the
+     element to its own compositor layer and *keeps it there*; on a launcher
+     with a dozen revealed tiles that is a dozen layers held for the life of
+     the page, which costs memory and interaction latency on the phone this has
+     to be fast on. The reveal is one-shot, so there is nothing left to hint
+     at. */
+  will-change: auto;
 }
 
 .ps-stagger {
