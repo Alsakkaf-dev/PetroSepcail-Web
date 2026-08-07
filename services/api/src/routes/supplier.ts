@@ -132,8 +132,8 @@ async function getCompanySettings(client: PoolClient): Promise<{ nameAr: string;
   const res = await client.query<{ key: string; value: unknown }>(
     "select key, value from core.settings where key in ('company_name_ar', 'company_name_en', 'company_vat_number')"
   );
-  const byKey = Object.fromEntries(res.rows.map((r) => [r.key, r.value])) as Record<string, string>;
-  return { nameAr: byKey.company_name_ar, nameEn: byKey.company_name_en, vatNumber: byKey.company_vat_number };
+  const get = (key: string): string => (res.rows.find((r) => r.key === key)?.value as string | undefined) ?? "";
+  return { nameAr: get("company_name_ar"), nameEn: get("company_name_en"), vatNumber: get("company_vat_number") };
 }
 
 // SP-04 SP-INV-1/2: issues the invoice (idempotent on order_id) and, only on

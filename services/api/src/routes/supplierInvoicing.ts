@@ -167,7 +167,7 @@ export function registerSupplierInvoicingRoutes(app: FastifyInstance): void {
     });
     if (!result) throw new ApiError("NOT_FOUND");
     if (!result.invoice.zatca_uuid || !result.invoice.qr_tlv) throw new ApiError("CONFLICT");
-    const byKey = Object.fromEntries(result.company.map((r) => [r.key, r.value])) as Record<string, string>;
+    const getCompanyValue = (key: string): string => (result.company.find((r) => r.key === key)?.value as string | undefined) ?? "";
 
     const xml = generateUblXml({
       invoiceId: request.params.id,
@@ -176,9 +176,9 @@ export function registerSupplierInvoicingRoutes(app: FastifyInstance): void {
       issuedAt: result.invoice.issued_at,
       total: money(Number(result.invoice.total)),
       vatAmount: money(Number(result.invoice.vat_amount)),
-      sellerNameAr: byKey.company_name_ar,
-      sellerNameEn: byKey.company_name_en,
-      sellerVatNumber: byKey.company_vat_number,
+      sellerNameAr: getCompanyValue("company_name_ar"),
+      sellerNameEn: getCompanyValue("company_name_en"),
+      sellerVatNumber: getCompanyValue("company_vat_number"),
       supplierNameAr: result.supplier.business_name_ar,
       supplierNameEn: result.supplier.business_name_en,
       lines: result.lines.map((l) => ({
