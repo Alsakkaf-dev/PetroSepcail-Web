@@ -430,6 +430,9 @@ const ar = {
   "loyalty.kindReverse": "معكوسة (إرجاع)",
   "loyalty.kindExpire": "منتهية",
   "loyalty.kindRestore": "مُعادة",
+  "loyalty.campaigns": "عروض سارية",
+  "loyalty.campaignEnds": "ينتهي العرض خلال",
+  "loyalty.campaignEnded": "انتهى العرض",
 
   // ---- supplier / B2B --------------------------------------------------
   "supplier.title": "بوابة الموردين",
@@ -1065,7 +1068,8 @@ const ar = {
   "supplier.collectSubmit": "تأكيد التسليم للعميل",
   "supplier.collectEmpty": "لا توجد طرود بانتظار الاستلام",
   "supplier.collectFeedPending":
-    "لم يُبنَ بعد مصدر بيانات الطرود المنتظرة، فلا تُعرض قائمة — النموذج أدناه جاهز لتسليم طرد برمزه",
+    "لم يُبنَ بعد مصدر بيانات الطرود المنتظرة ولا نقطة نهاية للتحقق من رمز الاستلام — تظهر الشاشة كاملةً والنموذج معطّل حتى تُوصَّل",
+  "supplier.collectDisabled": "معطّل حتى تُوصَّل الخدمة",
 
   // ---- API error registry (services/api/src/errors.ts) ------------------
   "error.validation_error": "تحقّق من البيانات المدخلة",
@@ -1530,6 +1534,9 @@ const en: Record<StringKey, string> = {
   "loyalty.kindReverse": "Reversed (return)",
   "loyalty.kindExpire": "Expired",
   "loyalty.kindRestore": "Restored",
+  "loyalty.campaigns": "Live offers",
+  "loyalty.campaignEnds": "Offer ends in",
+  "loyalty.campaignEnded": "Offer ended",
 
   // ---- supplier / B2B --------------------------------------------------
   "supplier.title": "Supplier portal",
@@ -2168,7 +2175,8 @@ const en: Record<StringKey, string> = {
   "supplier.collectSubmit": "Confirm handover to the customer",
   "supplier.collectEmpty": "No parcels awaiting collection",
   "supplier.collectFeedPending":
-    "The awaiting-collection feed has not been built, so no list is shown — the form below hands over a parcel by its code",
+    "Neither the awaiting-collection feed nor a code-verification endpoint has been built. The screen is complete and the form is disabled until they are.",
+  "supplier.collectDisabled": "Disabled until the service is connected",
 
   // ---- API error registry ----------------------------------------------
   "error.validation_error": "Please check the details you entered",

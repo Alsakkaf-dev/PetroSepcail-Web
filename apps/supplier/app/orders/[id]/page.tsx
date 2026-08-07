@@ -11,6 +11,7 @@ import {
   Container,
   DateTime,
   IdDisplay,
+  Map,
   Page,
   Section,
   SectionHead,
@@ -43,10 +44,10 @@ const DELIVERED = new Set(["delivered", "confirmed_received"]);
 // POD shapes, since the underlying delivery tables are identical.
 //
 // Was three inline styles printing the raw delivery status, a raw
-// toLocaleString() timestamp and nothing else. The live map the spec calls for
-// is Phase 8 (Map/MapMarker/MapFallbackList); what stands in until then is the
-// textual next-step account that every map on this platform has to ship
-// alongside it anyway.
+// toLocaleString() timestamp and nothing else. The live map lands in Phase 8:
+// the driver's marker while the drop is on the road, with the same textual
+// account underneath that every map on this platform ships alongside its
+// picture.
 export default function SupplierOrderTrackingPage() {
   const locale = useLocale();
   const router = useRouter();
@@ -154,6 +155,43 @@ export default function SupplierOrderTrackingPage() {
                     ]}
                   />
                 </Card>
+
+                {/* SCR-SP08-001's live map. Only while the drop is actually
+                    on the road: EP-SP-060 returns `lastLocation` for
+                    `en_route` and null for every other status, so its
+                    presence is the condition rather than a status list this
+                    screen would have to keep in step with. */}
+                {tracking.taskId ? (
+                  <Stack gap="sm">
+                    <Map
+                      label={t(locale, "supplier.trackingTitle")}
+                      points={
+                        tracking.lastLocation
+                          ? [
+                              {
+                                id: "driver",
+                                lat: tracking.lastLocation.lat,
+                                lng: tracking.lastLocation.lng,
+                                label: tracking.driver?.displayName ?? t(locale, "map.driverHere"),
+                                detail: <DateTime iso={tracking.lastLocation.at} locale={locale} />,
+                                kind: "driver",
+                                live: true
+                              }
+                            ]
+                          : []
+                      }
+                      attribution={t(locale, "map.attribution")}
+                      fallbackLabel={t(locale, "map.places")}
+                      emptyLabel={t(locale, "track.noLocation")}
+                      unavailableLabel={t(locale, "map.unavailable")}
+                    />
+                    {tracking.lastLocation ? (
+                      <p className="ps-field__hint">
+                        {t(locale, "track.lastSeen")} <DateTime iso={tracking.lastLocation.at} locale={locale} />
+                      </p>
+                    ) : null}
+                  </Stack>
+                ) : null}
 
                 {pod ? (
                   <Card>

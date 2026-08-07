@@ -23,6 +23,7 @@ import { getLocale } from "@petrospecial/app-shell/src/server";
 import { count, t, type Locale, type StringKey } from "@petrospecial/i18n";
 import { apiGet } from "../../lib/api";
 import { thumbFor } from "../../lib/productMedia";
+import { CampaignBanner } from "../../components/CampaignBanner";
 
 export const dynamic = "force-dynamic"; // always-fresh catalog reads (no cache-bust plumbing yet — see S07 handover)
 
@@ -114,13 +115,20 @@ export default async function CatalogPage({ searchParams }: PageProps) {
         <>
           <Section tone="mesh" decor="viscosity" air="brochure" aria-labelledby="catalog-title">
             <Container>
-              <SectionHead
-                level={1}
-                titleId="catalog-title"
-                eyebrow={t(locale, "brand.tagline")}
-                title={t(locale, "catalog.landingTitle")}
-                lead={t(locale, "catalog.landingLead")}
-              />
+              <Stack gap="lg">
+                <SectionHead
+                  level={1}
+                  titleId="catalog-title"
+                  eyebrow={t(locale, "brand.tagline")}
+                  title={t(locale, "catalog.landingTitle")}
+                  lead={t(locale, "catalog.landingLead")}
+                />
+                {/* SCR-LE03-001. Signed-out visitors get nothing: the
+                    endpoint is authenticated, so eligibility is enforced by
+                    the server rather than by this component deciding who
+                    deserves to see an offer. */}
+                <CampaignBanner />
+              </Stack>
             </Container>
           </Section>
 

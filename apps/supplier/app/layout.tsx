@@ -53,14 +53,16 @@ const RAIL: ShellRailGroup[] = [
       { href: "/invoices", labelKey: "nav.invoices", icon: "receipt" },
       { href: "/statement", labelKey: "nav.statement", icon: "document" },
       { href: "/payments", labelKey: "nav.payments", icon: "banknote" },
-      { href: "/custody", labelKey: "nav.custody", icon: "wallet" }
+      { href: "/custody", labelKey: "nav.custody", icon: "wallet" },
+      { href: "/collections", labelKey: "supplier.collectTitle", icon: "package" }
     ]
   },
   {
     labelKey: "shell.groupAccount",
     items: [
       { href: "/rewards", labelKey: "nav.rewards", icon: "star" },
-      { href: "/profile", labelKey: "nav.profile", icon: "user" }
+      { href: "/profile", labelKey: "nav.profile", icon: "user" },
+      { href: "/pickup-points", labelKey: "supplier.pickupDirectory", icon: "map-pin" }
     ]
   }
 ];
@@ -83,7 +85,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             width="wide"
             actions={<SignOutButton />}
             bareRoutes={["/login"]}
-            noRailRoutes={["/"]}
+            // The pickup directory is the one screen in this portal a
+            // signed-out visitor may open: no rail, because every link on it
+            // bounces straight back to sign-in.
+            noRailRoutes={["/", "/pickup-points"]}
           >
             {children}
           </PortalShell>
