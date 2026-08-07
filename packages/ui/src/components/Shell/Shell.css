@@ -498,3 +498,39 @@ a.ps-brand:hover .ps-brand__portal {
     padding: var(--d-6);
   }
 }
+
+/* ---- the header bell -------------------------------------------------- */
+
+.ps-bell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-inline-size: 44px;
+  min-block-size: 44px;
+  border-radius: var(--r-sm);
+  color: var(--ink);
+}
+
+.ps-bell:hover {
+  color: var(--gold-800);
+  background: var(--bg-tint);
+}
+
+/* --flame on --ink: an alert accent as a background, which is the only way
+   the token may be used. The count itself is small text, so it takes --ink
+   rather than being reversed out. */
+.ps-bell__badge {
+  position: absolute;
+  inset-block-start: var(--d-1);
+  inset-inline-end: var(--d-1);
+  min-inline-size: 1.1rem;
+  padding-inline: var(--d-1);
+  border-radius: var(--r-pill);
+  color: var(--ink);
+  background: var(--flame);
+  font-family: var(--font-body);
+  font-size: var(--fs-200);
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+}

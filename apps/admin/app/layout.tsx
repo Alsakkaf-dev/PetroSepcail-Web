@@ -49,7 +49,8 @@ const RAIL: ShellRailGroup[] = [
       { href: "/fleet", labelKey: "nav.fleet", icon: "truck" },
       { href: "/audit", labelKey: "nav.auditLog", icon: "clipboard" },
       { href: "/users", labelKey: "nav.users", icon: "users" },
-      { href: "/privacy", labelKey: "nav.privacy", icon: "shield" }
+      { href: "/privacy", labelKey: "nav.privacy", icon: "shield" },
+      { href: "/settings", labelKey: "nav.settings", icon: "settings" }
     ]
   }
 ];

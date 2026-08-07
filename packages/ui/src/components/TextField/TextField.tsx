@@ -13,6 +13,9 @@ export interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElemen
   /** Numerals/phone/technical codes always render LTR even inside an RTL
    * document (PC-08 §1 site behavior) — e.g. email, phone, SKU fields. */
   forceLtr?: boolean;
+  /** Hide the label visually, keeping it for assistive tech. For a control
+   * in a table cell whose column header already names it. */
+  hideLabel?: boolean;
 }
 
 /** PC-08 core set — single-line input.
@@ -22,7 +25,7 @@ export interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElemen
  * an error rather than being replaced by it: hiding the format hint at
  * exactly the moment someone got the format wrong is backwards. */
 export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextField(
-  { label, hint, error, forceLtr = false, id, className, required, ...rest },
+  { label, hint, error, forceLtr = false, hideLabel, id, className, required, ...rest },
   ref
 ) {
   const ids = useFieldIds(id);
@@ -34,6 +37,7 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function T
       hint={hint}
       error={error}
       ids={ids}
+      hideLabel={hideLabel}
       className={className}
     >
       <input

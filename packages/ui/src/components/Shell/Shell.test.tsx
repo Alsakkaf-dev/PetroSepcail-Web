@@ -6,6 +6,7 @@ import { AppShell } from "./AppShell";
 import { SideRail } from "./SideRail";
 import { AppFooter } from "./AppFooter";
 import { AuthShell } from "./AuthShell";
+import { NotificationBell } from "./NotificationBell";
 import { structuralSignature, withDocumentDirection } from "../../testing/domSnapshot";
 
 afterEach(cleanup);
@@ -107,6 +108,26 @@ describe("AuthShell", () => {
   });
 });
 
+describe("NotificationBell", () => {
+  it("says how many are unread in words, not only as a numeral on an icon", () => {
+    render(<NotificationBell href="/notifications" unread={3} label="فتح الإشعارات" unreadLabel="3 إشعارات غير مقروءة" />);
+    expect(screen.getByRole("link", { name: /فتح الإشعارات/ })).toHaveAttribute("href", "/notifications");
+    expect(screen.getByText("3 إشعارات غير مقروءة")).toBeInTheDocument();
+  });
+
+  it("shows no badge when nothing is unread, and none at all before the count is known", () => {
+    const { container, rerender } = render(<NotificationBell href="/n" unread={0} label="x" />);
+    expect(container.querySelector(".ps-bell__badge")).toBeNull();
+    rerender(<NotificationBell href="/n" unread={null} label="x" />);
+    expect(container.querySelector(".ps-bell__badge")).toBeNull();
+  });
+
+  it("caps the badge rather than letting it grow without limit", () => {
+    render(<NotificationBell href="/n" unread={42} label="x" max={9} />);
+    expect(screen.getByText("9+")).toBeInTheDocument();
+  });
+});
+
 describe("structural parity (TC-PC08-002)", () => {
   const cases: Array<[string, () => JSX.Element]> = [
     ["Brand", () => <Brand href="/" logoSrc={LOGO} logoAlt="بتروسبيشل" portal="منصة الموزّعين" />],
@@ -128,7 +149,8 @@ describe("structural parity (TC-PC08-002)", () => {
       )
     ],
     ["AppFooter", () => <AppFooter brand={<span>b</span>} tagline="t" links={[{ href: "/a", label: "a" }]} legal="©" />],
-    ["AuthShell", () => <AuthShell brand={<span>b</span>} title="t" lead="l" footer={<span>f</span>}>x</AuthShell>]
+    ["AuthShell", () => <AuthShell brand={<span>b</span>} title="t" lead="l" footer={<span>f</span>}>x</AuthShell>],
+    ["NotificationBell", () => <NotificationBell href="/notifications" unread={4} label="الإشعارات" unreadLabel="4 غير مقروء" />]
   ];
 
   it.each(cases)("%s renders an identical tree in both directions", (_name, node) => {

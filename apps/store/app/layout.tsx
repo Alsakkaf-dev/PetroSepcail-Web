@@ -3,6 +3,7 @@ import { getLocale, htmlLangAttrs } from "@petrospecial/app-shell/src/server";
 import { LocaleProvider } from "@petrospecial/app-shell/src/client";
 import { PortalShell } from "@petrospecial/app-shell/src/shell";
 import { t } from "@petrospecial/i18n";
+import { HeaderBell } from "../components/HeaderBell";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -42,7 +43,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {t(locale, "common.skipToContent")}
         </a>
         <LocaleProvider locale={locale}>
-          <PortalShell portalKey="brand.portalStore" nav={[...NAV]} width="flush">
+          <PortalShell
+            portalKey="brand.portalStore"
+            nav={[...NAV]}
+            width="flush"
+            actions={<HeaderBell />}
+          >
             {children}
           </PortalShell>
         </LocaleProvider>

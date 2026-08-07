@@ -42,6 +42,12 @@ export interface FieldShellProps {
   /** `fieldset` for a group of related controls — radios, a date range. A
    * group labelled only by a floating `<p>` is a group with no name. */
   as?: "div" | "fieldset";
+  /** Hide the label visually while keeping it for assistive tech.
+   *
+   * For a control inside a table cell whose column header already says what
+   * it is, and nowhere else. The label is still rendered and still associated
+   * — this moves it out of sight, it does not remove it. */
+  hideLabel?: boolean;
   className?: string;
 }
 
@@ -59,6 +65,7 @@ export function FieldShell({
   ids,
   children,
   as = "div",
+  hideLabel,
   className
 }: FieldShellProps) {
   const isGroup = as === "fieldset";
@@ -66,7 +73,7 @@ export function FieldShell({
   const Label = isGroup ? "legend" : "label";
   return (
     <Wrapper className={cx("ps-field", Boolean(error) && "ps-field--invalid", className)}>
-      <Label className="ps-field__label" htmlFor={isGroup ? undefined : htmlFor}>
+      <Label className={cx("ps-field__label", hideLabel && "ps-visually-hidden")} htmlFor={isGroup ? undefined : htmlFor}>
         {label}
         {required ? (
           <span className="ps-field__required" aria-hidden="true">

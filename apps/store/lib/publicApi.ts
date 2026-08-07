@@ -21,3 +21,31 @@ export async function publicGet<T>(path: string, signal?: AbortSignal): Promise<
   if (!res.ok) throw new Error(`${path} failed: ${res.status}`);
   return res.json() as Promise<T>;
 }
+
+/** The unauthenticated writes: register, verify email, request and confirm a
+ * password reset. None of them can go through `authedFetch` — they exist
+ * precisely because there is no session yet.
+ *
+ * `accept-language` goes with every one of them so a rejection comes back in
+ * the reader's language; `messageFor()` maps the registry code either way,
+ * but a validation detail the registry has no code for is only ever readable
+ * if the server wrote it in the right language. */
+export async function publicPost<T>(path: string, body: unknown, locale: "ar" | "en"): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(apiUrl(path), {
+      method: "POST",
+      headers: { "content-type": "application/json", "accept-language": locale },
+      body: JSON.stringify(body)
+    });
+  } catch {
+    throw new Error("NETWORK_UNREACHABLE");
+  }
+  if (!res.ok) {
+    const parsed = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
+    throw new Error(parsed.error?.message ?? `${path} failed: ${res.status}`);
+  }
+  // 202 (password-reset request) and 204 carry no body.
+  if (res.status === 202 || res.status === 204) return undefined as T;
+  return (await res.json()) as T;
+}

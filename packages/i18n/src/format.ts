@@ -8,6 +8,7 @@
 // they were asked to sum.
 
 import { bcp47, type Locale } from "./locale";
+import { t } from "./t";
 
 /** Asia/Riyadh, always — the platform has one operational timezone. */
 export const TIMEZONE = "Asia/Riyadh";
@@ -108,6 +109,37 @@ export function time(locale: Locale, iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return dateFormat(locale, { hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
+}
+
+/** The Riyadh calendar day an instant falls in, as a sortable `YYYY-MM-DD`.
+ * `en-CA` is the shortest reliable way to get ISO order out of Intl. */
+function riyadhDay(d: Date): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(d);
+}
+
+/**
+ * Group key and heading for a day of notifications, timeline entries or
+ * ledger rows.
+ *
+ * "Today" and "Yesterday" are worth naming — they are the two a reader is
+ * actually orienting against — and everything before that is dated. The day
+ * boundary is Riyadh's, not the device's, so a customer reading at 01:00 in
+ * another timezone sees the same grouping the operations team does.
+ */
+export function dayKey(locale: Locale, iso: string, now: Date = new Date()): { key: string; label: string } {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return { key: iso, label: iso };
+  const key = riyadhDay(d);
+  const today = riyadhDay(now);
+  const yesterday = riyadhDay(new Date(now.getTime() - 24 * 60 * 60 * 1000));
+  if (key === today) return { key, label: t(locale, "notif.today") };
+  if (key === yesterday) return { key, label: t(locale, "notif.yesterday") };
+  return { key, label: date(locale, iso) };
 }
 
 /**

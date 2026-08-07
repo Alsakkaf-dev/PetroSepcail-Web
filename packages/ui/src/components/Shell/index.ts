@@ -8,5 +8,7 @@ export { AppFooter } from "./AppFooter";
 export type { AppFooterProps, AppFooterLink } from "./AppFooter";
 export { NavTile } from "./NavTile";
 export type { NavTileProps } from "./NavTile";
+export { NotificationBell } from "./NotificationBell";
+export type { NotificationBellProps } from "./NotificationBell";
 export { AuthShell } from "./AuthShell";
 export type { AuthShellProps } from "./AuthShell";
