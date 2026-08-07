@@ -19,6 +19,7 @@ interface OrderListRow {
   total: string;
   payment_method: string;
   placed_at: Date;
+  placed_at_cursor: string;
   delivery_slot: string;
 }
 interface OrderListCursor {
@@ -55,7 +56,10 @@ export function registerOrderRoutes(app: FastifyInstance): void {
         params.push(limit + 1);
         const where = conditions.length > 0 ? `where ${conditions.join(" and ")}` : "";
         const res = await client.query<OrderListRow>(
-          `select id, status, total, payment_method, placed_at, delivery_slot
+          // placed_at_cursor: full microsecond precision as text, since `pg`
+          // truncates placed_at to a millisecond-resolution JS Date and a
+          // truncated cursor silently drops rows sharing a millisecond.
+          `select id, status, total, payment_method, placed_at, placed_at::text as placed_at_cursor, delivery_slot
            from orders.orders
            ${where}
            order by placed_at desc, id desc
@@ -68,7 +72,7 @@ export function registerOrderRoutes(app: FastifyInstance): void {
       const hasMore = rows.length > limit;
       const page = hasMore ? rows.slice(0, limit) : rows;
       const nextCursor = hasMore
-        ? encodeCursor({ placedAt: page[page.length - 1]!.placed_at.toISOString(), id: page[page.length - 1]!.id })
+        ? encodeCursor({ placedAt: page[page.length - 1]!.placed_at_cursor, id: page[page.length - 1]!.id })
         : null;
 
       return reply.code(200).send(

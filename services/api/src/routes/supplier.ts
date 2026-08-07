@@ -382,8 +382,17 @@ export function registerSupplierRoutes(app: FastifyInstance): void {
         conditions.push(`(placed_at, id) < ($${params.length - 1}::timestamptz, $${params.length}::uuid)`);
       }
       params.push(limit + 1);
-      const res = await client.query<{ id: string; status: string; total: string; placed_at: Date }>(
-        `select id, status, total, placed_at from orders.orders
+      // placed_at_cursor: full microsecond precision as text, since `pg`
+      // truncates placed_at to a millisecond-resolution JS Date and a
+      // truncated cursor silently drops rows sharing a millisecond.
+      const res = await client.query<{
+        id: string;
+        status: string;
+        total: string;
+        placed_at: Date;
+        placed_at_cursor: string;
+      }>(
+        `select id, status, total, placed_at, placed_at::text as placed_at_cursor from orders.orders
          where ${conditions.join(" and ")}
          order by placed_at desc, id desc
          limit $${params.length}`,
@@ -395,7 +404,7 @@ export function registerSupplierRoutes(app: FastifyInstance): void {
     const hasMore = rows.length > limit;
     const page = hasMore ? rows.slice(0, limit) : rows;
     const nextCursor = hasMore
-      ? encodeCursor({ placedAt: page[page.length - 1]!.placed_at.toISOString(), id: page[page.length - 1]!.id })
+      ? encodeCursor({ placedAt: page[page.length - 1]!.placed_at_cursor, id: page[page.length - 1]!.id })
       : null;
 
     return reply.code(200).send(

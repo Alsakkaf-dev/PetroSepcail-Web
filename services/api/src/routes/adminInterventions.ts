@@ -58,6 +58,9 @@ export function registerAdminInterventionRoutes(app: FastifyInstance): void {
           conditions.push(`(at, id) < ($${params.length - 1}::timestamptz, $${params.length}::bigint)`);
         }
         params.push(limit + 1);
+        // at_cursor: full microsecond precision as text, since `pg` truncates
+        // `at` to a millisecond-resolution JS Date and a truncated cursor
+        // silently drops rows sharing a millisecond.
         const res = await client.query<{
           id: string;
           action: string;
@@ -65,8 +68,9 @@ export function registerAdminInterventionRoutes(app: FastifyInstance): void {
           resource_id: string | null;
           reason: string | null;
           at: Date;
+          at_cursor: string;
         }>(
-          `select id, action, resource, resource_id, reason, at from audit.audit_log
+          `select id, action, resource, resource_id, reason, at, at::text as at_cursor from audit.audit_log
            where ${conditions.join(" and ")} order by at desc, id desc limit $${params.length}`,
           params
         );
@@ -75,7 +79,7 @@ export function registerAdminInterventionRoutes(app: FastifyInstance): void {
 
       const hasMore = rows.length > limit;
       const page = hasMore ? rows.slice(0, limit) : rows;
-      const nextCursor = hasMore ? encodeCursor({ at: page[page.length - 1]!.at.toISOString(), id: page[page.length - 1]!.id }) : null;
+      const nextCursor = hasMore ? encodeCursor({ at: page[page.length - 1]!.at_cursor, id: page[page.length - 1]!.id }) : null;
 
       const kindByAction: Record<string, string> = {
         "order.force_cancel": "force_cancel",

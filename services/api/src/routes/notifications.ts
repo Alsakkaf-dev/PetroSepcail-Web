@@ -10,6 +10,7 @@ interface NotificationRow {
   params: Record<string, unknown>;
   read_at: Date | null;
   created_at: Date;
+  created_at_cursor: string;
 }
 
 interface NotificationCursor {
@@ -53,7 +54,13 @@ export function registerNotificationRoutes(app: FastifyInstance): void {
         params.push(limit + 1);
         const where = conditions.length > 0 ? `where ${conditions.join(" and ")}` : "";
         const res = await client.query<NotificationRow>(
-          `select id, type, params, read_at, created_at from core.notifications
+          // created_at_cursor carries full microsecond precision as text: `pg`
+          // parses `created_at` into a JS Date, which only holds millisecond
+          // precision, so cursoring off row.created_at.toISOString() silently
+          // drops rows whenever two notifications land in the same millisecond
+          // (routine under any rapid-fire insert). The cursor must round-trip
+          // the exact value the keyset WHERE clause below compares against.
+          `select id, type, params, read_at, created_at, created_at::text as created_at_cursor from core.notifications
            ${where}
            order by created_at desc, id desc
            limit $${params.length}`,
@@ -65,7 +72,7 @@ export function registerNotificationRoutes(app: FastifyInstance): void {
       const hasMore = rows.length > limit;
       const page = hasMore ? rows.slice(0, limit) : rows;
       const nextCursor = hasMore
-        ? encodeCursor({ createdAt: page[page.length - 1]!.created_at.toISOString(), id: page[page.length - 1]!.id })
+        ? encodeCursor({ createdAt: page[page.length - 1]!.created_at_cursor, id: page[page.length - 1]!.id })
         : null;
 
       return reply.code(200).send(notificationsListResponse.parse(buildPage(page.map(toItem), nextCursor)));

@@ -49,8 +49,18 @@ export function registerLoyaltyRoutes(app: FastifyInstance): void {
         conditions.push(`(created_at, id) < ($${params.length - 1}::timestamptz, $${params.length}::bigint)`);
       }
       params.push(limit + 1);
-      const res = await client.query<{ id: string; kind: string; points: number; order_id: string | null; created_at: Date }>(
-        `select id, kind, points, order_id, created_at from loyalty.points_ledger
+      // created_at_cursor: full microsecond precision as text, since `pg`
+      // truncates created_at to a millisecond-resolution JS Date and a
+      // truncated cursor silently drops rows sharing a millisecond.
+      const res = await client.query<{
+        id: string;
+        kind: string;
+        points: number;
+        order_id: string | null;
+        created_at: Date;
+        created_at_cursor: string;
+      }>(
+        `select id, kind, points, order_id, created_at, created_at::text as created_at_cursor from loyalty.points_ledger
          where ${conditions.join(" and ")} order by created_at desc, id desc limit $${params.length}`,
         params
       );
@@ -59,7 +69,7 @@ export function registerLoyaltyRoutes(app: FastifyInstance): void {
 
     const hasMore = rows.length > limit;
     const page = hasMore ? rows.slice(0, limit) : rows;
-    const nextCursor = hasMore ? encodeCursor({ createdAt: page[page.length - 1]!.created_at.toISOString(), id: page[page.length - 1]!.id }) : null;
+    const nextCursor = hasMore ? encodeCursor({ createdAt: page[page.length - 1]!.created_at_cursor, id: page[page.length - 1]!.id }) : null;
 
     return reply.code(200).send(
       pointsHistoryResponse.parse(

@@ -74,6 +74,10 @@ export function registerAdminGovernanceRoutes(app: FastifyInstance): void {
         }
         params.push(limit + 1);
         const where = conditions.length > 0 ? `where ${conditions.join(" and ")}` : "";
+        // at_cursor: full microsecond precision as text, since `pg` truncates
+        // `at` to a millisecond-resolution JS Date and a truncated cursor
+        // silently drops rows sharing a millisecond (routine under a burst of
+        // audit-logged writes from one transaction).
         const res = await client.query<{
           id: string;
           actor_id: string | null;
@@ -83,13 +87,17 @@ export function registerAdminGovernanceRoutes(app: FastifyInstance): void {
           resource_id: string | null;
           reason: string | null;
           at: Date;
-        }>(`select id, actor_id, actor_role, action, resource, resource_id, reason, at from audit.audit_log ${where} order by at desc, id desc limit $${params.length}`, params);
+          at_cursor: string;
+        }>(
+          `select id, actor_id, actor_role, action, resource, resource_id, reason, at, at::text as at_cursor from audit.audit_log ${where} order by at desc, id desc limit $${params.length}`,
+          params
+        );
         return res.rows;
       });
 
       const hasMore = rows.length > limit;
       const page = hasMore ? rows.slice(0, limit) : rows;
-      const nextCursor = hasMore ? encodeCursor({ at: page[page.length - 1]!.at.toISOString(), id: page[page.length - 1]!.id }) : null;
+      const nextCursor = hasMore ? encodeCursor({ at: page[page.length - 1]!.at_cursor, id: page[page.length - 1]!.id }) : null;
 
       return reply.code(200).send(
         auditLogResponse.parse(

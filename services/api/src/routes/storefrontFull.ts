@@ -199,6 +199,7 @@ export function registerStorefrontFullRoutes(app: FastifyInstance): void {
     order_id: string;
     status: string;
     created_at: Date;
+    created_at_cursor: string;
   }
   interface ReturnListCursor {
     createdAt: string;
@@ -219,8 +220,11 @@ export function registerStorefrontFullRoutes(app: FastifyInstance): void {
         where += ` and (created_at, id) < ($${params.length - 1}::timestamptz, $${params.length}::uuid)`;
       }
       params.push(limit + 1);
+      // created_at_cursor: full microsecond precision as text, since `pg`
+      // truncates created_at to a millisecond-resolution JS Date and a
+      // truncated cursor silently drops rows sharing a millisecond.
       const res = await client.query<ReturnListRow>(
-        `select id, order_id, status, created_at from orders.returns where ${where} order by created_at desc, id desc limit $${params.length}`,
+        `select id, order_id, status, created_at, created_at::text as created_at_cursor from orders.returns where ${where} order by created_at desc, id desc limit $${params.length}`,
         params
       );
       return res.rows;
@@ -229,7 +233,7 @@ export function registerStorefrontFullRoutes(app: FastifyInstance): void {
     const hasMore = rows.length > limit;
     const page = hasMore ? rows.slice(0, limit) : rows;
     const nextCursor = hasMore
-      ? encodeCursor({ createdAt: page[page.length - 1]!.created_at.toISOString(), id: page[page.length - 1]!.id })
+      ? encodeCursor({ createdAt: page[page.length - 1]!.created_at_cursor, id: page[page.length - 1]!.id })
       : null;
 
     return reply.code(200).send(
@@ -358,8 +362,18 @@ export function registerStorefrontFullRoutes(app: FastifyInstance): void {
           where += ` and (r.created_at, r.id) < ($${params.length - 1}::timestamptz, $${params.length}::uuid)`;
         }
         params.push(limit + 1);
-        const itemsRes = await client.query<{ id: string; stars: number; body: string | null; created_at: Date; full_name: string }>(
-          `select r.id, r.stars, r.body, r.created_at, i.full_name
+        // created_at_cursor: full microsecond precision as text, since `pg`
+        // truncates created_at to a millisecond-resolution JS Date and a
+        // truncated cursor silently drops rows sharing a millisecond.
+        const itemsRes = await client.query<{
+          id: string;
+          stars: number;
+          body: string | null;
+          created_at: Date;
+          created_at_cursor: string;
+          full_name: string;
+        }>(
+          `select r.id, r.stars, r.body, r.created_at, r.created_at::text as created_at_cursor, i.full_name
            from orders.reviews r join core.identities i on i.id = r.user_id
            where ${where} order by r.created_at desc, r.id desc limit $${params.length}`,
           params
@@ -375,7 +389,7 @@ export function registerStorefrontFullRoutes(app: FastifyInstance): void {
       const hasMore = result.items.length > limit;
       const page = hasMore ? result.items.slice(0, limit) : result.items;
       const nextCursor = hasMore
-        ? encodeCursor({ createdAt: page[page.length - 1]!.created_at.toISOString(), id: page[page.length - 1]!.id })
+        ? encodeCursor({ createdAt: page[page.length - 1]!.created_at_cursor, id: page[page.length - 1]!.id })
         : null;
 
       return reply.code(200).send(

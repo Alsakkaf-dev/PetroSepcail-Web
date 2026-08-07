@@ -69,8 +69,11 @@ export function registerSupplierInvoicingRoutes(app: FastifyInstance): void {
       }
       params.push(limit + 1);
       const where = conditions.length > 0 ? `where ${conditions.join(" and ")}` : "";
-      const res = await client.query<InvoiceRow>(
-        `select id, order_id, status, total, open_balance, issued_at, due_at, zatca_uuid
+      // issued_at_cursor: full microsecond precision as text, since `pg`
+      // truncates issued_at to a millisecond-resolution JS Date and a
+      // truncated cursor silently drops rows sharing a millisecond.
+      const res = await client.query<InvoiceRow & { issued_at_cursor: string }>(
+        `select id, order_id, status, total, open_balance, issued_at, issued_at::text as issued_at_cursor, due_at, zatca_uuid
          from credit.invoices ${where} order by issued_at desc, id desc limit $${params.length}`,
         params
       );
@@ -80,7 +83,7 @@ export function registerSupplierInvoicingRoutes(app: FastifyInstance): void {
     const hasMore = rows.length > limit;
     const page = hasMore ? rows.slice(0, limit) : rows;
     const nextCursor = hasMore
-      ? encodeCursor({ issuedAt: page[page.length - 1]!.issued_at.toISOString(), id: page[page.length - 1]!.id })
+      ? encodeCursor({ issuedAt: page[page.length - 1]!.issued_at_cursor, id: page[page.length - 1]!.id })
       : null;
 
     return reply.code(200).send(invoiceListResponse.parse(buildPage(page.map(toInvoiceListItem), nextCursor)));
@@ -226,8 +229,17 @@ export function registerSupplierInvoicingRoutes(app: FastifyInstance): void {
         conditions.push(`(verified_at, id) < ($${params.length - 1}::timestamptz, $${params.length}::uuid)`);
       }
       params.push(limit + 1);
-      const res = await client.query<{ id: string; invoice_id: string; amount: string; verified_at: Date }>(
-        `select id, invoice_id, amount, verified_at from credit.payments_received
+      // verified_at_cursor: full microsecond precision as text, since `pg`
+      // truncates verified_at to a millisecond-resolution JS Date and a
+      // truncated cursor silently drops rows sharing a millisecond.
+      const res = await client.query<{
+        id: string;
+        invoice_id: string;
+        amount: string;
+        verified_at: Date;
+        verified_at_cursor: string;
+      }>(
+        `select id, invoice_id, amount, verified_at, verified_at::text as verified_at_cursor from credit.payments_received
          where ${conditions.join(" and ")} order by verified_at desc, id desc limit $${params.length}`,
         params
       );
@@ -237,7 +249,7 @@ export function registerSupplierInvoicingRoutes(app: FastifyInstance): void {
     const hasMore = rows.length > limit;
     const page = hasMore ? rows.slice(0, limit) : rows;
     const nextCursor = hasMore
-      ? encodeCursor({ verifiedAt: page[page.length - 1]!.verified_at.toISOString(), id: page[page.length - 1]!.id })
+      ? encodeCursor({ verifiedAt: page[page.length - 1]!.verified_at_cursor, id: page[page.length - 1]!.id })
       : null;
 
     return reply.code(200).send(
