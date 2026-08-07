@@ -102,13 +102,12 @@ export function registerAdminCreditRoutes(app: FastifyInstance): void {
             [request.params.id, body.newLimit, body.reason]
           );
           return res.rows[0]!.admin_set_credit_limit;
-        });
+        }, actor);
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         if (message.includes("FORBIDDEN")) throw new ApiError("FORBIDDEN");
         throw err;
       }
-      void actor;
       return reply
         .code(200)
         .send(setCreditLimitResponse.parse({ status: result.status, ...(result.newLimit !== undefined ? { newLimit: money(result.newLimit) } : {}) }));
@@ -146,10 +145,11 @@ export function registerAdminCreditRoutes(app: FastifyInstance): void {
     "/api/v1/admin/suppliers/:id/tier",
     { preHandler: requirePermission("update", "supplier_master") },
     async (request, reply) => {
+      const actor = requireActor(request);
       const body = setSupplierTierRequest.parse(request.body);
       await withServiceRoleTransaction(async (client) => {
         await client.query("select credit.admin_set_supplier_tier($1, $2, $3)", [request.params.id, body.tier, body.reason]);
-      });
+      }, actor);
       return reply.code(200).send(setSupplierTierResponse.parse({ status: "updated" }));
     }
   );

@@ -140,6 +140,7 @@ export function registerAdminGovernanceRoutes(app: FastifyInstance): void {
   // customer-PII read path (core.admin_read_customer, 0063's corrected
   // curated jsonb + mandatory-reason version).
   app.post("/api/v1/admin/customers/read", { preHandler: requirePermission("read", "customer_pii") }, async (request, reply) => {
+    const actor = requireActor(request);
     const body = adminReadCustomerRequest.parse(request.body);
     let result: { id: string; fullName: string; phone: string; email: string; status: string };
     try {
@@ -149,7 +150,7 @@ export function registerAdminGovernanceRoutes(app: FastifyInstance): void {
           body.reason
         ]);
         return res.rows[0]!.admin_read_customer;
-      });
+      }, actor);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       if (message.includes("NOT_FOUND")) throw new ApiError("NOT_FOUND");

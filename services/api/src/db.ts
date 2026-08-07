@@ -63,8 +63,27 @@ async function runInTransaction<T>(setup: (client: PoolClient) => Promise<void>,
 // (transaction-scoped, not session-scoped `SET ROLE`) avoids ever leaking an
 // elevated role onto a pooled connection that a later, unrelated request
 // might reuse — it resets automatically at COMMIT/ROLLBACK.
-export async function withServiceRoleTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
-  return runInTransaction((client) => client.query("set local role app_service_role").then(() => {}), fn);
+// `actor` is optional and, when passed, is set as `request.jwt.claims` the
+// same way withRlsTransaction already does — several SECURITY DEFINER
+// functions read app_auth.jwt() for the calling admin's identity (audit-log
+// actor_id/actor_role, role-gated checks like credit.admin_set_credit_limit's
+// >SAR 100,000 dual-control test). Without it, app_auth.jwt() is null under
+// this role, which silently no-ops any `if role not in (...) then raise`
+// check (Postgres treats a NULL IF-condition as false, not true) and writes
+// a NULL actor_id to the audit log — found live via test-rls.mjs coverage
+// gaps, not a hypothetical. Callers that already pass an explicit actor id
+// as a SQL parameter (the admin_force_cancel-style functions) don't need
+// this; it's additive for the ones that don't.
+export async function withServiceRoleTransaction<T>(
+  fn: (client: PoolClient) => Promise<T>,
+  actor?: AccessTokenClaims | null
+): Promise<T> {
+  return runInTransaction(async (client) => {
+    await client.query("set local role app_service_role");
+    if (actor) {
+      await client.query("select set_config('request.jwt.claims', $1, true)", [JSON.stringify(actor)]);
+    }
+  }, fn);
 }
 
 // PC-GW-3 (S03): the general per-request path for every *other* (non-auth)

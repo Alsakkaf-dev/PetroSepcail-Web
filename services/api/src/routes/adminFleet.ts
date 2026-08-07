@@ -66,7 +66,7 @@ export function registerAdminFleetRoutes(app: FastifyInstance): void {
     const body = setAuditCadenceRequest.parse(request.body);
     await withServiceRoleTransaction(async (client) => {
       await client.query("select delivery.admin_set_audit_interval($1, $2, $3)", [body.entityKind, body.entityId, body.intervalDays]);
-    });
+    }, actor);
     return reply.code(200).send(setAuditCadenceResponse.parse({ status: "updated" }));
   });
 
