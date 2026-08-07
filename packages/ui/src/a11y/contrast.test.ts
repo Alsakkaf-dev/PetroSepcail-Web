@@ -106,7 +106,14 @@ describe("TC-PC08-003 WCAG AA contrast on token pairs actually used as text", ()
     ["gold-800 on surface (label, facet count)", T.gold800, T.surface],
     ["gold-800 on bg", T.gold800, T.bg],
     ["gold-800 on bg-warm (footer, recessed panel)", T.gold800, T.bgWarm],
-    ["gold-800 on bg-tint (nav/rail hover plate)", T.gold800, T.bgTint]
+    ["gold-800 on bg-tint (nav/rail hover plate)", T.gold800, T.bgTint],
+    // Map pins. Each carries a route number set in --fs-200 reversed out of a
+    // solid fill, so every fill has to hold normal-text AA against --surface —
+    // a pin whose "3" is unreadable is a stop the driver skips.
+    ["surface on gold-800 (driver pin)", T.surface, T.gold800],
+    ["surface on f-special (home-delivery pin)", T.surface, T.fSpecial],
+    ["surface on f-petro (pickup-point pin)", T.surface, T.fPetro],
+    ["surface on f-raval (hub pin)", T.surface, T.fRaval]
   ] as const)("%s meets 4.5:1", (_label, fg, bg) => {
     expect(contrastRatio(fg, bg)).toBeGreaterThanOrEqual(WCAG_AA_NORMAL_TEXT);
     expect(meetsAA(fg, bg)).toBe(true);

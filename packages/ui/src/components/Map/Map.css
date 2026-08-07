@@ -1,0 +1,218 @@
+/* The map: a raster tile mosaic, its pins, and the same places in words.
+ *
+ * The one place in this library that positions with `left`/`top` instead of
+ * logical properties, on purpose. A map does not mirror: Riyadh is east of
+ * Jeddah in Arabic and in English, and flipping the picture under RTL would
+ * put the driver on the wrong side of the road. Everything *around* the
+ * picture — the list, the attribution, the notes — stays logical and mirrors
+ * normally, and the component's markup is identical in both directions, so
+ * the structural-parity gate still holds. */
+
+.ps-map {
+  display: flex;
+  flex-direction: column;
+  gap: var(--d-3);
+}
+
+/* 4 columns x 3 rows of tiles — GRID_COLS/GRID_ROWS in geo.ts. The ratio and
+   the projection have to agree or every pin lands in the wrong place. */
+.ps-map__canvas {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  /* The recessed surface shows through wherever a tile has not loaded, so a
+     slow connection degrades to the warm page colour rather than to black. */
+  background: var(--bg-warm);
+  box-shadow: var(--shadow-sm);
+}
+
+.ps-map__layer {
+  position: absolute;
+  inset: 0;
+}
+
+.ps-map__tile {
+  position: absolute;
+  inline-size: 25%;
+  block-size: 33.3334%;
+  /* Tiles butt up against each other; a sub-pixel seam between them reads as
+     a grid drawn over the map. */
+  outline: none;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* ---- pins ------------------------------------------------------------- */
+
+.ps-map__marker {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  transform: translate(-50%, -50%);
+}
+
+.ps-map__pin {
+  display: grid;
+  place-items: center;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  color: var(--surface);
+  background: var(--ink);
+  box-shadow: var(--shadow-md);
+  font-family: var(--font-body);
+  font-size: var(--fs-200);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.ps-map__marker--driver .ps-map__pin {
+  background: var(--gold-800);
+}
+
+.ps-map__marker--b2b_drop .ps-map__pin {
+  background: var(--blue);
+}
+
+.ps-map__marker--b2c_home .ps-map__pin {
+  background: var(--f-special);
+}
+
+.ps-map__marker--b2c_pickup .ps-map__pin {
+  background: var(--f-petro);
+}
+
+.ps-map__marker--hub .ps-map__pin {
+  background: var(--f-raval);
+}
+
+/* The moving marker, and only the moving marker, breathes. */
+.ps-map__marker--live::before {
+  content: "";
+  position: absolute;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  border-radius: 50%;
+  background: var(--gold-800);
+  opacity: 0.35;
+  animation: ps-map-halo 2.4s var(--ease-out) infinite;
+}
+
+@keyframes ps-map-halo {
+  0% {
+    transform: scale(1);
+    opacity: 0.35;
+  }
+  70% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ps-map__marker--live::before {
+    animation: none;
+  }
+}
+
+/* ---- the list, which always renders ----------------------------------- */
+
+.ps-map__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--d-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ps-map__item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--d-3);
+  padding: var(--d-2) var(--d-3);
+  border: 1px solid var(--line-soft);
+  border-inline-start: 4px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+}
+
+.ps-map__item--driver {
+  border-inline-start-color: var(--gold-800);
+}
+
+.ps-map__item--b2b_drop {
+  border-inline-start-color: var(--blue);
+}
+
+.ps-map__item--b2c_home {
+  border-inline-start-color: var(--f-special);
+}
+
+.ps-map__item--b2c_pickup {
+  border-inline-start-color: var(--f-petro);
+}
+
+.ps-map__item--hub {
+  border-inline-start-color: var(--f-raval);
+}
+
+.ps-map__item-mark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  border-radius: 50%;
+  color: var(--ink);
+  background: var(--bg-warm);
+  font-family: var(--font-body);
+  font-size: var(--fs-200);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.ps-map__item-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--d-1);
+  min-inline-size: 0;
+}
+
+.ps-map__item-label {
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-weight: 600;
+}
+
+.ps-map__item-detail {
+  color: var(--muted);
+  font-family: var(--font-body);
+  font-size: var(--fs-200);
+}
+
+.ps-map__empty,
+.ps-map__unavailable {
+  margin: 0;
+  padding: var(--d-3);
+  border: 1px dashed var(--line);
+  border-radius: var(--r-md);
+  color: var(--muted);
+  background: var(--bg-warm);
+  font-family: var(--font-body);
+  font-size: var(--fs-200);
+}
+
+.ps-map__attribution {
+  margin: 0;
+  color: var(--muted);
+  font-family: var(--font-body);
+  font-size: var(--fs-200);
+}

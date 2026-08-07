@@ -57,10 +57,12 @@
 @import "./components/Header/Header.css";
 @import "./components/LanguageToggle/LanguageToggle.css";
 @import "./components/LoadingState/LoadingState.css";
+@import "./components/Map/Map.css";
 @import "./components/Motion/Motion.css";
 @import "./components/Navigation/Navigation.css";
 @import "./components/Overlay/Overlay.css";
 @import "./components/Product/Product.css";
+@import "./components/Rating/Rating.css";
 /* App chrome. After Header so the shell can position the bar it contains,
  * before the leaf components it frames. */
 @import "./components/Shell/Shell.css";

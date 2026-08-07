@@ -1,0 +1,86 @@
+/* Star ratings — the read-only average, and the 1-to-5 picker.
+ *
+ * The stars are decoration in both. What carries the meaning is the figure
+ * beside them on the display side, and five labelled radios on the input
+ * side. Nothing here mirrors: the row simply lays out in flow, so it fills
+ * from the reading-start edge in both directions with no rule of its own. */
+
+.ps-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--d-2);
+}
+
+.ps-rating__stars {
+  display: inline-flex;
+  gap: var(--d-1);
+  color: var(--line);
+}
+
+/* --gold-700 is the large/bold-only gold. A star is a graphic, held to 3:1
+   rather than 4.5:1, and the figure that has to be *read* sits beside it in
+   --ink. */
+.ps-rating__star--on {
+  color: var(--gold-700);
+}
+
+.ps-rating__label {
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-weight: 600;
+}
+
+.ps-rating--sm .ps-rating__label {
+  font-size: var(--fs-200);
+}
+
+.ps-rating__count {
+  color: var(--muted);
+  font-family: var(--font-body);
+  font-size: var(--fs-200);
+}
+
+/* ---- the picker -------------------------------------------------------- */
+
+.ps-rating-input__stars {
+  display: flex;
+  gap: var(--d-1);
+}
+
+.ps-rating-input__option {
+  display: grid;
+  place-items: center;
+  min-inline-size: 44px;
+  min-block-size: 44px;
+  border-radius: var(--r-sm);
+  color: var(--line);
+  cursor: pointer;
+}
+
+.ps-rating-input__option--on {
+  color: var(--gold-700);
+}
+
+/* Hovering star 4 previews 1-4, the way every rating control on earth
+   behaves. Pointer-only: a keyboard user gets the checked state instead, and
+   under reduced motion nothing about this moves anyway. */
+.ps-rating-input__stars:hover .ps-rating-input__option {
+  color: var(--gold-700);
+}
+
+.ps-rating-input__option:hover ~ .ps-rating-input__option {
+  color: var(--line);
+}
+
+.ps-rating-input__option:has(.ps-choice__input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* The real radio is what is focused and what submits; the star is drawn on
+   top of it. The ring therefore has to be drawn from the input's state onto
+   the label, or a keyboard user sees nothing at all. */
+.ps-rating-input__option:has(.ps-choice__input:focus-visible) {
+  outline: 3px solid var(--blue-600);
+  outline-offset: 2px;
+}

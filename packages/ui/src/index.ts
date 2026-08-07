@@ -20,10 +20,12 @@ export * from "./components/Control";
 export * from "./components/DataTable";
 export * from "./components/Display";
 export * from "./components/Finance";
+export * from "./components/Map";
 export * from "./components/Motion";
 export * from "./components/Navigation";
 export * from "./components/Overlay";
 export * from "./components/Product";
+export * from "./components/Rating";
 export * from "./components/Shell";
 export * from "./components/Status";
 

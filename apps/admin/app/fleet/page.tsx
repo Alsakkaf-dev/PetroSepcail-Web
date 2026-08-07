@@ -11,6 +11,7 @@ import {
   DataTable,
   IdDisplay,
   Ltr,
+  Map,
   Page,
   Section,
   SectionHead,
@@ -76,7 +77,25 @@ function FleetInner() {
           <Stack gap="lg">
             <SectionHead level={1} titleId="fleet-title" title={t(locale, "nav.fleet")} />
 
-            <Banner tone="info">{t(locale, "admin.mapPending")}</Banner>
+            <Stack gap="md">
+              <h2 className="ps-section-head__title">{t(locale, "admin.fleetMapTitle")}</h2>
+              {/* AC-09 asks for a live map. EP-AC-080 mints a realtime channel
+                  token and nothing else — there is no REST endpoint anywhere
+                  that returns a driver's position, and the Pusher relay the
+                  channel belongs to is the one DEFERRED-DECISIONS §3 retires
+                  in favour of Supabase Realtime. So the surface is here, keyed
+                  off `points`, and the banner names what is missing instead of
+                  a grey rectangle implying a feed that never arrives. */}
+              <Banner tone="info">{t(locale, "admin.fleetMapNoFeed")}</Banner>
+              <Map
+                label={t(locale, "admin.fleetMapTitle")}
+                points={[]}
+                attribution={t(locale, "map.attribution")}
+                fallbackLabel={t(locale, "map.places")}
+                emptyLabel={t(locale, "map.noPlaces")}
+                unavailableLabel={t(locale, "map.unavailable")}
+              />
+            </Stack>
 
             {error ? (
               <Banner
