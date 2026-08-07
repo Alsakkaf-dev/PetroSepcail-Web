@@ -123,10 +123,16 @@ interface CatalogCursor {
 }
 
 async function getCompanySettings(client: PoolClient): Promise<{ nameAr: string; nameEn: string; vatNumber: string }> {
-  const res = await client.query<{ key: string; value: string }>(
+  // core.settings.value is jsonb - node-postgres already deserializes it into
+  // a native JS value on read, so byKey.company_name_ar etc. are already the
+  // plain strings (0059's seed values are JSON string literals, e.g.
+  // '"شركة بترو سبيشل..."', for exactly this). Re-parsing with JSON.parse
+  // here always threw for any non-numeric setting - never caught before
+  // because a wholesale order had never been placed against a real database.
+  const res = await client.query<{ key: string; value: unknown }>(
     "select key, value from core.settings where key in ('company_name_ar', 'company_name_en', 'company_vat_number')"
   );
-  const byKey = Object.fromEntries(res.rows.map((r) => [r.key, JSON.parse(r.value)]));
+  const byKey = Object.fromEntries(res.rows.map((r) => [r.key, r.value])) as Record<string, string>;
   return { nameAr: byKey.company_name_ar, nameEn: byKey.company_name_en, vatNumber: byKey.company_vat_number };
 }
 

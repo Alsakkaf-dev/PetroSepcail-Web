@@ -154,7 +154,9 @@ export function registerSupplierInvoicingRoutes(app: FastifyInstance): void {
         "select business_name_ar, business_name_en from credit.suppliers where id = $1",
         [supplierId]
       );
-      const companyRes = await client.query<{ key: string; value: string }>(
+      // core.settings.value is jsonb - node-postgres already deserializes it
+      // into a native JS value on read, unlike the type annotation below.
+      const companyRes = await client.query<{ key: string; value: unknown }>(
         "select key, value from core.settings where key in ('company_name_ar', 'company_name_en', 'company_vat_number')"
       );
       const linesRes = await client.query<{ name_ar: string; name_en: string; qty: number; unit_price: string; vat_amount: string; line_total: string }>(
@@ -165,7 +167,7 @@ export function registerSupplierInvoicingRoutes(app: FastifyInstance): void {
     });
     if (!result) throw new ApiError("NOT_FOUND");
     if (!result.invoice.zatca_uuid || !result.invoice.qr_tlv) throw new ApiError("CONFLICT");
-    const byKey = Object.fromEntries(result.company.map((r) => [r.key, JSON.parse(r.value)]));
+    const byKey = Object.fromEntries(result.company.map((r) => [r.key, r.value])) as Record<string, string>;
 
     const xml = generateUblXml({
       invoiceId: request.params.id,
