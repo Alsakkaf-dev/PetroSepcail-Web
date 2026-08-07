@@ -53,6 +53,18 @@ async function main() {
   await pg.start();
 
   try {
+    const dbUrl = `postgres://postgres:${PASSWORD}@127.0.0.1:${PORT}/postgres`;
+
+    // Supabase pre-provisions every project with an `extensions` schema
+    // before any of our own migrations run (0033's own comment documents
+    // this). 0072 grants `usage on schema extensions`, which fails outright
+    // if the schema doesn't exist - replicate Supabase's pre-provisioning
+    // rather than editing the already-applied 0072.
+    const bootstrap = new Client({ connectionString: dbUrl });
+    await bootstrap.connect();
+    await bootstrap.query("create schema if not exists extensions;");
+    await bootstrap.end();
+
     execFileSync(
       "npx",
       ["node-pg-migrate", "-m", "db/migrations", "--migration-file-language", "sql", "up"],
@@ -61,7 +73,7 @@ async function main() {
         shell: true,
         env: {
           ...process.env,
-          DATABASE_URL: `postgres://postgres:${PASSWORD}@127.0.0.1:${PORT}/postgres`
+          DATABASE_URL: dbUrl
         }
       }
     );
@@ -190,11 +202,17 @@ async function main() {
       ok("customer role is forbidden from calling admin_read_customer", deniedForCustomer);
 
       await setClaims(admin, { sub: "00000000-0000-0000-0000-000000000004", role: "admin" });
-      const res = await admin.query("select * from core.admin_read_customer($1, $2)", [
+      // 0063 changed the return type to a scalar jsonb, so `select *` yields
+      // one column named after the function (not spread columns) - the real
+      // API route (adminGovernance.ts) already unwraps it this way.
+      const res = await admin.query("select core.admin_read_customer($1, $2) as admin_read_customer", [
         "00000000-0000-0000-0000-000000000001",
         "self-test"
       ]);
-      ok("admin role can call admin_read_customer and gets the row back", res.rows[0]?.id === "00000000-0000-0000-0000-000000000001");
+      ok(
+        "admin role can call admin_read_customer and gets the row back",
+        res.rows[0]?.admin_read_customer?.id === "00000000-0000-0000-0000-000000000001"
+      );
       await admin.query("reset role");
 
       const auditRows = await admin.query(
