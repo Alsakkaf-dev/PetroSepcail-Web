@@ -235,6 +235,38 @@ async function main() {
       await admin.query("reset role");
     }
 
+    console.log("[test:rls] loyalty.campaign_coupons — RLS enforced, not disabled (0073)");
+    {
+      await asRole(admin, "app_service_role");
+      const activeCampaign = await admin.query(
+        `insert into loyalty.campaigns (name_ar, name_en, starts_at, ends_at, status)
+         values ('حملة', 'Active campaign', now() - interval '1 day', now() + interval '1 day', 'active')
+         returning id`
+      );
+      const endedCampaign = await admin.query(
+        `insert into loyalty.campaigns (name_ar, name_en, starts_at, ends_at, status)
+         values ('منتهية', 'Ended campaign', now() - interval '10 day', now() - interval '1 day', 'ended')
+         returning id`
+      );
+      const coupon = await admin.query(
+        `insert into loyalty.coupons (code, type, value) values ('RLSTEST10', 'percent', 10) returning id`
+      );
+      await admin.query(
+        "insert into loyalty.campaign_coupons (campaign_id, coupon_id) values ($1, $2), ($3, $2)",
+        [activeCampaign.rows[0].id, coupon.rows[0].id, endedCampaign.rows[0].id]
+      );
+      await admin.query("reset role");
+
+      await asRole(admin, "app_user");
+      await setClaims(admin, null);
+      const visible = await admin.query("select campaign_id from loyalty.campaign_coupons");
+      ok(
+        "unauthenticated app_user sees only the active campaign's row, not the ended one",
+        visible.rowCount === 1 && visible.rows[0].campaign_id === activeCampaign.rows[0].id
+      );
+      await admin.query("reset role");
+    }
+
     console.log("[test:rls] audit.audit_log — immutability + hash-chain tamper detection (TC-PC10-002)");
     {
       await admin.query(
