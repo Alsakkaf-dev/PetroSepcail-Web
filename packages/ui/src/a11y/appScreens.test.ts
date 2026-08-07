@@ -156,6 +156,72 @@ describe("Phase 9 — the screen sweep", () => {
     expect(offenders).toEqual([]);
   });
 
+  it("puts no user-facing copy in app source", () => {
+    // Every string a person reads comes from packages/i18n through t(). This
+    // replaced four divergent app dictionaries and 41 inline
+    // `locale === "ar" ? … : …` ternaries, and it is the reason a key can be
+    // translated once rather than hunted for in four apps.
+    //
+    // JSX text is matched only when it closes its own tag (`>text</`), which
+    // is what keeps a generic type argument — `Promise<void>` — out of the
+    // results.
+    const offenders: string[] = [];
+    for (const { file, source } of files) {
+      const stripped = withoutComments(source);
+      for (const match of stripped.match(/>[ \t]*[A-Za-z؀-ۿ][^<>{}]{2,}[ \t]*<\//g) ?? []) {
+        offenders.push(`${file}: text ${match.trim().slice(0, 50)}`);
+      }
+      // A label, a placeholder or an accessible name given a literal is copy
+      // just as much as a paragraph is — and the one most likely to be missed,
+      // because it never appears on screen as a sentence.
+      for (const match of stripped.match(/(aria-label|label|placeholder|emptyTitle|caption)="[^"]{3,}"/g) ?? []) {
+        offenders.push(`${file}: ${match.slice(0, 60)}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it("forces LTR on every field that holds a technical value", () => {
+    // An IBAN, a phone number or an OTP typed into an RTL input reorders
+    // around its own punctuation. An unisolated IBAN is a payment sent to
+    // nobody, which is why this is a gate and not a review note.
+    const technical = /iban|phone|otp|email|sku|plate|vat|coupon|bankref|invoice|amount|qty|price|code/i;
+    const offenders: string[] = [];
+    for (const { file, source } of files) {
+      for (const field of withoutComments(source).match(/<TextField[\s\S]{0,400}?\/>/g) ?? []) {
+        const name = (field.match(/name="([^"]+)"/) ?? [])[1] ?? "";
+        if (technical.test(name) && !/forceLtr/.test(field)) offenders.push(`${file}: ${name}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it("uses the design system's controls rather than raw form elements", () => {
+    // A raw control has no label shell, no error wiring, no focus ring and no
+    // 44px floor. Every one of those is a thing the library already solved.
+    const offenders: string[] = [];
+    for (const { file, source } of files) {
+      const stripped = withoutComments(source);
+      for (const tag of ["button", "select", "input", "textarea"]) {
+        if (new RegExp(`<${tag}[\\s>]`).test(stripped)) offenders.push(`${file}: raw <${tag}>`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it("gives every reported error a way out of it", () => {
+    // "Something went wrong" with no retry is a dead end. The per-screen
+    // definition of done asks for a *working* retry, and this is the half of
+    // that a machine can check.
+    const offenders: string[] = [];
+    for (const { file, source } of files) {
+      for (const block of withoutComments(source).match(/<Data(?:Table|List)[\s\S]{0,900}?\/>/g) ?? []) {
+        if (/errorMessage=/.test(block) && !/onRetry=/.test(block)) offenders.push(`${file}: error with no retry`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
   it("announces the busy state on every screen that skeletons its content", () => {
     // A skeleton nobody can hear is a screen that says nothing at all while
     // it loads. Two or more is a content block; a single one standing in for
