@@ -28,11 +28,14 @@ export const viewport: Viewport = {
   initialScale: 1
 };
 
-// Three destinations, so the header nav is the whole navigation — a rail
-// would cost thumb-reach on a phone held one-handed for a full shift.
+// Four destinations, so the header nav is still the whole navigation — a
+// rail would cost thumb-reach on a phone held one-handed for a full shift.
+// The van/custody tab and the KPI screen are reached from the launcher
+// rather than the header: they are consulted, not worked from.
 const NAV = [
   { href: "/shift", labelKey: "nav.shift" },
   { href: "/manifest", labelKey: "nav.manifest" },
+  { href: "/map", labelKey: "nav.route" },
   { href: "/audits", labelKey: "nav.audits" }
 ] as const;
 

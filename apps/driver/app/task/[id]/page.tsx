@@ -22,7 +22,6 @@ import {
   Page,
   Section,
   SectionHead,
-  Select,
   Skeleton,
   Stack,
   StatusBadge,
@@ -33,14 +32,6 @@ import { useLocale } from "@petrospecial/app-shell/src/client";
 import { count, messageFor, t, type StringKey } from "@petrospecial/i18n";
 import { authedFetch } from "../../../lib/authClient";
 import { uploadFile } from "../../../lib/uploadFile";
-
-const FAIL_REASONS: Array<{ value: string; labelKey: StringKey }> = [
-  { value: "recipient_absent", labelKey: "driver.reasonRecipientAbsent" },
-  { value: "address_wrong", labelKey: "driver.reasonAddressWrong" },
-  { value: "refused", labelKey: "driver.reasonRefused" },
-  { value: "unreachable", labelKey: "driver.reasonUnreachable" },
-  { value: "other", labelKey: "driver.reasonOther" }
-];
 
 // EP-DL-020's four accepted transitions. A status with no entry here has no
 // button — an illegal transition is *absent*, not disabled, because a greyed
@@ -85,11 +76,7 @@ export default function TaskPage() {
   const [otp, setOtp] = useState("");
   const [photoMediaId, setPhotoMediaId] = useState("");
   const [photoName, setPhotoName] = useState<string | null>(null);
-  const [collectorKind, setCollectorKind] = useState("customer");
   const [codCollected, setCodCollected] = useState("");
-  const [failReason, setFailReason] = useState("recipient_absent");
-  const [failNote, setFailNote] = useState("");
-  const [showFail, setShowFail] = useState(false);
 
   const load = useCallback(() => {
     setError(null);
@@ -231,7 +218,16 @@ export default function TaskPage() {
             ) : null}
 
             {/* ---- POD (SCR-DL05-001) ---------------------------------- */}
-            {status === "arrived" ? (
+            {status === "arrived" && detail.task.fulfillmentType === "pickup_point" ? (
+              // SCR-DL08-002. Handing a box to a shop is not a delivery to
+              // the customer, and the screen that says so owns the whole
+              // flow rather than being a value in a dropdown here.
+              <ButtonLink linkAs={Link} href={`/task/${params.id}/handover`} variant="gold" size="lg">
+                {t(locale, "driver.handoverTitle")}
+              </ButtonLink>
+            ) : null}
+
+            {status === "arrived" && detail.task.fulfillmentType !== "pickup_point" ? (
               <Card>
                 <Stack gap="md">
                   <h2 className="ps-section-head__title">{t(locale, "driver.capturePod")}</h2>
@@ -274,15 +270,11 @@ export default function TaskPage() {
                     </Stack>
                   ) : null}
 
-                  <Select
-                    label={t(locale, "driver.collectorKind")}
-                    value={collectorKind}
-                    onChange={(event) => setCollectorKind(event.target.value)}
-                    options={[
-                      { value: "customer", label: t(locale, "driver.collectorCustomer") },
-                      { value: "supplier", label: t(locale, "driver.collectorSupplier") }
-                    ]}
-                  />
+                  {/* No collector picker any more. This form is only reached
+                      for a home delivery, so the collector is the customer by
+                      construction; a pickup handover has its own screen and
+                      sends `supplier` itself. A dropdown here was a way to
+                      record the wrong fact by accident. */}
 
                   {detail.codAmount ? (
                     <TextField
@@ -308,7 +300,7 @@ export default function TaskPage() {
                       call("pod", `/api/v1/driver/tasks/${params.id}/pod`, {
                         photoMediaId,
                         ...(otp ? { otp } : {}),
-                        collectorKind,
+                        collectorKind: "customer",
                         ...(codCollected ? { codCollectedAmount: Number(codCollected) } : {}),
                         clientActionId: `${params.id}-pod`
                       })
@@ -361,55 +353,11 @@ export default function TaskPage() {
               </Button>
             ) : null}
 
-            {/* ---- Exception path ------------------------------------- */}
+            {/* ---- Exception path (SCR-DL09-001) ---------------------- */}
             {!CLOSED.has(status) ? (
-              <Card>
-                <Stack gap="md">
-                  {!showFail ? (
-                    <Button variant="ghost" onClick={() => setShowFail(true)}>
-                      {t(locale, "driver.failTask")}
-                    </Button>
-                  ) : (
-                    <>
-                      <h2 className="ps-section-head__title">{t(locale, "driver.failTask")}</h2>
-                      <Banner tone="info">{t(locale, "driver.exceptionNotice")}</Banner>
-                      <Select
-                        label={t(locale, "driver.failReason")}
-                        value={failReason}
-                        onChange={(event) => setFailReason(event.target.value)}
-                        options={FAIL_REASONS.map((reason) => ({
-                          value: reason.value,
-                          label: t(locale, reason.labelKey)
-                        }))}
-                      />
-                      <TextField
-                        label={t(locale, "form.note")}
-                        hint={t(locale, "common.optional")}
-                        value={failNote}
-                        onChange={(event) => setFailNote(event.target.value)}
-                      />
-                      <Cluster gap="sm">
-                        <Button
-                          variant="danger"
-                          busy={busy === "fail"}
-                          onClick={() =>
-                            call("fail", `/api/v1/driver/tasks/${params.id}/fail`, {
-                              reasonCode: failReason,
-                              ...(failNote.trim() ? { note: failNote.trim() } : {}),
-                              clientActionId: `${params.id}-fail`
-                            })
-                          }
-                        >
-                          {t(locale, "driver.reportException")}
-                        </Button>
-                        <Button variant="ghost" onClick={() => setShowFail(false)}>
-                          {t(locale, "common.cancel")}
-                        </Button>
-                      </Cluster>
-                    </>
-                  )}
-                </Stack>
-              </Card>
+              <ButtonLink linkAs={Link} href={`/task/${params.id}/exception`} variant="ghost" size="lg">
+                {t(locale, "driver.reportException")}
+              </ButtonLink>
             ) : null}
 
             {status === "failed" ? (

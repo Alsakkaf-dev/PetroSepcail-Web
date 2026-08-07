@@ -70,6 +70,21 @@ export default function DriverHome() {
             <Grid cols="3">
               <NavTile
                 linkAs={Link}
+                href="/van"
+                icon="banknote"
+                tone="blue"
+                title={t(locale, "driver.vanTitle")}
+                description={t(locale, "driver.custodyNotDebt")}
+              />
+              <NavTile
+                linkAs={Link}
+                href="/kpis"
+                icon="chart"
+                title={t(locale, "driver.kpisTitle")}
+                description={t(locale, "driver.kpisOwnOnly")}
+              />
+              <NavTile
+                linkAs={Link}
                 href="/shift"
                 icon="truck"
                 title={t(locale, "nav.shift")}
