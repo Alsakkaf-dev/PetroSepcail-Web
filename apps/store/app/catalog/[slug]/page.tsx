@@ -32,6 +32,7 @@ import { count, t, type Locale, type StringKey } from "@petrospecial/i18n";
 import { apiGet } from "../../../lib/api";
 import { galleryFor, thumbFor } from "../../../lib/productMedia";
 import { AddToCartButton } from "../../../components/AddToCartButton";
+import { ProductReviews } from "../../../components/ProductReviews";
 
 export const dynamic = "force-dynamic";
 
@@ -272,6 +273,11 @@ export default async function ProductDetailPage({ params, searchParams }: PagePr
             {pick(locale, detail.blocks.cta.textAr, detail.blocks.cta.textEn)}
           </Banner>
         </Section>
+
+        {/* SCR-SF08-001, after the seven spec'd blocks rather than among them:
+            the datasheet is the manufacturer speaking and this is customers
+            speaking, and the order says which is which. */}
+        <ProductReviews slug={params.slug} />
       </Container>
 
       {related && related.items.length > 0 ? (

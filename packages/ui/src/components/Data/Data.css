@@ -145,3 +145,18 @@
   font-size: var(--fs-200);
   white-space: nowrap;
 }
+
+/* A delivery code, read aloud at a door.
+ *
+ * Four digits somebody has to say out loud to a stranger while holding a
+ * phone in one hand and a box in the other, so it is set large, spaced, and
+ * forced LTR by the <Ltr> island it renders inside. */
+.ps-otp {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font-latin);
+  font-size: var(--fs-700);
+  font-weight: 800;
+  letter-spacing: 0.25em;
+  line-height: 1.1;
+}

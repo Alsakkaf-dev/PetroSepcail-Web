@@ -55,6 +55,11 @@ const CANCELLABLE_STATUSES = new Set(["pending_payment", "paid", "confirmed"]);
 // file's.
 const RETURNABLE_STATUSES = new Set(["delivered", "confirmed_received"]);
 
+// SF-06 — tracking is worth opening from the point the order is a real
+// commitment through to the moment it lands. Before payment there is no
+// delivery task to track, and after receipt there is nothing left to watch.
+const TRACKABLE_STATUSES = new Set(["paid", "confirmed", "preparing", "ready_for_pickup", "out_for_delivery", "delivered"]);
+
 // SCR-SF05-002. The screen that rendered the order's raw UUID as its order
 // number, and put "failed" — the literal string — in front of anyone whose
 // request errored.
@@ -195,6 +200,18 @@ export default function OrderDetailPage() {
                 </Card>
 
                 <Cluster gap="sm">
+                  {/* SCR-SF06-001's entry point. EP-SF-040 has returned an
+                      ETA, a driver and a last known position since S13 and
+                      this screen linked nowhere, so a customer's only way to
+                      know where a delivery was, was to wait for the door.
+                      Whether there is anything to track is the tracking
+                      screen's own call — it says so plainly when no delivery
+                      has been assigned. */}
+                  {TRACKABLE_STATUSES.has(order.status) ? (
+                    <ButtonLink linkAs={Link} href={`/orders/${order.orderId}/tracking`} variant="ghost">
+                      {t(locale, "orders.track")}
+                    </ButtonLink>
+                  ) : null}
                   {/* An action that is not legal for this status is absent,
                       not disabled: a greyed "Cancel" on a delivered order
                       invites a click that can never work. */}

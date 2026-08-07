@@ -232,6 +232,13 @@ export default function AccountPage() {
                       <ButtonLink linkAs={Link} href="/returns" variant="ghost" size="sm">
                         {t(locale, "nav.returns")}
                       </ButtonLink>
+                      {/* SCR-SF10-002's entry point. Consent, data export and
+                          deletion had no route at all before Phase 8, so the
+                          only PDPL rights a customer could exercise were the
+                          ones they could reach by emailing somebody. */}
+                      <ButtonLink linkAs={Link} href="/account/preferences" variant="ghost" size="sm">
+                        {t(locale, "account.preferences")}
+                      </ButtonLink>
                     </Cluster>
                   </Stack>
                 ) : null}
