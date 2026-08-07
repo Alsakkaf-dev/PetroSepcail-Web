@@ -166,7 +166,7 @@ function ManageUserForm() {
     setError(null);
     setDone(null);
     try {
-      const res = await authedFetch<{ roles: string[] }>(`/api/v1/admin/users/${identityId}/roles`, {
+      const res = await authedFetch<{ roles: string[] }>(`/api/v1/admin/users/${identityId}/grants`, {
         method: "POST",
         body: JSON.stringify({ action, role })
       });
