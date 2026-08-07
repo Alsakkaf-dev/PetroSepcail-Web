@@ -116,6 +116,14 @@ export default function StatementPage() {
               titleId="statement-title"
               title={t(locale, "nav.statement")}
               lead={t(locale, "supplier.statementDebtOnly")}
+              // A statement is filed, not read once. The print sheet in
+              // packages/ui strips the chrome and repeats the table headings
+              // on every page; this is the way in to it.
+              actions={
+                <Button variant="dark" size="sm" onClick={() => window.print()}>
+                  {t(locale, "common.print")}
+                </Button>
+              }
             />
 
             <Card>

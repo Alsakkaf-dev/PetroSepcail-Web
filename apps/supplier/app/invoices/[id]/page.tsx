@@ -197,7 +197,17 @@ export default function InvoiceDetailPage() {
                   copy={{ label: t(locale, "common.copy"), copiedLabel: t(locale, "common.copied") }}
                 />
               }
-              actions={<StatusBadge kind="invoice" value={detail.invoice.status} locale={locale} />}
+              actions={
+                <Cluster gap="sm">
+                  <StatusBadge kind="invoice" value={detail.invoice.status} locale={locale} />
+                  {/* A tax invoice gets filed. The print sheet in packages/ui
+                      drops the chrome and the pay-proof form and keeps the
+                      ZATCA QR whole across a page break. */}
+                  <Button variant="dark" size="sm" onClick={() => window.print()}>
+                    {t(locale, "common.print")}
+                  </Button>
+                </Cluster>
+              }
             />
 
             {error ? <Banner tone="danger">{error}</Banner> : null}

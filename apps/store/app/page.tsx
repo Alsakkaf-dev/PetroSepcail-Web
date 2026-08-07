@@ -8,7 +8,8 @@ import {
   Page,
   Section,
   SectionHead,
-  Stack
+  Stack,
+  Stagger
 } from "@petrospecial/ui";
 import { getLocale } from "@petrospecial/app-shell/src/server";
 import { t } from "@petrospecial/i18n";
@@ -57,6 +58,11 @@ export default function StoreHome() {
               divider={false}
             />
             <Grid cols="3">
+              {/* The brand entrance, on the one surface in each app that is
+                  a front door rather than a workbench. display:contents on
+                  Stagger keeps the grid its own layout, and the animation is
+                  opacity plus transform, so it costs nothing in CLS. */}
+              <Stagger>
               <NavTile
                 linkAs={Link}
                 href="/catalog"
@@ -79,6 +85,7 @@ export default function StoreHome() {
                 title={t(locale, "nav.orders")}
                 description={t(locale, "catalog.ordersDesc")}
               />
+            </Stagger>
             </Grid>
           </Stack>
         </Container>

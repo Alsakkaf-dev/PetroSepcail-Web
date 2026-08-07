@@ -1,0 +1,150 @@
+/* Print.
+ *
+ * Written for two documents specifically — a ZATCA tax invoice and a
+ * statement of account — because those are the two things anyone on this
+ * platform actually prints, and both are evidence. A supplier's accountant
+ * files them, a tax auditor reads them, and neither of them wants the
+ * navigation rail, a "Retry" button or a gold gradient on the page.
+ *
+ * The rules are global rather than supplier-only: a print sheet that lives in
+ * one app is a print sheet the other three quietly lack, and the storefront's
+ * order confirmation is the next thing somebody will hit Ctrl-P on.
+ *
+ * Nothing here is a separate print layout. The screen document *is* the
+ * printed document with the chrome removed — one source of truth, so a figure
+ * cannot appear on paper that never appeared on screen. */
+
+@media print {
+  /* Ink is expensive and backgrounds do not photocopy. Everything reverts to
+     black on white; the tokens keep working for anything that genuinely
+     needs colour, like a status badge's border. */
+  :root {
+    --bg: #fff;
+    --bg-warm: #fff;
+    --bg-tint: #fff;
+    --surface: #fff;
+    --shadow-sm: none;
+    --shadow-md: none;
+    --shadow-lg: none;
+    --shadow-gold: none;
+  }
+
+  @page {
+    margin: 1.5cm;
+  }
+
+  html,
+  body {
+    background: #fff;
+    color: var(--ink);
+    font-size: 11pt;
+  }
+
+  /* ---- what does not belong on paper -------------------------------- */
+
+  .ps-header,
+  .ps-rail__side,
+  .ps-shell__sidebar,
+  .ps-app-footer,
+  .ps-skip-link,
+  .ps-lang-toggle,
+  .ps-bell,
+  .ps-pagination,
+  .ps-breadcrumb,
+  .ps-section__decor,
+  .ps-map__canvas,
+  .ps-btn,
+  .ps-tabs__list,
+  .ps-segmented,
+  .ps-field__input,
+  .ps-choice,
+  [data-print="hide"] {
+    display: none !important;
+  }
+
+  /* A form on paper is a form nobody can fill in. The invoice's own
+     pay-proof card goes with it; the invoice does not. */
+  form {
+    display: none !important;
+  }
+
+  /* ---- what the page becomes ---------------------------------------- */
+
+  .ps-shell__body,
+  .ps-shell__main,
+  .ps-container,
+  .ps-container--wide,
+  .ps-page {
+    display: block;
+    max-inline-size: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .ps-section {
+    padding-block: 0;
+    background: none;
+  }
+
+  .ps-card,
+  .ps-finance {
+    border: 1px solid var(--line);
+    box-shadow: none;
+    break-inside: avoid;
+  }
+
+  /* ---- documents ------------------------------------------------------ */
+
+  /* A tax invoice's QR is the half a scanner reads and the UUID beside it is
+     the half a person reads. Both survive a photocopy; neither may be
+     clipped by a page break. */
+  .ps-qr,
+  .ps-qr__code {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* A statement runs to several pages, so its column headings repeat on each
+     one — otherwise page three is a grid of unlabelled numbers. */
+  thead {
+    display: table-header-group;
+  }
+
+  tfoot {
+    display: table-footer-group;
+  }
+
+  tr,
+  .ps-datalist__item,
+  .ps-line {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* The mobile card layout DataTable switches to is a screen-width decision;
+     paper is always wide. */
+  .ps-table__cell::before {
+    display: none;
+  }
+
+  /* Headings keep their body with them. */
+  h1,
+  h2,
+  h3 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  /* A separation note is the whole point of a custody panel and must not be
+     the thing that falls off the bottom of a page. */
+  .ps-finance__separation {
+    break-inside: avoid;
+  }
+
+  /* Motion is meaningless on paper, and a reveal that never fired would
+     otherwise print an invisible page. */
+  .ps-reveal {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

@@ -70,3 +70,7 @@
 @import "./components/Status/Status.css";
 @import "./components/Table/Table.css";
 @import "./components/Toast/Toast.css";
+
+/* 6. Print. Last, so it can quiet anything above it — the screen document is
+ *    the printed document with the chrome removed, not a second layout. */
+@import "./tokens/print.css";

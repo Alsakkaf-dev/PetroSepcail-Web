@@ -3,6 +3,7 @@ import { getLocale, htmlLangAttrs } from "@petrospecial/app-shell/src/server";
 import { LocaleProvider } from "@petrospecial/app-shell/src/client";
 import { PortalShell } from "@petrospecial/app-shell/src/shell";
 import { t } from "@petrospecial/i18n";
+import { OfflineBar } from "../components/OfflineBar";
 import "./globals.css";
 
 // DL-07/S11 handover's own documented gap: "PWA installability... explicitly
@@ -51,7 +52,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {t(locale, "common.skipToContent")}
         </a>
         <LocaleProvider locale={locale}>
-          <PortalShell portalKey="brand.portalDriver" nav={[...NAV]} bareRoutes={["/login"]}>
+          <PortalShell
+            portalKey="brand.portalDriver"
+            nav={[...NAV]}
+            bareRoutes={["/login"]}
+            actions={<OfflineBar />}
+          >
             {children}
           </PortalShell>
         </LocaleProvider>

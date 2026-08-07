@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Container, Grid, NavTile, Page, Section, SectionHead, Stack } from "@petrospecial/ui";
+import { Container, Grid, NavTile, Page, Section, SectionHead, Stack, Stagger } from "@petrospecial/ui";
 import { getLocale } from "@petrospecial/app-shell/src/server";
 import { t } from "@petrospecial/i18n";
 
@@ -37,6 +37,11 @@ export default function AdminHome() {
               lead={t(locale, "admin.homeLead")}
             />
             <Grid cols="3">
+              {/* The brand entrance, on the one surface in each app that is
+                  a front door rather than a workbench. display:contents on
+                  Stagger keeps the grid its own layout, and the animation is
+                  opacity plus transform, so it costs nothing in CLS. */}
+              <Stagger>
               {TILES.map((tile) => (
                 <NavTile
                   key={tile.href}
@@ -51,6 +56,7 @@ export default function AdminHome() {
                   description={t(locale, tile.descKey)}
                 />
               ))}
+            </Stagger>
             </Grid>
           </Stack>
         </Container>
