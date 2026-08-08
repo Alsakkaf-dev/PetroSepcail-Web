@@ -6,6 +6,7 @@ import {
   Badge,
   Banner,
   Button,
+  Cluster,
   Container,
   DataList,
   DataTable,
@@ -15,7 +16,8 @@ import {
   Page,
   Section,
   SectionHead,
-  Stack
+  Stack,
+  TextField
 } from "@petrospecial/ui";
 import { useLocale } from "@petrospecial/app-shell/src/client";
 import { messageFor, percent, t, type StringKey } from "@petrospecial/i18n";
@@ -49,6 +51,11 @@ function FleetInner() {
   const [alerts, setAlerts] = useState<Alert[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [reassignDriverId, setReassignDriverId] = useState<Record<string, string>>({});
+  const [reassignReason, setReassignReason] = useState<Record<string, string>>({});
+  const [reassignBusyRef, setReassignBusyRef] = useState<string | null>(null);
+  const [reassignedRefs, setReassignedRefs] = useState<Set<string>>(new Set());
+
   const load = useCallback(() => {
     setError(null);
     Promise.all([
@@ -63,6 +70,31 @@ function FleetInner() {
   }, [locale]);
 
   useEffect(load, [load]);
+
+  // EP-AC-083 · POST /admin/fleet/tasks/{id}/reassign — the alert this acts
+  // on ('unassigned_task') already carries the task id as `ref`; there is no
+  // separate driver directory to pick a new driver from (same manual-id-entry
+  // shape as /privacy's PII lookup and suppliers-credit's override form —
+  // the operator already knows who they are reassigning to).
+  async function reassignTask(taskId: string) {
+    const driverId = reassignDriverId[taskId];
+    const reason = reassignReason[taskId];
+    if (!driverId || !reason?.trim()) return;
+    setReassignBusyRef(taskId);
+    setError(null);
+    try {
+      await authedFetch(`/api/v1/admin/fleet/tasks/${taskId}/reassign`, {
+        method: "POST",
+        body: JSON.stringify({ driverId, reason })
+      });
+      setReassignedRefs((prev) => new Set(prev).add(taskId));
+      load();
+    } catch (thrown) {
+      setError(messageFor(locale, thrown));
+    } finally {
+      setReassignBusyRef(null);
+    }
+  }
 
   const alertsState = error ? "error" : alerts === null ? "loading" : alerts.length === 0 ? "empty" : "ready";
   const kpiState = error ? "error" : kpis === null ? "loading" : kpis.length === 0 ? "empty" : "ready";
@@ -138,7 +170,38 @@ function FleetInner() {
                         />
                       )
                     }
-                  ]
+                  ],
+                  actions:
+                    alert.kind === "unassigned_task" ? (
+                      reassignedRefs.has(alert.ref) ? (
+                        <Badge variant="success">{t(locale, "admin.reassignApplied")}</Badge>
+                      ) : (
+                        <Cluster gap="sm">
+                          <TextField
+                            label={t(locale, "admin.reassignDriverId")}
+                            forceLtr
+                            value={reassignDriverId[alert.ref] ?? ""}
+                            onChange={(event) =>
+                              setReassignDriverId((prev) => ({ ...prev, [alert.ref]: event.target.value }))
+                            }
+                          />
+                          <TextField
+                            label={t(locale, "admin.reassignReason")}
+                            value={reassignReason[alert.ref] ?? ""}
+                            onChange={(event) => setReassignReason((prev) => ({ ...prev, [alert.ref]: event.target.value }))}
+                          />
+                          <Button
+                            variant="dark"
+                            size="sm"
+                            busy={reassignBusyRef === alert.ref}
+                            disabled={!reassignDriverId[alert.ref] || !reassignReason[alert.ref]?.trim()}
+                            onClick={() => reassignTask(alert.ref)}
+                          >
+                            {t(locale, "admin.reassignTask")}
+                          </Button>
+                        </Cluster>
+                      )
+                    ) : undefined
                 }))}
               />
             </Stack>
