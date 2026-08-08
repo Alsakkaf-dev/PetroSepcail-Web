@@ -1,11 +1,12 @@
 "use client";
 
-import type { AdminSupplierListResponse, DualControlListResponse } from "@petrospecial/contracts";
+import type { AdminSupplierListResponse, DualControlListResponse, MeResponse } from "@petrospecial/contracts";
 import { useCallback, useEffect, useState } from "react";
 import {
   Badge,
   Banner,
   Button,
+  Card,
   Cluster,
   Container,
   DataTable,
@@ -14,6 +15,7 @@ import {
   Page,
   Section,
   SectionHead,
+  Select,
   Stack,
   TextField
 } from "@petrospecial/ui";
@@ -45,6 +47,19 @@ function SuppliersCreditInner() {
   const [pending, setPending] = useState<DualControlListResponse["items"]>([]);
   const [ackBusyId, setAckBusyId] = useState<string | null>(null);
 
+  const [tierDrafts, setTierDrafts] = useState<Record<string, "bronze" | "silver" | "gold">>({});
+  const [tierReasonDrafts, setTierReasonDrafts] = useState<Record<string, string>>({});
+  const [tierBusyId, setTierBusyId] = useState<string | null>(null);
+  const [tierSavedId, setTierSavedId] = useState<string | null>(null);
+
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [overrideSupplierId, setOverrideSupplierId] = useState("");
+  const [overrideOrderId, setOverrideOrderId] = useState("");
+  const [overrideReason, setOverrideReason] = useState("");
+  const [overrideBusy, setOverrideBusy] = useState(false);
+  const [overrideError, setOverrideError] = useState<string | null>(null);
+  const [overrideDone, setOverrideDone] = useState(false);
+
   const load = useCallback(() => {
     setError(null);
     authedFetch<AdminSupplierListResponse>("/api/v1/admin/suppliers")
@@ -62,6 +77,56 @@ function SuppliersCreditInner() {
 
   useEffect(load, [load]);
   useEffect(loadPending, [loadPending]);
+  useEffect(() => {
+    // Best-effort, same reasoning as loadPending: the credit table works
+    // with or without knowing the actor's exact role, this only gates the
+    // override form the server would reject anyway.
+    authedFetch<MeResponse>("/api/v1/me")
+      .then((res) => setIsSuperAdmin(res.roles.includes("super_admin")))
+      .catch(() => setIsSuperAdmin(false));
+  }, []);
+
+  async function applyTier(supplierId: string) {
+    const tier = tierDrafts[supplierId];
+    const reason = tierReasonDrafts[supplierId];
+    if (!tier || !reason?.trim()) return;
+    setTierBusyId(supplierId);
+    setTierSavedId(null);
+    setError(null);
+    try {
+      await authedFetch(`/api/v1/admin/suppliers/${supplierId}/tier`, {
+        method: "PUT",
+        body: JSON.stringify({ tier, reason })
+      });
+      setTierSavedId(supplierId);
+      setTierReasonDrafts((prev) => ({ ...prev, [supplierId]: "" }));
+      load();
+    } catch (thrown) {
+      setError(messageFor(locale, thrown));
+    } finally {
+      setTierBusyId(null);
+    }
+  }
+
+  async function submitOverride(event: React.FormEvent) {
+    event.preventDefault();
+    setOverrideBusy(true);
+    setOverrideError(null);
+    setOverrideDone(false);
+    try {
+      await authedFetch(`/api/v1/admin/suppliers/${overrideSupplierId}/credit-override`, {
+        method: "POST",
+        body: JSON.stringify({ orderId: overrideOrderId, reason: overrideReason })
+      });
+      setOverrideDone(true);
+      setOverrideOrderId("");
+      setOverrideReason("");
+    } catch (thrown) {
+      setOverrideError(messageFor(locale, thrown));
+    } finally {
+      setOverrideBusy(false);
+    }
+  }
 
   // A pending approval only records status - the actual limit change is
   // applied by resubmitting the same PUT credit-limit request, which
@@ -200,7 +265,48 @@ function SuppliersCreditInner() {
                 {
                   key: "tier",
                   header: t(locale, "supplier.tier"),
-                  render: (row) => <Badge variant="gold">{row.tier}</Badge>
+                  render: (row) => (
+                    <Stack gap="sm">
+                      <Badge variant="gold">{row.tier}</Badge>
+                      <Cluster gap="sm">
+                        <Select
+                          label={t(locale, "admin.newTier")}
+                          value={tierDrafts[row.supplierId] ?? row.tier}
+                          onChange={(event) =>
+                            setTierDrafts((prev) => ({ ...prev, [row.supplierId]: event.target.value as "bronze" | "silver" | "gold" }))
+                          }
+                          options={[
+                            { value: "bronze", label: "bronze" },
+                            { value: "silver", label: "silver" },
+                            { value: "gold", label: "gold" }
+                          ]}
+                        />
+                        <TextField
+                          label={t(locale, "admin.tierReasonHint")}
+                          hideLabel
+                          placeholder={t(locale, "admin.tierReasonHint")}
+                          value={tierReasonDrafts[row.supplierId] ?? ""}
+                          onChange={(event) =>
+                            setTierReasonDrafts((prev) => ({ ...prev, [row.supplierId]: event.target.value }))
+                          }
+                        />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          busy={tierBusyId === row.supplierId}
+                          disabled={
+                            !tierDrafts[row.supplierId] ||
+                            tierDrafts[row.supplierId] === row.tier ||
+                            !tierReasonDrafts[row.supplierId]?.trim()
+                          }
+                          onClick={() => applyTier(row.supplierId)}
+                        >
+                          {t(locale, "admin.applyTier")}
+                        </Button>
+                      </Cluster>
+                      {tierSavedId === row.supplierId ? <Badge variant="success">{t(locale, "admin.tierApplied")}</Badge> : null}
+                    </Stack>
+                  )
                 },
                 {
                   key: "creditLimit",
@@ -259,6 +365,62 @@ function SuppliersCreditInner() {
                 }
               ]}
             />
+
+            {/* EP-AC-024 — break-glass over a credit-blocked order. Same
+                manual-id-entry shape as /privacy's PII lookup: there is no
+                endpoint listing blocked orders to pick from (none has ever
+                needed one — session 1's own §8 notes no zero-rows evidence
+                this has actually blocked a real operation), so an operator
+                who already knows the order id from a supplier call records
+                the exception here. */}
+            <Stack gap="md">
+              <h2 className="ps-section-head__title">{t(locale, "admin.creditOverrideSection")}</h2>
+              <Banner tone="warn">{t(locale, "admin.creditOverrideHint")}</Banner>
+
+              {!isSuperAdmin ? <Banner tone="warn">{t(locale, "admin.creditOverrideSuperAdminOnly")}</Banner> : null}
+
+              <Card>
+                <form onSubmit={submitOverride}>
+                  <Stack gap="md">
+                    <Select
+                      label={t(locale, "admin.overrideSupplier")}
+                      required
+                      value={overrideSupplierId}
+                      placeholder={t(locale, "form.selectPlaceholder")}
+                      disabled={!isSuperAdmin}
+                      onChange={(event) => setOverrideSupplierId(event.target.value)}
+                      options={(items ?? []).map((s) => ({ value: s.supplierId, label: s.businessNameEn }))}
+                    />
+                    <TextField
+                      label={t(locale, "admin.overrideOrderId")}
+                      hint={t(locale, "admin.overrideOrderIdHint")}
+                      required
+                      forceLtr
+                      disabled={!isSuperAdmin}
+                      value={overrideOrderId}
+                      onChange={(event) => setOverrideOrderId(event.target.value)}
+                    />
+                    <TextField
+                      label={t(locale, "admin.overrideReason")}
+                      required
+                      disabled={!isSuperAdmin}
+                      value={overrideReason}
+                      onChange={(event) => setOverrideReason(event.target.value)}
+                    />
+                    {overrideError ? <Banner tone="danger">{overrideError}</Banner> : null}
+                    {overrideDone ? <Banner tone="success">{t(locale, "admin.overrideApplied")}</Banner> : null}
+                    <Button
+                      type="submit"
+                      variant="gold"
+                      busy={overrideBusy}
+                      disabled={!isSuperAdmin || !overrideSupplierId || !overrideOrderId || !overrideReason.trim()}
+                    >
+                      {t(locale, "admin.applyOverride")}
+                    </Button>
+                  </Stack>
+                </form>
+              </Card>
+            </Stack>
           </Stack>
         </Container>
       </Section>

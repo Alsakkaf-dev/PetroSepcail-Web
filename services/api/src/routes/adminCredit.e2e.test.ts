@@ -245,4 +245,75 @@ describe("Admin credit-limit dual control and PII-read audit (AC-03/AC-10)", () 
     });
     expect(res.statusCode).toBe(422);
   });
+
+  // EP-AC-023 (session 2, 2026-08-08) — first real caller anywhere (the
+  // admin suppliers-credit screen). credit.admin_set_supplier_tier was
+  // already swept by D11's actor-identity fix but had never actually run
+  // against a real database until this UI's own e2e coverage.
+  it("EP-AC-023: a regular admin changes a supplier's tier, applied and audited under their real identity", async () => {
+    const before = await dbClient.query("select tier from credit.suppliers where id = $1", [supplierRowId]);
+    const nextTier = before.rows[0].tier === "gold" ? "silver" : "gold";
+
+    const res = await app.inject({
+      method: "PUT",
+      url: `/api/v1/admin/suppliers/${supplierRowId}/tier`,
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { tier: nextTier, reason: "trailing-12-month volume review" }
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().status).toBe("updated");
+
+    const after = await dbClient.query("select tier from credit.suppliers where id = $1", [supplierRowId]);
+    expect(after.rows[0].tier).toBe(nextTier);
+
+    const audit = await dbClient.query(
+      "select actor_id, actor_role, reason from audit.audit_log where action = 'credit.tier.change' and resource_id = $1 order by at desc limit 1",
+      [supplierRowId]
+    );
+    expect(audit.rows[0].actor_id).toBe(adminId);
+    expect(audit.rows[0].actor_role).toBe("admin");
+    expect(audit.rows[0].reason).toBe("trailing-12-month volume review");
+  });
+
+  it("EP-AC-023: an invalid tier value is rejected before it reaches the database", async () => {
+    const res = await app.inject({
+      method: "PUT",
+      url: `/api/v1/admin/suppliers/${supplierRowId}/tier`,
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { tier: "platinum", reason: "made up" }
+    });
+    expect(res.statusCode).toBe(422);
+  });
+
+  // EP-AC-024 (session 2, 2026-08-08) — first real caller anywhere.
+  it("EP-AC-024: a regular admin is forbidden from recording a credit override (super_admin only)", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/v1/admin/suppliers/${supplierRowId}/credit-override`,
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { orderId: "00000000-0000-0000-0000-000000000099", reason: "customer called in" }
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it("EP-AC-024: a super_admin records a credit override, audited under their real identity", async () => {
+    const orderId = "00000000-0000-0000-0000-000000000042";
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/v1/admin/suppliers/${supplierRowId}/credit-override`,
+      headers: { authorization: `Bearer ${superAdminToken}` },
+      payload: { orderId, reason: "verified by phone, one-off exception approved" }
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().status).toBe("overridden");
+
+    const audit = await dbClient.query(
+      "select actor_id, actor_role, resource_id, reason, after from audit.audit_log where action = 'credit.override' and resource_id = $1 order by at desc limit 1",
+      [orderId]
+    );
+    expect(audit.rows[0].actor_id).toBe(superAdminId);
+    expect(audit.rows[0].actor_role).toBe("super_admin");
+    expect(audit.rows[0].reason).toBe("verified by phone, one-off exception approved");
+    expect(audit.rows[0].after.supplierId).toBe(supplierRowId);
+  });
 });
