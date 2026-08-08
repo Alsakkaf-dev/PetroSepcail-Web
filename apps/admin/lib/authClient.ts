@@ -28,6 +28,26 @@ export function clearToken(): void {
   window.localStorage.removeItem(TOKEN_KEY);
 }
 
+// EP-PC-005 · POST /auth/logout — no app ever called this; "sign out"
+// everywhere only cleared the local token, so the refresh-token family
+// stayed valid server-side (30-day TTL) until it happened to expire on its
+// own. This app never persists its own refresh token, so there is nothing
+// to scope the revocation to — the server revokes every active family for
+// this identity+role, which is the correct behaviour for the only session
+// this client itself knows about. Best-effort: a dropped network request
+// must not block clearing the local session the user asked to end.
+export async function logout(): Promise<void> {
+  const token = getToken();
+  clearToken();
+  if (!token) return;
+  try {
+    await fetch(apiUrl("/api/v1/auth/logout"), { method: "POST", headers: { authorization: `Bearer ${token}` } });
+  } catch {
+    // Local sign-out already happened; the server-side session will still
+    // fall away on its own TTL.
+  }
+}
+
 export async function login(email: string, password: string, totp?: string): Promise<string> {
   const res = await fetch(apiUrl("/api/v1/auth/login"), {
     method: "POST",
@@ -39,6 +59,8 @@ export async function login(email: string, password: string, totp?: string): Pro
   setToken(body.accessToken);
   return body.accessToken;
 }
+
+export const SESSION_EXPIRED = "SESSION_EXPIRED";
 
 export async function authedFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getToken();
@@ -56,6 +78,18 @@ export async function authedFetch<T>(path: string, init?: RequestInit): Promise<
       ...(hasBody ? { "content-type": "application/json" } : {})
     }
   });
+  if (res.status === 401) {
+    // The console has no /login route — LoginGate wraps every page and
+    // decides what to show from getToken() at mount. This app has no
+    // offline write queue to protect (unlike apps/driver), so there is no
+    // reason to defer the reload: a stale token dead-ended every screen
+    // behind a "Retry" that resent the same dead credential forever, reading
+    // as "Incorrect email or password" for a session that had simply timed
+    // out. The reload re-mounts LoginGate, which shows sign-in immediately.
+    clearToken();
+    if (typeof window !== "undefined") window.location.reload();
+    throw new Error(SESSION_EXPIRED);
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error?.message ?? `${path} failed: ${res.status}`);

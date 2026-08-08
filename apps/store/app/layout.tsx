@@ -4,6 +4,7 @@ import { LocaleProvider } from "@petrospecial/app-shell/src/client";
 import { PortalShell } from "@petrospecial/app-shell/src/shell";
 import { t } from "@petrospecial/i18n";
 import { HeaderBell } from "../components/HeaderBell";
+import { SignOutButton } from "../components/SignOutButton";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -47,7 +48,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             portalKey="brand.portalStore"
             nav={[...NAV]}
             width="flush"
-            actions={<HeaderBell />}
+            actions={
+              <>
+                <HeaderBell />
+                <SignOutButton />
+              </>
+            }
           >
             {children}
           </PortalShell>

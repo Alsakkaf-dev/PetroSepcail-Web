@@ -25,6 +25,21 @@ export function clearToken(): void {
   window.localStorage.removeItem(TOKEN_KEY);
 }
 
+// EP-PC-005 · POST /auth/logout — see apps/admin/lib/authClient.ts's logout()
+// for why this revokes every active family rather than a scoped one: this
+// app never persists its own refresh token, so there is nothing narrower to
+// target. Best-effort — clearing the local session must not wait on it.
+export async function logout(): Promise<void> {
+  const token = getToken();
+  clearToken();
+  if (!token) return;
+  try {
+    await fetch(apiUrl("/api/v1/auth/logout"), { method: "POST", headers: { authorization: `Bearer ${token}` } });
+  } catch {
+    // Local sign-out already happened.
+  }
+}
+
 export async function login(email: string, password: string): Promise<string> {
   const res = await fetch(apiUrl("/api/v1/auth/login"), {
     method: "POST",
@@ -36,6 +51,8 @@ export async function login(email: string, password: string): Promise<string> {
   setToken(body.accessToken);
   return body.accessToken;
 }
+
+export const SESSION_EXPIRED = "SESSION_EXPIRED";
 
 export async function authedFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getToken();
@@ -54,6 +71,18 @@ export async function authedFetch<T>(path: string, init?: RequestInit): Promise<
       ...(hasBody ? { "content-type": "application/json" } : {})
     }
   });
+  if (res.status === 401) {
+    // This app never persists a refresh token (unlike apps/store), so a
+    // stale access token cannot be silently renewed — the old bug here was
+    // resending the same dead token forever on every "Retry" click, showing
+    // "Incorrect email or password" for a session that had simply expired.
+    // A hard navigation is deliberate, not a state update: every page reads
+    // `getToken()` fresh at mount, so returning to /login is what actually
+    // clears every page's stale in-memory state, not just this one call's.
+    clearToken();
+    if (typeof window !== "undefined") window.location.href = "/login";
+    throw new Error(SESSION_EXPIRED);
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error?.message ?? `${path} failed: ${res.status}`);

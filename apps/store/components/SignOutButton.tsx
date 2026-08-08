@@ -6,13 +6,16 @@ import { useLocale } from "@petrospecial/app-shell/src/client";
 import { t } from "@petrospecial/i18n";
 import { getToken, logout } from "../lib/authClient";
 
-// Sign-out was a `float: inline-end` 12px button that LoginGate rendered
-// above whichever page happened to be open. It belongs to the shell, once.
+// No sign-out control existed anywhere in this app — clearToken() was only
+// ever reached automatically, from inside authedFetch on an unrecoverable
+// 401. A signed-in customer had no way to end their own session; on a shared
+// device that means the next person to open the browser resumes as them.
 //
-// It renders nothing when there is no session — a "Sign out" control above a
-// sign-in form is noise. The token lives in localStorage, so that is a
-// client-only decision and the control appears after hydration rather than
-// flashing and disappearing.
+// Renders nothing signed out, same as HeaderBell — a "Sign out" control next
+// to an inline LoginForm is noise. A reload rather than a route change: the
+// storefront has no single /login route, each page renders its own inline
+// form when signed out, and a reload is what puts every open page back in
+// agreement about the session, same reasoning as apps/admin's LoginGate.
 export function SignOutButton() {
   const locale = useLocale();
   const [signedIn, setSignedIn] = useState(false);
@@ -21,9 +24,6 @@ export function SignOutButton() {
     setSignedIn(Boolean(getToken()));
   }, []);
 
-  // A reload rather than a route change: the console has no /login route, and
-  // each page's own LoginGate holds the session in its own state. Reloading
-  // is the one thing that puts every part of the chrome back in agreement.
   const onSignOut = useCallback(() => {
     void logout().finally(() => window.location.reload());
   }, []);

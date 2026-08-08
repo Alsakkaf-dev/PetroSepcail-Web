@@ -73,13 +73,22 @@ export interface QueuePorts {
  * The distinction is the whole design. A 409 means the server considered the
  * action and rejected it — replaying that forever is a queue that never
  * drains and a driver who is never told. A dropped connection means the
- * server never saw it, and that is the only case worth keeping. */
+ * server never saw it, and that is the only case worth keeping.
+ *
+ * `SESSION_EXPIRED` belongs on this side of the line too, even though the
+ * server did answer: a 401 from a stale access token is a statement about
+ * the *credential*, not about whether the delivery happened. Treating it as
+ * a final rejection would silently discard a real POD/transition the moment
+ * a driver's token expired mid-shift — the exact "particular care" failure
+ * mode a device swap creates. It stays queued and retries once
+ * `authClient.ts` gets the driver signed back in. */
 export function isConnectivityFailure(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   return (
     message === "NETWORK_UNREACHABLE" ||
     message === "Failed to fetch" ||
     message === "Load failed" ||
+    message === "SESSION_EXPIRED" ||
     /networkerror|network request failed/i.test(message)
   );
 }

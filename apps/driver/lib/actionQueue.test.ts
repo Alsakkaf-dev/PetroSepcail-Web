@@ -52,6 +52,14 @@ describe("what counts as a connectivity failure", () => {
     expect(isConnectivityFailure(new Error("CONFLICT"))).toBe(false);
     expect(isConnectivityFailure(new Error("TASK_NOT_ASSIGNED"))).toBe(false);
   });
+
+  it("treats a stale access token as retriable, not a rejection", () => {
+    // A 401 here is a statement about the credential, not about whether the
+    // delivery happened — discarding it the way OTP_MISMATCH/CONFLICT are
+    // discarded would silently drop a real POD the moment a driver's token
+    // expired mid-shift.
+    expect(isConnectivityFailure(new Error("SESSION_EXPIRED"))).toBe(true);
+  });
 });
 
 describe("ordering", () => {

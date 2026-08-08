@@ -65,6 +65,30 @@ export function clearToken(): void {
   window.localStorage.removeItem(REFRESH_KEY);
 }
 
+// EP-PC-005 · POST /auth/logout — no screen ever called this; every prior
+// "session ended" path (401-after-refresh, and until now there was no
+// deliberate sign-out control at all) only cleared local storage, so the
+// refresh-token family stayed valid server-side for up to 30 days. This app
+// is the one client that actually holds its own refresh token, so — unlike
+// admin/supplier/driver — the logout call can scope revocation to exactly
+// this session's family rather than every session for the identity+role.
+// Best-effort: a dropped request must not block clearing the local session.
+export async function logout(): Promise<void> {
+  const token = getToken();
+  const refreshToken = getRefreshToken();
+  clearToken();
+  if (!token) return;
+  try {
+    await fetch(apiUrl("/api/v1/auth/logout"), {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify(refreshToken ? { refreshToken } : {})
+    });
+  } catch {
+    // Local sign-out already happened.
+  }
+}
+
 type AuthBody = {
   accessToken?: string;
   refreshToken?: string;

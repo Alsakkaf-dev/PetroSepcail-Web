@@ -97,6 +97,16 @@ export async function login(email: string, password: string): Promise<string> {
   return body.accessToken;
 }
 
+export const SESSION_EXPIRED = "SESSION_EXPIRED";
+// A driver page (task detail, exception, handover) may be mid-way through a
+// queued write when a 401 lands — actionQueue.ts's `isConnectivityFailure`
+// deliberately treats SESSION_EXPIRED the same as a dropped connection so
+// that action stays queued rather than being discarded as "the server said
+// no". Redirecting straight out of `authedFetch` would abandon that flow
+// mid-navigation, so this only clears the token and announces the event;
+// `OfflineBar` (mounted on every page) is the one place that acts on it.
+const SESSION_EXPIRED_EVENT = "ps-driver-session-expired";
+
 export async function authedFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getToken();
   if (!token) throw new Error("NOT_LOGGED_IN");
@@ -115,10 +125,25 @@ export async function authedFetch<T>(path: string, init?: RequestInit): Promise<
       ...(hasBody ? { "content-type": "application/json" } : {})
     }
   });
+  if (res.status === 401) {
+    // No refresh token is persisted here (only apps/store renews silently),
+    // so a stale access token cannot be renewed — the old behaviour resent
+    // it forever and showed "Incorrect email or password" for a session
+    // that had simply expired.
+    clearToken();
+    if (typeof window !== "undefined") window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+    throw new Error(SESSION_EXPIRED);
+  }
   if (!res.ok) {
     const body = await readJson(res);
     throw new Error(body.error?.message ?? `${path} failed: ${res.status}`);
   }
   if (res.status === 202 || res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
+}
+
+export function onSessionExpired(listener: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  window.addEventListener(SESSION_EXPIRED_EVENT, listener);
+  return () => window.removeEventListener(SESSION_EXPIRED_EVENT, listener);
 }

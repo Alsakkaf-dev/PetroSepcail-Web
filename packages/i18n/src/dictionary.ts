@@ -1150,6 +1150,7 @@ const ar = {
   "error.invalid_reason_code": "رمز السبب غير صالح أو الملاحظة المطلوبة ناقصة",
   "error.network": "تعذّر الاتصال بالخادم. تحقّق من الاتصال ثم أعد المحاولة",
   "error.notLoggedIn": "سجّل الدخول للمتابعة",
+  "error.session_expired": "انتهت صلاحية جلستك. سجّل الدخول مرة أخرى للمتابعة",
 
   // ---- route-level ------------------------------------------------------
   "route.notFoundTitle": "الصفحة غير موجودة",
@@ -2294,6 +2295,7 @@ const en: Record<StringKey, string> = {
   "error.invalid_reason_code": "That reason code is invalid, or a required note is missing",
   "error.network": "We couldn't reach the server. Check your connection and try again",
   "error.notLoggedIn": "Please sign in to continue",
+  "error.session_expired": "Your session has expired. Please sign in again to continue",
 
   // ---- route-level ------------------------------------------------------
   "route.notFoundTitle": "Page not found",

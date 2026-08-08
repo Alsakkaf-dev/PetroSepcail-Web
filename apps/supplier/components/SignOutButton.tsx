@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button, Icon } from "@petrospecial/ui";
 import { useLocale } from "@petrospecial/app-shell/src/client";
 import { t } from "@petrospecial/i18n";
-import { clearToken, getToken } from "../lib/authClient";
+import { getToken, logout } from "../lib/authClient";
 
 // Sign-out used to be a plain <button> repeated in the nav row every page
 // rendered for itself. It belongs to the shell, once.
@@ -24,9 +24,8 @@ export function SignOutButton() {
   }, []);
 
   const onSignOut = useCallback(() => {
-    clearToken();
     setSignedIn(false);
-    router.push("/login");
+    void logout().finally(() => router.push("/login"));
   }, [router]);
 
   if (!signedIn) return null;

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Cluster, ConnectivityBadge, SyncQueueBadge } from "@petrospecial/ui";
 import { useLocale } from "@petrospecial/app-shell/src/client";
 import { count, t } from "@petrospecial/i18n";
+import { onSessionExpired } from "../lib/authClient";
 import { onQueueChange, watchConnection } from "../lib/syncClient";
 
 /**
@@ -37,6 +38,17 @@ export function OfflineBar() {
     const stopWatching = watchConnection();
     const unsubscribe = onQueueChange(setPending);
 
+    // Fires synchronously inside authedFetch's own dispatchEvent call — the
+    // navigation is pushed to a macrotask so a caller that queues a failed
+    // write on the same 401 (sendOrQueue's catch, an async IndexedDB put)
+    // gets to finish first. Redirecting immediately, mid-call-stack, risked
+    // leaving that write half-done when the page unloaded out from under it.
+    const stopExpiryWatch = onSessionExpired(() => {
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 0);
+    });
+
     // Registered after paint, never before: a worker that competes with the
     // first render for bandwidth makes the first visit slower to help the
     // second one.
@@ -52,6 +64,7 @@ export function OfflineBar() {
       window.removeEventListener("offline", down);
       stopWatching();
       unsubscribe();
+      stopExpiryWatch();
     };
   }, []);
 
