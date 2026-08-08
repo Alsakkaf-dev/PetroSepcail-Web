@@ -3,10 +3,13 @@ import {
   adminReadCustomerResponse,
   aggregationCheckResponse,
   auditLogResponse,
+  breachAdvanceResponse,
   breachCreateRequest,
+  breachListResponse,
   breachResponse,
   pdplAdvanceResponse,
   pdplRequestCreate,
+  pdplRequestListResponse,
   pdplRequestResponse,
   verifyChainResponse
 } from "@petrospecial/contracts";
@@ -15,7 +18,7 @@ import { withServiceRoleTransaction } from "../db.js";
 import { ApiError } from "../errors.js";
 import { buildPage, decodeCursor, encodeCursor, parsePagination } from "../gateway/pagination.js";
 import { requirePermission } from "../gateway/requirePermission.js";
-import type { AccessTokenClaims } from "../security/jwt.js";
+import type { AccessTokenClaims, UserRole } from "../security/jwt.js";
 
 // 40-admin-center/05-api-specification.md §6/§9 (AC-07/AC-10, S18).
 
@@ -24,6 +27,12 @@ function requireActor(request: { ctx: { actor: AccessTokenClaims | null } }): Ac
   if (!actor) throw new ApiError("INVALID_CREDENTIALS");
   return actor;
 }
+
+// customer_pii's own matrix entry grants `customer` read/update (04-roles
+// §3: "RU own"), so the coarse `requirePermission("read", "customer_pii")`
+// gate every route in this file's PDPL/breach family shares is not enough
+// on its own — every one of those routes additionally requires this.
+const ADMIN_ROLES: readonly UserRole[] = ["admin", "super_admin"];
 
 export function registerAdminGovernanceRoutes(app: FastifyInstance): void {
   // EP-AC-060 · GET /admin/audit · auth(admin) — an admin sees only their
@@ -155,14 +164,29 @@ export function registerAdminGovernanceRoutes(app: FastifyInstance): void {
       const message = err instanceof Error ? err.message : String(err);
       if (message.includes("NOT_FOUND")) throw new ApiError("NOT_FOUND");
       if (message.includes("REASON_REQUIRED")) throw new ApiError("VALIDATION_ERROR", { field: "reason", reason: "required" });
+      // core.admin_read_customer (0063) raises the lowercase 'forbidden'
+      // (no errcode) rather than this file's own 'FORBIDDEN'/42501
+      // convention — mapped explicitly rather than falling through to a
+      // raw 500, which is what a customer role hitting this route saw
+      // before (test:rls already proves the SQL-level denial itself works;
+      // this is purely the HTTP-status mapping for it).
+      if (message.toLowerCase().includes("forbidden")) throw new ApiError("FORBIDDEN");
       throw err;
     }
     return reply.code(200).send(adminReadCustomerResponse.parse(result));
   });
 
-  // EP-AC-091 · POST /admin/pdpl/requests · auth(admin)
+  // EP-AC-091 · POST /admin/pdpl/requests · auth(admin) — the shared
+  // `requirePermission("read", "customer_pii")` gate also grants `customer`
+  // read/update on that resource (04-roles §3), so every PDPL/breach route
+  // below additionally requires the actor's role explicitly, the same
+  // pattern EP-AC-094 already used for its own super_admin-only check. D6
+  // (no SECURITY DEFINER function revokes its PUBLIC execute grant, session
+  // 1's own §8) made this exactly this kind of gap possible; 0078 closes it
+  // at the function layer too, not just here.
   app.post("/api/v1/admin/pdpl/requests", { preHandler: requirePermission("read", "customer_pii") }, async (request, reply) => {
     const actor = requireActor(request);
+    if (!ADMIN_ROLES.includes(actor.role)) throw new ApiError("FORBIDDEN");
     const body = pdplRequestCreate.parse(request.body);
     const result = await withServiceRoleTransaction(async (client) => {
       const res = await client.query<{ create_pdpl_request: { id: string; status: string; graceUntil: string | null } }>(
@@ -170,7 +194,7 @@ export function registerAdminGovernanceRoutes(app: FastifyInstance): void {
         [body.subjectId, body.kind, actor.sub]
       );
       return res.rows[0]!.create_pdpl_request;
-    });
+    }, actor);
     return reply.code(201).send(pdplRequestResponse.parse(result));
   });
 
@@ -180,6 +204,7 @@ export function registerAdminGovernanceRoutes(app: FastifyInstance): void {
     { preHandler: requirePermission("read", "customer_pii") },
     async (request, reply) => {
       const actor = requireActor(request);
+      if (!ADMIN_ROLES.includes(actor.role)) throw new ApiError("FORBIDDEN");
       let status: string;
       try {
         status = await withServiceRoleTransaction(async (client) => {
@@ -188,11 +213,12 @@ export function registerAdminGovernanceRoutes(app: FastifyInstance): void {
             actor.sub
           ]);
           return res.rows[0]!.advance_pdpl_request;
-        });
+        }, actor);
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         if (message.includes("NOT_FOUND")) throw new ApiError("NOT_FOUND");
         if (message.includes("CONFLICT")) throw new ApiError("CONFLICT");
+        if (message.includes("FORBIDDEN")) throw new ApiError("FORBIDDEN");
         throw err;
       }
       return reply.code(200).send(pdplAdvanceResponse.parse({ status }));
@@ -202,6 +228,7 @@ export function registerAdminGovernanceRoutes(app: FastifyInstance): void {
   // EP-AC-093 · POST /admin/pdpl/breaches · auth(admin)
   app.post("/api/v1/admin/pdpl/breaches", { preHandler: requirePermission("read", "customer_pii") }, async (request, reply) => {
     const actor = requireActor(request);
+    if (!ADMIN_ROLES.includes(actor.role)) throw new ApiError("FORBIDDEN");
     const body = breachCreateRequest.parse(request.body);
     const result = await withServiceRoleTransaction(async (client) => {
       const res = await client.query<{ open_breach: { id: string; notifyBy: string } }>("select audit.open_breach($1, $2, $3) as open_breach", [
@@ -210,9 +237,155 @@ export function registerAdminGovernanceRoutes(app: FastifyInstance): void {
         actor.sub
       ]);
       return res.rows[0]!.open_breach;
-    });
+    }, actor);
     return reply.code(201).send(breachResponse.parse({ id: result.id, notifyBy: result.notifyBy, status: "open" }));
   });
+
+  // EP-AC-095 · GET /admin/pdpl/requests · auth(admin) — EP-AC-091/092 have
+  // been callable since S18 with no way for a screen to discover a request's
+  // id to advance; audit.pdpl_requests already grants app_user select under
+  // an admin-role RLS policy (0064), so this is a route-only addition.
+  app.get<{ Querystring: { cursor?: string; limit?: string } }>(
+    "/api/v1/admin/pdpl/requests",
+    { preHandler: requirePermission("read", "customer_pii") },
+    async (request, reply) => {
+      const actor = requireActor(request);
+      if (!ADMIN_ROLES.includes(actor.role)) throw new ApiError("FORBIDDEN");
+      const { cursor, limit } = parsePagination(request.query);
+      const after = cursor ? decodeCursor<{ at: string; id: string }>(cursor) : null;
+
+      const rows = await withServiceRoleTransaction(async (client) => {
+        const params: unknown[] = [];
+        let where = "";
+        if (after) {
+          params.push(after.at, after.id);
+          where = `where (created_at, id) < ($1::timestamptz, $2::uuid)`;
+        }
+        params.push(limit + 1);
+        const res = await client.query<{
+          id: string;
+          subject_id: string;
+          kind: string;
+          status: string;
+          grace_until: string | null;
+          created_at: Date;
+          created_at_cursor: string;
+          completed_at: Date | null;
+        }>(
+          `select id, subject_id, kind, status, grace_until, created_at, created_at::text as created_at_cursor, completed_at
+           from audit.pdpl_requests ${where} order by created_at desc, id desc limit $${params.length}`,
+          params
+        );
+        return res.rows;
+      });
+
+      const hasMore = rows.length > limit;
+      const page = hasMore ? rows.slice(0, limit) : rows;
+      const nextCursor = hasMore
+        ? encodeCursor({ at: page[page.length - 1]!.created_at_cursor, id: page[page.length - 1]!.id })
+        : null;
+
+      return reply.code(200).send(
+        pdplRequestListResponse.parse(
+          buildPage(
+            page.map((r) => ({
+              id: r.id,
+              subjectId: r.subject_id,
+              kind: r.kind,
+              status: r.status,
+              graceUntil: r.grace_until,
+              createdAt: r.created_at.toISOString(),
+              completedAt: r.completed_at ? r.completed_at.toISOString() : null
+            })),
+            nextCursor
+          )
+        )
+      );
+    }
+  );
+
+  // EP-AC-096 · GET /admin/pdpl/breaches · auth(admin)
+  app.get<{ Querystring: { cursor?: string; limit?: string } }>(
+    "/api/v1/admin/pdpl/breaches",
+    { preHandler: requirePermission("read", "customer_pii") },
+    async (request, reply) => {
+      const actor = requireActor(request);
+      if (!ADMIN_ROLES.includes(actor.role)) throw new ApiError("FORBIDDEN");
+      const { cursor, limit } = parsePagination(request.query);
+      const after = cursor ? decodeCursor<{ at: string; id: string }>(cursor) : null;
+
+      const rows = await withServiceRoleTransaction(async (client) => {
+        const params: unknown[] = [];
+        let where = "";
+        if (after) {
+          params.push(after.at, after.id);
+          where = `where (detected_at, id) < ($1::timestamptz, $2::uuid)`;
+        }
+        params.push(limit + 1);
+        const res = await client.query<{
+          id: string;
+          detected_at: Date;
+          detected_at_cursor: string;
+          notify_by: Date;
+          scope: string;
+          status: string;
+        }>(
+          `select id, detected_at, detected_at::text as detected_at_cursor, notify_by, scope, status
+           from audit.breach_notifications ${where} order by detected_at desc, id desc limit $${params.length}`,
+          params
+        );
+        return res.rows;
+      });
+
+      const hasMore = rows.length > limit;
+      const page = hasMore ? rows.slice(0, limit) : rows;
+      const nextCursor = hasMore
+        ? encodeCursor({ at: page[page.length - 1]!.detected_at_cursor, id: page[page.length - 1]!.id })
+        : null;
+
+      return reply.code(200).send(
+        breachListResponse.parse(
+          buildPage(
+            page.map((r) => ({
+              id: r.id,
+              detectedAt: r.detected_at.toISOString(),
+              notifyBy: r.notify_by.toISOString(),
+              scope: r.scope,
+              status: r.status
+            })),
+            nextCursor
+          )
+        )
+      );
+    }
+  );
+
+  // EP-AC-097 · POST /admin/pdpl/breaches/{id}/advance · auth(admin)
+  app.post<{ Params: { id: string } }>(
+    "/api/v1/admin/pdpl/breaches/:id/advance",
+    { preHandler: requirePermission("read", "customer_pii") },
+    async (request, reply) => {
+      const actor = requireActor(request);
+      if (!ADMIN_ROLES.includes(actor.role)) throw new ApiError("FORBIDDEN");
+      let status: string;
+      try {
+        status = await withServiceRoleTransaction(async (client) => {
+          const res = await client.query<{ advance_breach: string }>("select audit.advance_breach($1, $2) as advance_breach", [
+            request.params.id,
+            actor.sub
+          ]);
+          return res.rows[0]!.advance_breach;
+        }, actor);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (message.includes("NOT_FOUND")) throw new ApiError("NOT_FOUND");
+        if (message.includes("CONFLICT")) throw new ApiError("CONFLICT");
+        if (message.includes("FORBIDDEN")) throw new ApiError("FORBIDDEN");
+        throw err;
+      }
+      return reply.code(200).send(breachAdvanceResponse.parse({ status }));
+    }
+  );
 
   // EP-AC-094 · GET /admin/pdpl/aggregation-check · auth(super_admin) —
   // orders.v_sales_kpi's own HAVING clause (0065) already enforces the floor

@@ -1,10 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import type { AdminReadCustomerResponse } from "@petrospecial/contracts";
 import { useState } from "react";
 import {
   Banner,
   Button,
+  ButtonLink,
   Card,
   Container,
   Ltr,
@@ -69,6 +71,10 @@ function PrivacyInner() {
         <Container>
           <Stack gap="lg">
             <SectionHead level={1} titleId="privacy-title" title={t(locale, "nav.privacy")} />
+
+            <ButtonLink linkAs={Link} href="/privacy/pdpl" variant="ghost">
+              {t(locale, "admin.pdplTitle")}
+            </ButtonLink>
 
             {/* The warning comes before the field, not after the lookup. */}
             <Banner tone="warn" title={t(locale, "admin.piiWarning")}>

@@ -212,8 +212,49 @@ export const pdplRequestResponse = z.object({
 
 export const pdplAdvanceResponse = z.object({ status: z.enum(["received", "in_grace", "executing", "completed", "rejected"]) });
 
+// EP-AC-095 · GET /admin/pdpl/requests · auth(admin) — built alongside the
+// admin screen; EP-AC-091/092 had no way to discover a request's id to
+// advance without this.
+export const pdplRequestListItem = z.object({
+  id: z.string().uuid(),
+  subjectId: z.string().uuid(),
+  kind: z.enum(["access", "correction", "deletion"]),
+  status: z.enum(["received", "in_grace", "executing", "completed", "rejected"]),
+  graceUntil: z.string().nullable(),
+  createdAt: z.string().datetime(),
+  completedAt: z.string().datetime().nullable()
+});
+export const pdplRequestListResponse = z.object({ items: z.array(pdplRequestListItem), nextCursor: z.string().nullable() });
+export type PdplRequestListResponse = z.infer<typeof pdplRequestListResponse>;
+
 export const breachCreateRequest = z.object({ detectedAt: z.string().datetime(), scope: z.string().min(1) });
-export const breachResponse = z.object({ id: z.string().uuid(), notifyBy: z.string().datetime(), status: z.literal("open") });
+// `notifyBy` is computed inside audit.open_breach and returned via
+// jsonb_build_object — Postgres serializes a timestamptz inside jsonb as
+// "+00:00", not "Z" (confirmed by this route's own first-ever e2e run
+// against a real database: `breachResponse.parse()` threw "Invalid
+// datetime" on every real call, so this endpoint had never once actually
+// returned successfully). { offset: true } accepts both forms.
+export const breachResponse = z.object({
+  id: z.string().uuid(),
+  notifyBy: z.string().datetime({ offset: true }),
+  status: z.literal("open")
+});
+
+// EP-AC-096 · GET /admin/pdpl/breaches · auth(admin)
+export const breachListItem = z.object({
+  id: z.string().uuid(),
+  detectedAt: z.string().datetime(),
+  notifyBy: z.string().datetime(),
+  scope: z.string(),
+  status: z.enum(["open", "regulator_notified", "subjects_notified", "closed"])
+});
+export const breachListResponse = z.object({ items: z.array(breachListItem), nextCursor: z.string().nullable() });
+export type BreachListResponse = z.infer<typeof breachListResponse>;
+
+// EP-AC-097 · POST /admin/pdpl/breaches/{id}/advance · auth(admin) — the 72h
+// tracker EP-AC-093 opens had no way to move past "open" at all; mirrors
+// EP-AC-092's own state-machine-only shape (audit.advance_breach).
+export const breachAdvanceResponse = z.object({ status: z.enum(["open", "regulator_notified", "subjects_notified", "closed"]) });
 
 export const aggregationCheckResponse = z.object({
   views: z.array(z.object({ name: z.string(), minCellCount: z.number().int(), ok: z.boolean() }))

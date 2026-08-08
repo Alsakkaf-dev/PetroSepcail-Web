@@ -113,13 +113,34 @@ export const REFUND_STATUS: Record<string, StatusEntry> = {
   failed: { ar: "تعذّر التحويل", en: "Transfer failed", tone: "danger" }
 };
 
+/** `audit.pdpl_requests.status` — five values (0064/0067). No D-04 entry
+ * (same gap as `return_status`/`refund_status` above, same resolution). */
+export const PDPL_REQUEST_STATUS: Record<string, StatusEntry> = {
+  received: { ar: "مستلم", en: "Received", tone: "info" },
+  in_grace: { ar: "خلال مهلة الإمهال", en: "In grace period", tone: "warn" },
+  executing: { ar: "قيد التنفيذ", en: "Executing", tone: "progress" },
+  completed: { ar: "منجز", en: "Completed", tone: "success" },
+  rejected: { ar: "مرفوض", en: "Rejected", tone: "danger" }
+};
+
+/** `audit.breach_notifications.status` — four values (0064/0067/0077), the
+ * 72h PDPL breach-notification obligation tracker. Same gap/resolution. */
+export const BREACH_STATUS: Record<string, StatusEntry> = {
+  open: { ar: "مفتوح", en: "Open", tone: "danger" },
+  regulator_notified: { ar: "تم إخطار الجهة التنظيمية", en: "Regulator notified", tone: "warn" },
+  subjects_notified: { ar: "تم إخطار أصحاب البيانات", en: "Subjects notified", tone: "progress" },
+  closed: { ar: "مغلق", en: "Closed", tone: "success" }
+};
+
 export const STATUS_SETS = {
   order: ORDER_STATUS,
   delivery: DELIVERY_STATUS,
   invoice: INVOICE_STATUS,
   payment: PAYMENT_METHOD,
   return: RETURN_STATUS,
-  refund: REFUND_STATUS
+  refund: REFUND_STATUS,
+  pdplRequest: PDPL_REQUEST_STATUS,
+  breach: BREACH_STATUS
 } as const;
 
 export type StatusKind = keyof typeof STATUS_SETS;
