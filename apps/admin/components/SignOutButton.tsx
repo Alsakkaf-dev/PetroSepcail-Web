@@ -2,9 +2,16 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Button, Icon } from "@petrospecial/ui";
+import { useIdleTimeout } from "@petrospecial/app-shell/src/idleTimeout";
 import { useLocale } from "@petrospecial/app-shell/src/client";
 import { t } from "@petrospecial/i18n";
 import { getToken, logout } from "../lib/authClient";
+
+// 04-roles-and-permissions-matrix.md §1: 15 min idle timeout for admin and
+// super_admin — half the customer/supplier/driver figure, since this is the
+// console with the standing MFA requirement. Never enforced anywhere before
+// this — see useIdleTimeout's own comment for why it lives client-side.
+const IDLE_TIMEOUT_MS = 15 * 60 * 1000;
 
 // Sign-out was a `float: inline-end` 12px button that LoginGate rendered
 // above whichever page happened to be open. It belongs to the shell, once.
@@ -27,6 +34,8 @@ export function SignOutButton() {
   const onSignOut = useCallback(() => {
     void logout().finally(() => window.location.reload());
   }, []);
+
+  useIdleTimeout(signedIn, IDLE_TIMEOUT_MS, onSignOut);
 
   if (!signedIn) return null;
 

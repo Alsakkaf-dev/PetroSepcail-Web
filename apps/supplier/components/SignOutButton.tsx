@@ -3,9 +3,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Icon } from "@petrospecial/ui";
+import { useIdleTimeout } from "@petrospecial/app-shell/src/idleTimeout";
 import { useLocale } from "@petrospecial/app-shell/src/client";
 import { t } from "@petrospecial/i18n";
 import { getToken, logout } from "../lib/authClient";
+
+// 04-roles-and-permissions-matrix.md §1: 30 min idle timeout for supplier
+// sessions. Never enforced anywhere before this — see useIdleTimeout's own
+// comment for why it lives client-side.
+const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 
 // Sign-out used to be a plain <button> repeated in the nav row every page
 // rendered for itself. It belongs to the shell, once.
@@ -27,6 +33,8 @@ export function SignOutButton() {
     setSignedIn(false);
     void logout().finally(() => router.push("/login"));
   }, [router]);
+
+  useIdleTimeout(signedIn, IDLE_TIMEOUT_MS, onSignOut);
 
   if (!signedIn) return null;
 

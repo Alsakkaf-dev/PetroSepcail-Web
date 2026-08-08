@@ -456,6 +456,60 @@ describe("PC-01/02 auth E2E (real Postgres)", () => {
     expect(reset.rows[0].confirmed_at).toBeNull();
   });
 
+  it("enforces the 12h admin absolute session cap, but not on other roles (04-roles §1)", async () => {
+    const superAdminLogin = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: { email: SEED_EMAILS.super_admin, password: DEV_PASSWORD }
+    });
+    const { refreshToken: superAdminRefresh } = superAdminLogin.json();
+
+    const family = await dbClient.query(
+      "select family_id from core.auth_tokens where identity_id = $1 and revoked_at is null order by issued_at desc limit 1",
+      [SEED_IDS.super_admin]
+    );
+    const familyId = family.rows[0].family_id;
+    // Backdate the family's origin past the 12h cap — rotation never touches
+    // an earlier row's issued_at, so this is what a genuinely 13h-old
+    // session's origin row would look like.
+    await dbClient.query("update core.auth_tokens set issued_at = now() - interval '13 hours' where family_id = $1", [
+      familyId
+    ]);
+
+    const capped = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/refresh",
+      payload: { refreshToken: superAdminRefresh }
+    });
+    expect(capped.statusCode).toBe(401);
+    expect(capped.json().error.code).toBe("TOKEN_REUSE_DETECTED");
+
+    const revoked = await dbClient.query("select revoked_at from core.auth_tokens where family_id = $1", [familyId]);
+    expect(revoked.rows.every((r) => r.revoked_at !== null)).toBe(true);
+
+    // The same 13h-old origin on a non-admin role's family must NOT be
+    // capped — the spec sets this limit for admin/super_admin only.
+    const customerLogin = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: { email: SEED_EMAILS.customer, password: DEV_PASSWORD }
+    });
+    const { refreshToken: customerRefresh } = customerLogin.json();
+    const customerFamily = await dbClient.query(
+      "select family_id from core.auth_tokens where identity_id = $1 and revoked_at is null order by issued_at desc limit 1",
+      [SEED_IDS.customer]
+    );
+    await dbClient.query("update core.auth_tokens set issued_at = now() - interval '13 hours' where family_id = $1", [
+      customerFamily.rows[0].family_id
+    ]);
+    const stillWorks = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/refresh",
+      payload: { refreshToken: customerRefresh }
+    });
+    expect(stillWorks.statusCode).toBe(200);
+  });
+
   it("offers role selection for a multi-grant identity and honors the chosen role", async () => {
     await dbClient.query("insert into core.role_grants (identity_id, role) values ($1, 'admin')", [SEED_IDS.driver]);
 

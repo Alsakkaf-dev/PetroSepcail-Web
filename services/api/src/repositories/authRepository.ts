@@ -206,6 +206,18 @@ export async function markAuthTokenRotated(client: PoolClient, id: string): Prom
   await client.query("update core.auth_tokens set rotated_at = now() where id = $1", [id]);
 }
 
+// A rotation inserts a new row and never touches the old ones' `issued_at`,
+// so the earliest `issued_at` across every row sharing `family_id` is the
+// moment this family's session genuinely began — what an absolute session
+// cap has to measure against, not any one row's own recency.
+export async function findFamilyOriginIssuedAt(client: PoolClient, familyId: string): Promise<Date | undefined> {
+  const res = await client.query<{ issued_at: Date }>(
+    "select min(issued_at) as issued_at from core.auth_tokens where family_id = $1",
+    [familyId]
+  );
+  return res.rows[0]?.issued_at;
+}
+
 export async function revokeAuthTokenFamily(client: PoolClient, familyId: string): Promise<void> {
   await client.query(
     "update core.auth_tokens set revoked_at = now() where family_id = $1 and revoked_at is null",

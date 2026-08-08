@@ -47,6 +47,8 @@ function refreshTtlSeconds(): number {
 }
 
 const ADMIN_ROLES: readonly UserRole[] = ["admin", "super_admin"];
+// 04-roles-and-permissions-matrix.md §1: "admin absolute session cap 12h".
+const ADMIN_ABSOLUTE_SESSION_MS = 12 * 60 * 60 * 1000;
 
 export function registerAuthRoutes(app: FastifyInstance): void {
   // EP-PC-001 · POST /auth/register
@@ -236,6 +238,23 @@ export function registerAuthRoutes(app: FastifyInstance): void {
         throw new ApiError("TOKEN_REUSE_DETECTED");
       }
       if (existing.expires_at.getTime() <= Date.now()) throw new ApiError("TOKEN_INVALID");
+
+      // 04-roles §1: 12h absolute session cap, admin/super_admin only — no
+      // amount of activity may keep one of these sessions alive past it.
+      // Measured from the family's origin (its earliest row), not this row's
+      // own `issued_at`, since a rotation would otherwise reset the clock on
+      // every refresh and the cap would never actually bind.
+      if (ADMIN_ROLES.includes(existing.role)) {
+        const origin = await repo.findFamilyOriginIssuedAt(client, existing.family_id);
+        if (origin && Date.now() - origin.getTime() > ADMIN_ABSOLUTE_SESSION_MS) {
+          await repo.revokeAuthTokenFamily(client, existing.family_id);
+          // Same client-visible outcome as reuse detection (family revoked,
+          // sign in again) and no UI currently reaches this path to see a
+          // more specific message — reusing the code avoids adding
+          // unreachable client-visible surface for it.
+          throw new ApiError("TOKEN_REUSE_DETECTED");
+        }
+      }
 
       const identity = await repo.findIdentityById(client, existing.identity_id);
       if (!identity || identity.status !== "active") throw new ApiError("TOKEN_INVALID");

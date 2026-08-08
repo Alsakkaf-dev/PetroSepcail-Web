@@ -2,9 +2,15 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Button, Icon } from "@petrospecial/ui";
+import { useIdleTimeout } from "@petrospecial/app-shell/src/idleTimeout";
 import { useLocale } from "@petrospecial/app-shell/src/client";
 import { t } from "@petrospecial/i18n";
 import { getToken, logout } from "../lib/authClient";
+
+// 04-roles-and-permissions-matrix.md §1: 30 min idle timeout for customer
+// sessions. Never enforced anywhere before this — see useIdleTimeout's own
+// comment for why it lives client-side.
+const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 
 // No sign-out control existed anywhere in this app — clearToken() was only
 // ever reached automatically, from inside authedFetch on an unrecoverable
@@ -27,6 +33,8 @@ export function SignOutButton() {
   const onSignOut = useCallback(() => {
     void logout().finally(() => window.location.reload());
   }, []);
+
+  useIdleTimeout(signedIn, IDLE_TIMEOUT_MS, onSignOut);
 
   if (!signedIn) return null;
 
