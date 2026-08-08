@@ -42,6 +42,7 @@ import {
   type StringKey
 } from "@petrospecial/i18n";
 import { authedFetch } from "../../lib/authClient";
+import { computeCheckoutDisplayTotal } from "../../lib/checkoutTotal";
 
 interface PointsBalanceResponse {
   balance: number;
@@ -261,6 +262,12 @@ export default function CheckoutPage() {
 
   const summaryRows = useMemo(() => {
     if (!cart) return [];
+    const displayTotal = computeCheckoutDisplayTotal({
+      cartTotal: cart.totals.total,
+      deliveryFee: quote && !quote.freeDelivery ? quote.deliveryFee : null,
+      pointsDiscount: redemption && redemption.allowedPoints > 0 ? redemption.discountSar : null
+    });
+
     return [
       { id: "subtotal", label: t(locale, "cart.subtotal"), value: <Money amount={cart.totals.subtotal} locale={locale} /> },
       {
@@ -305,7 +312,7 @@ export default function CheckoutPage() {
       {
         id: "total",
         label: t(locale, "cart.total"),
-        value: <Money amount={cart.totals.total} locale={locale} emphasis="strong" />,
+        value: <Money amount={displayTotal} locale={locale} emphasis="strong" />,
         emphasis: "total" as const
       }
     ];
