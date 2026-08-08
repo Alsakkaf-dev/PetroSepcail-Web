@@ -32,6 +32,7 @@ import { useLocale } from "@petrospecial/app-shell/src/client";
 import { count, messageFor, t, type StringKey } from "@petrospecial/i18n";
 import { authedFetch } from "../../../lib/authClient";
 import { QUEUED_MEDIA } from "../../../lib/actionQueue";
+import { useLocationPing } from "../../../lib/locationPing";
 import { sendOrQueue } from "../../../lib/syncClient";
 import { OfflineNotice } from "../../../components/OfflineNotice";
 
@@ -88,6 +89,8 @@ export default function TaskPage() {
   }, [locale, params.id]);
 
   useEffect(load, [load]);
+
+  useLocationPing(params.id, detail?.task.status === "en_route");
 
   /** Accept, decline, regenerate-OTP and return-to-hub carry no idempotency
    * key, so replaying one is not provably safe. They fail loudly with no

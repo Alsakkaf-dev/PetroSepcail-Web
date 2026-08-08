@@ -1,11 +1,12 @@
 "use client";
 
 import type { AdminSkuListResponse } from "@petrospecial/contracts";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Badge,
   Banner,
   Button,
+  Card,
   Cluster,
   Container,
   DataTable,
@@ -16,6 +17,7 @@ import {
   QtyStepper,
   Section,
   SectionHead,
+  Select,
   Stack,
   TextField
 } from "@petrospecial/ui";
@@ -55,6 +57,27 @@ function CatalogInner() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+
+  const [skuSlug, setSkuSlug] = useState("");
+  const [skuFamily, setSkuFamily] = useState<"special" | "petro" | "raval">("special");
+  const [skuNameAr, setSkuNameAr] = useState("");
+  const [skuNameEn, setSkuNameEn] = useState("");
+  const [skuGrade, setSkuGrade] = useState("");
+  const [skuApplication, setSkuApplication] = useState<
+    "petrol_engine" | "diesel_engine" | "coolant" | "brake_fluid" | "gear_fluid"
+  >("petrol_engine");
+  const [skuProductTypeAr, setSkuProductTypeAr] = useState("");
+  const [skuProductTypeEn, setSkuProductTypeEn] = useState("");
+  const [createSkuBusy, setCreateSkuBusy] = useState(false);
+  const [createSkuError, setCreateSkuError] = useState<string | null>(null);
+  const [createSkuDone, setCreateSkuDone] = useState<string | null>(null);
+
+  const [packSkuId, setPackSkuId] = useState("");
+  const [packSizeLabel, setPackSizeLabel] = useState("");
+  const [packSizeLiters, setPackSizeLiters] = useState("");
+  const [createPackBusy, setCreatePackBusy] = useState(false);
+  const [createPackError, setCreatePackError] = useState<string | null>(null);
+  const [createPackDone, setCreatePackDone] = useState<string | null>(null);
 
   const load = useCallback(() => {
     setError(null);
@@ -101,6 +124,67 @@ function CatalogInner() {
       setError(messageFor(locale, thrown));
     } finally {
       setBusy(null);
+    }
+  }
+
+  async function createSku(event: React.FormEvent) {
+    event.preventDefault();
+    setCreateSkuBusy(true);
+    setCreateSkuError(null);
+    try {
+      await authedFetch("/api/v1/admin/catalog/skus", {
+        method: "POST",
+        body: JSON.stringify({
+          slug: skuSlug.trim(),
+          familyCode: skuFamily,
+          nameAr: skuNameAr.trim(),
+          nameEn: skuNameEn.trim(),
+          grade: skuGrade.trim(),
+          application: skuApplication,
+          productTypeAr: skuProductTypeAr.trim(),
+          productTypeEn: skuProductTypeEn.trim()
+        })
+      });
+      setCreateSkuDone(t(locale, "admin.skuCreated"));
+      setSkuSlug("");
+      setSkuNameAr("");
+      setSkuNameEn("");
+      setSkuGrade("");
+      setSkuProductTypeAr("");
+      setSkuProductTypeEn("");
+      load();
+    } catch (thrown) {
+      setCreateSkuError(messageFor(locale, thrown));
+    } finally {
+      setCreateSkuBusy(false);
+    }
+  }
+
+  const skuOptions = useMemo(() => {
+    const bySkuId = new Map<string, Row>();
+    for (const row of rows ?? []) if (!bySkuId.has(row.skuId)) bySkuId.set(row.skuId, row);
+    return Array.from(bySkuId.values()).map((row) => ({ value: row.skuId, label: `${row.nameAr} / ${row.nameEn}` }));
+  }, [rows]);
+
+  async function createPackSize(event: React.FormEvent) {
+    event.preventDefault();
+    setCreatePackBusy(true);
+    setCreatePackError(null);
+    try {
+      const sizeLiters = Number(packSizeLiters);
+      await authedFetch("/api/v1/admin/catalog/pack-sizes", {
+        method: "POST",
+        body: JSON.stringify({ skuId: packSkuId, sizeLabel: packSizeLabel.trim(), sizeLiters })
+      });
+      setCreatePackDone(t(locale, "admin.packSizeCreated"));
+      setPackSkuId("");
+      setPackSizeLabel("");
+      setPackSizeLiters("");
+      load();
+    } catch (thrown) {
+      setCreatePackError(messageFor(locale, thrown));
+    } finally {
+      setCreatePackBusy(false);
     }
   }
 
@@ -216,6 +300,153 @@ function CatalogInner() {
                 }
               ]}
             />
+
+            <Stack gap="md">
+              <h2 className="ps-section-head__title">{t(locale, "admin.createSkuSection")}</h2>
+              <Banner tone="info">{t(locale, "admin.createSkuHint")}</Banner>
+              <Card>
+                <form onSubmit={createSku}>
+                  <Stack gap="md">
+                    <TextField
+                      label={t(locale, "admin.slug")}
+                      hint={t(locale, "admin.slugHint")}
+                      required
+                      forceLtr
+                      value={skuSlug}
+                      onChange={(e) => setSkuSlug(e.target.value)}
+                    />
+                    <Select
+                      label={t(locale, "admin.family")}
+                      value={skuFamily}
+                      onChange={(e) => setSkuFamily(e.target.value as typeof skuFamily)}
+                      options={[
+                        { value: "special", label: t(locale, "admin.familySpecial") },
+                        { value: "petro", label: t(locale, "admin.familyPetro") },
+                        { value: "raval", label: t(locale, "admin.familyRaval") }
+                      ]}
+                    />
+                    <TextField
+                      label={t(locale, "admin.skuNameAr")}
+                      required
+                      value={skuNameAr}
+                      onChange={(e) => setSkuNameAr(e.target.value)}
+                    />
+                    <TextField
+                      label={t(locale, "admin.skuNameEn")}
+                      required
+                      forceLtr
+                      value={skuNameEn}
+                      onChange={(e) => setSkuNameEn(e.target.value)}
+                    />
+                    <TextField
+                      label={t(locale, "catalog.grade")}
+                      required
+                      forceLtr
+                      value={skuGrade}
+                      onChange={(e) => setSkuGrade(e.target.value)}
+                    />
+                    <Select
+                      label={t(locale, "catalog.application")}
+                      value={skuApplication}
+                      onChange={(e) => setSkuApplication(e.target.value as typeof skuApplication)}
+                      options={[
+                        { value: "petrol_engine", label: t(locale, "app.petrol_engine") },
+                        { value: "diesel_engine", label: t(locale, "app.diesel_engine") },
+                        { value: "coolant", label: t(locale, "app.coolant") },
+                        { value: "brake_fluid", label: t(locale, "app.brake_fluid") },
+                        { value: "gear_fluid", label: t(locale, "app.gear_fluid") }
+                      ]}
+                    />
+                    <TextField
+                      label={t(locale, "admin.productTypeAr")}
+                      required
+                      value={skuProductTypeAr}
+                      onChange={(e) => setSkuProductTypeAr(e.target.value)}
+                    />
+                    <TextField
+                      label={t(locale, "admin.productTypeEn")}
+                      required
+                      forceLtr
+                      value={skuProductTypeEn}
+                      onChange={(e) => setSkuProductTypeEn(e.target.value)}
+                    />
+                    {createSkuError ? <Banner tone="danger">{createSkuError}</Banner> : null}
+                    {createSkuDone ? (
+                      <span role="status">
+                        <Badge variant="success">
+                          <Icon name="check-circle" size="sm" />
+                          {createSkuDone}
+                        </Badge>
+                      </span>
+                    ) : null}
+                    <Button
+                      type="submit"
+                      variant="gold"
+                      busy={createSkuBusy}
+                      disabled={
+                        !skuSlug.trim() ||
+                        !skuNameAr.trim() ||
+                        !skuNameEn.trim() ||
+                        !skuGrade.trim() ||
+                        !skuProductTypeAr.trim() ||
+                        !skuProductTypeEn.trim()
+                      }
+                    >
+                      {t(locale, "admin.createSku")}
+                    </Button>
+                  </Stack>
+                </form>
+              </Card>
+            </Stack>
+
+            <Stack gap="md">
+              <h2 className="ps-section-head__title">{t(locale, "admin.createPackSizeSection")}</h2>
+              <Card>
+                <form onSubmit={createPackSize}>
+                  <Stack gap="md">
+                    <Select
+                      label={t(locale, "admin.packSizeSku")}
+                      placeholder={t(locale, "admin.packSizeSku")}
+                      value={packSkuId}
+                      onChange={(e) => setPackSkuId(e.target.value)}
+                      options={skuOptions}
+                    />
+                    <TextField
+                      label={t(locale, "admin.sizeLabel")}
+                      hint={t(locale, "admin.sizeLabelHint")}
+                      required
+                      value={packSizeLabel}
+                      onChange={(e) => setPackSizeLabel(e.target.value)}
+                    />
+                    <TextField
+                      label={t(locale, "admin.sizeLiters")}
+                      required
+                      forceLtr
+                      inputMode="decimal"
+                      value={packSizeLiters}
+                      onChange={(e) => setPackSizeLiters(e.target.value)}
+                    />
+                    {createPackError ? <Banner tone="danger">{createPackError}</Banner> : null}
+                    {createPackDone ? (
+                      <span role="status">
+                        <Badge variant="success">
+                          <Icon name="check-circle" size="sm" />
+                          {createPackDone}
+                        </Badge>
+                      </span>
+                    ) : null}
+                    <Button
+                      type="submit"
+                      variant="gold"
+                      busy={createPackBusy}
+                      disabled={!packSkuId || !packSizeLabel.trim() || !(Number(packSizeLiters) > 0)}
+                    >
+                      {t(locale, "admin.createPackSize")}
+                    </Button>
+                  </Stack>
+                </form>
+              </Card>
+            </Stack>
           </Stack>
         </Container>
       </Section>
