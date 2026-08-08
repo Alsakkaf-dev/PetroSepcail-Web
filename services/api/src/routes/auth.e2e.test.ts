@@ -185,6 +185,46 @@ describe("PC-01/02 auth E2E (real Postgres)", () => {
     expect(loginRes.statusCode).toBe(200);
   });
 
+  it("rejects registering with an email or phone that already exists (IDENTITY_EXISTS, 409)", async () => {
+    const first = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/register",
+      payload: {
+        fullName: "Original",
+        email: "duplicate.test@petrospecial.internal",
+        phone: "+966501111196",
+        password: "Freshly-Baked-99"
+      }
+    });
+    expect(first.statusCode).toBe(201);
+
+    const sameEmail = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/register",
+      payload: {
+        fullName: "Impersonator",
+        email: "duplicate.test@petrospecial.internal",
+        phone: "+966501111195",
+        password: "Different-Pass-99"
+      }
+    });
+    expect(sameEmail.statusCode).toBe(409);
+    expect(sameEmail.json().error.code).toBe("IDENTITY_EXISTS");
+
+    const samePhone = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/register",
+      payload: {
+        fullName: "Impersonator Two",
+        email: "not-duplicate@petrospecial.internal",
+        phone: "+966501111196",
+        password: "Different-Pass-99"
+      }
+    });
+    expect(samePhone.statusCode).toBe(409);
+    expect(samePhone.json().error.code).toBe("IDENTITY_EXISTS");
+  });
+
   it("rejects reusing an already-verified token", async () => {
     // Re-verify with a fresh registration's token twice.
     const registerRes = await app.inject({
@@ -263,6 +303,103 @@ describe("PC-01/02 auth E2E (real Postgres)", () => {
     expect(afterLogout.json().error.code).toBe("TOKEN_REUSE_DETECTED");
   });
 
+  it("logout with an explicit refreshToken revokes only that family, not every session for the role", async () => {
+    // auth.ts's own SPEC-GAP note: the frozen JWT carries no family_id, so
+    // logout accepts an optional refreshToken to scope revocation to one
+    // session. Two concurrent sessions (e.g. two browser tabs) — signing out
+    // of one must leave the other alone.
+    const sessionA = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: { email: SEED_EMAILS.driver, password: DEV_PASSWORD }
+    });
+    const sessionB = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: { email: SEED_EMAILS.driver, password: DEV_PASSWORD }
+    });
+    const { accessToken: accessA, refreshToken: refreshA } = sessionA.json();
+    const { refreshToken: refreshB } = sessionB.json();
+
+    const logoutA = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/logout",
+      headers: { authorization: `Bearer ${accessA}` },
+      payload: { refreshToken: refreshA }
+    });
+    expect(logoutA.statusCode).toBe(204);
+
+    const refreshAfterA = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/refresh",
+      payload: { refreshToken: refreshA }
+    });
+    expect(refreshAfterA.json().error.code).toBe("TOKEN_REUSE_DETECTED");
+
+    // Session B's own refresh token was never touched.
+    const refreshB2 = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/refresh",
+      payload: { refreshToken: refreshB }
+    });
+    expect(refreshB2.statusCode).toBe(200);
+  });
+
+  it("a refresh token past its own expiry is TOKEN_INVALID, not silently accepted", async () => {
+    const login = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: { email: SEED_EMAILS.supplier, password: DEV_PASSWORD }
+    });
+    const { refreshToken } = login.json();
+    const { sha256Hex } = await import("../security/tokens.js");
+
+    await dbClient.query("update core.auth_tokens set expires_at = now() - interval '1 minute' where token_hash = $1", [
+      sha256Hex(refreshToken)
+    ]);
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/refresh",
+      payload: { refreshToken }
+    });
+    expect(res.statusCode).toBe(410);
+    expect(res.json().error.code).toBe("TOKEN_INVALID");
+  });
+
+  it("an account lock clears once locked_until has passed", async () => {
+    // The lock's own trigger (5 failed attempts) is already proven above;
+    // this only needs a genuinely locked row to test expiry against, and
+    // getting there directly keeps this file under the anonymous rate
+    // limit (services/api/src/gateway/rateLimit.ts: 60/min by IP, shared
+    // across every unauthenticated call this whole suite makes).
+    const email = "lockout-expiry@petrospecial.internal";
+    await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/register",
+      payload: { fullName: "Lockout Expiry", email, phone: "+966501111197", password: "Correct-Password-9" }
+    });
+    const identityId = (await dbClient.query("select id from core.identities where email = $1", [email])).rows[0].id;
+    await dbClient.query(
+      "update core.identities set status = 'active', failed_logins = 5, locked_until = now() + interval '15 minutes' where id = $1",
+      [identityId]
+    );
+
+    const stillLocked = await app.inject({ method: "POST", url: "/api/v1/auth/login", payload: { email, password: "Correct-Password-9" } });
+    expect(stillLocked.json().error.code).toBe("ACCOUNT_LOCKED");
+
+    await dbClient.query("update core.identities set locked_until = now() - interval '1 minute', failed_logins = 0 where id = $1", [
+      identityId
+    ]);
+
+    const afterExpiry = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: { email, password: "Correct-Password-9" }
+    });
+    expect(afterExpiry.statusCode).toBe(200);
+  });
+
   it("completes the password-reset flow and revokes prior sessions", async () => {
     // Endpoint contract deliberately never returns the raw reset token (no
     // enumeration) and PC-06's real mailer doesn't exist until S05 — so this
@@ -270,6 +407,18 @@ describe("PC-01/02 auth E2E (real Postgres)", () => {
     // to exercise the real /password-reset/confirm logic end-to-end.
     const { sha256Hex, generateOpaqueToken } = await import("../security/tokens.js");
     const rawToken = generateOpaqueToken();
+
+    // A session that exists before the reset — proves revokeAllAuthTokensForIdentity
+    // (auth.ts's own call after a successful confirm) actually invalidates a
+    // refresh token issued under the OLD password, not just that the new
+    // password works. FR-PC01-007: "on reset, all sessions of that identity
+    // are revoked."
+    const preResetLogin = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: { email: SEED_EMAILS.customer, password: DEV_PASSWORD }
+    });
+    const { refreshToken: preResetRefreshToken } = preResetLogin.json();
 
     const requestRes = await app.inject({
       method: "POST",
@@ -304,6 +453,13 @@ describe("PC-01/02 auth E2E (real Postgres)", () => {
       payload: { email: SEED_EMAILS.customer, password: "Brand-New-Password-1" }
     });
     expect(newPasswordLogin.statusCode).toBe(200);
+
+    const preResetSessionAfterReset = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/refresh",
+      payload: { refreshToken: preResetRefreshToken }
+    });
+    expect(preResetSessionAfterReset.json().error.code).toBe("TOKEN_REUSE_DETECTED");
 
     // Restore the shared dev password so later tests in this file are unaffected.
     const { hashPassword } = await import("../security/password.js");
