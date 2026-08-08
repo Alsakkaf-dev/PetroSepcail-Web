@@ -1,6 +1,6 @@
 "use client";
 
-import type { AdminSupplierListResponse } from "@petrospecial/contracts";
+import type { AdminSupplierListResponse, DualControlListResponse } from "@petrospecial/contracts";
 import { useCallback, useEffect, useState } from "react";
 import {
   Badge,
@@ -42,6 +42,8 @@ function SuppliersCreditInner() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [rowState, setRowState] = useState<Record<string, RowState>>({});
+  const [pending, setPending] = useState<DualControlListResponse["items"]>([]);
+  const [ackBusyId, setAckBusyId] = useState<string | null>(null);
 
   const load = useCallback(() => {
     setError(null);
@@ -50,7 +52,41 @@ function SuppliersCreditInner() {
       .catch((thrown) => setError(messageFor(locale, thrown)));
   }, [locale]);
 
+  const loadPending = useCallback(() => {
+    // Best-effort: a stale/empty pending list never blocks the main
+    // credit-limit table from working.
+    authedFetch<DualControlListResponse>("/api/v1/admin/dual-control")
+      .then((res) => setPending(res.items))
+      .catch(() => setPending([]));
+  }, []);
+
   useEffect(load, [load]);
+  useEffect(loadPending, [loadPending]);
+
+  // A pending approval only records status - the actual limit change is
+  // applied by resubmitting the same PUT credit-limit request, which
+  // credit.admin_set_credit_limit then finds an approved match for
+  // (see the DB function's own idempotent-approval check). A different
+  // super_admin approving is the one moment that resubmission is both
+  // correct and safe to do automatically, so "acknowledge" here really
+  // means "approve and apply" from the operator's point of view.
+  async function acknowledgeAndApply(approval: DualControlListResponse["items"][number]) {
+    setAckBusyId(approval.approvalId);
+    setError(null);
+    try {
+      await authedFetch(`/api/v1/admin/dual-control/${approval.approvalId}/acknowledge`, { method: "POST" });
+      await authedFetch(`/api/v1/admin/suppliers/${approval.supplierId}/credit-limit`, {
+        method: "PUT",
+        body: JSON.stringify({ newLimit: Number(approval.newLimit), reason: "dual-control approval applied" })
+      });
+      loadPending();
+      load();
+    } catch (thrown) {
+      setError(messageFor(locale, thrown));
+    } finally {
+      setAckBusyId(null);
+    }
+  }
 
   async function saveLimit(supplierId: string) {
     const newLimit = Number(drafts[supplierId]);
@@ -105,6 +141,43 @@ function SuppliersCreditInner() {
               >
                 {error}
               </Banner>
+            ) : null}
+
+            {pending.length > 0 ? (
+              <DataTable
+                caption={t(locale, "admin.pendingApprovals")}
+                state="ready"
+                rows={pending}
+                getRowKey={(row) => row.approvalId}
+                columns={[
+                  {
+                    key: "business",
+                    header: t(locale, "admin.businessName"),
+                    emphasis: "primary",
+                    render: (row) => items?.find((s) => s.supplierId === row.supplierId)?.businessNameEn ?? row.supplierId
+                  },
+                  {
+                    key: "newLimit",
+                    header: t(locale, "admin.newLimit"),
+                    align: "end",
+                    render: (row) => <Money amount={row.newLimit} locale={locale} emphasis="strong" />
+                  },
+                  {
+                    key: "action",
+                    header: "",
+                    render: (row) => (
+                      <Button
+                        variant="gold"
+                        size="sm"
+                        busy={ackBusyId === row.approvalId}
+                        onClick={() => acknowledgeAndApply(row)}
+                      >
+                        {t(locale, "admin.acknowledgeAndApply")}
+                      </Button>
+                    )
+                  }
+                ]}
+              />
             ) : null}
 
             <DataTable

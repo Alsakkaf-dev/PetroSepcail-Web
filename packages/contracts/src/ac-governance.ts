@@ -46,6 +46,21 @@ export const setCreditLimitResponse = z.object({ status: z.enum(["applied", "pen
 
 export const acknowledgeDualControlResponse = z.object({ status: z.literal("approved") });
 
+// A pending approval created by setCreditLimitRequest's own
+// pending_dual_control branch had no read path at all - a different
+// super_admin had no way to discover its id to acknowledge it (real gap
+// found building the credit/ZATCA critical-journey e2e test).
+export const dualControlListItem = z.object({
+  approvalId: z.string().uuid(),
+  requestKind: z.literal("credit_limit_over_threshold"),
+  supplierId: z.string().uuid(),
+  newLimit: z.string(),
+  requestedBy: z.string().uuid(),
+  createdAt: z.string().datetime()
+});
+export const dualControlListResponse = z.object({ items: z.array(dualControlListItem) });
+export type DualControlListResponse = z.infer<typeof dualControlListResponse>;
+
 export const setSupplierTierRequest = z.object({ tier: z.enum(["bronze", "silver", "gold"]), reason: z.string().min(1) });
 export const setSupplierTierResponse = z.object({ status: z.literal("updated") });
 

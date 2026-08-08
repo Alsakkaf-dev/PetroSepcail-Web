@@ -125,6 +125,71 @@ describe("Admin credit-limit dual control and PII-read audit (AC-03/AC-10)", () 
     expect(approval.rows[0].status).toBe("pending");
   });
 
+  it("GET /admin/dual-control lists the pending approval; a different super_admin can acknowledge and resubmitting applies it", async () => {
+    const list = await app.inject({ method: "GET", url: "/api/v1/admin/dual-control", headers: { authorization: `Bearer ${adminToken}` } });
+    expect(list.statusCode).toBe(200);
+    const item = list.json().items.find((i: { supplierId: string; newLimit: string }) => i.supplierId === supplierRowId && Number(i.newLimit) === 200000);
+    expect(item).toBeTruthy();
+
+    const selfAck = await app.inject({
+      method: "POST",
+      url: `/api/v1/admin/dual-control/${item.approvalId}/acknowledge`,
+      headers: { authorization: `Bearer ${superAdminToken}` }
+    });
+    expect(selfAck.statusCode).toBe(403);
+
+    // A second, genuinely different super_admin - real-world this is
+    // provisioned by an existing super_admin granting the role; seeded
+    // directly here with the same known dev password for login convenience,
+    // the same precedent other e2e suites already use for setup data.
+    const passwordHash = (await dbClient.query("select password_hash from core.identities where id = $1", [superAdminId])).rows[0].password_hash;
+    const secondSuperAdminId = (
+      await dbClient.query(
+        `insert into core.identities (full_name, email, phone, password_hash, status, locale)
+         values ('Second Super Admin', 'second-superadmin@petrospecial.internal', '+966599999999', $1, 'active', 'en')
+         returning id`,
+        [passwordHash]
+      )
+    ).rows[0].id;
+    await dbClient.query("insert into core.role_grants (identity_id, role) values ($1, 'super_admin')", [secondSuperAdminId]);
+    const secondSuperAdminToken = (
+      await app.inject({
+        method: "POST",
+        url: "/api/v1/auth/login",
+        payload: { email: "second-superadmin@petrospecial.internal", password: DEV_PASSWORD }
+      })
+    ).json().accessToken;
+
+    const ack = await app.inject({
+      method: "POST",
+      url: `/api/v1/admin/dual-control/${item.approvalId}/acknowledge`,
+      headers: { authorization: `Bearer ${secondSuperAdminToken}` }
+    });
+    expect(ack.statusCode).toBe(200);
+    expect(ack.json().status).toBe("approved");
+
+    // Acknowledging alone doesn't move money - the limit is still whatever
+    // it was before this whole approval started (credit.admin_set_credit_limit's
+    // own idempotent-approval check only applies it on a matching resubmit).
+    const stillOld = await dbClient.query("select limit_amount from credit.credit_limits where supplier_id = $1 and is_current", [supplierRowId]);
+    expect(Number(stillOld.rows[0].limit_amount)).not.toBe(200000);
+
+    const reapply = await app.inject({
+      method: "PUT",
+      url: `/api/v1/admin/suppliers/${supplierRowId}/credit-limit`,
+      headers: { authorization: `Bearer ${superAdminToken}` },
+      payload: { newLimit: 200000, reason: "large distributor expansion" }
+    });
+    expect(reapply.statusCode).toBe(200);
+    expect(reapply.json().status).toBe("applied");
+
+    const applied = await dbClient.query("select limit_amount from credit.credit_limits where supplier_id = $1 and is_current", [supplierRowId]);
+    expect(Number(applied.rows[0].limit_amount)).toBe(200000);
+
+    const listAfter = await app.inject({ method: "GET", url: "/api/v1/admin/dual-control", headers: { authorization: `Bearer ${adminToken}` } });
+    expect(listAfter.json().items.some((i: { approvalId: string }) => i.approvalId === item.approvalId)).toBe(false);
+  });
+
   it("FR-AC03-001: an under-threshold change applies directly and is audited under the real admin's identity", async () => {
     const res = await app.inject({
       method: "PUT",

@@ -3,6 +3,7 @@ import {
   adminSupplierListResponse,
   creditOverrideRequest,
   creditOverrideResponse,
+  dualControlListResponse,
   setCreditLimitRequest,
   setCreditLimitResponse,
   setSupplierTierRequest,
@@ -113,6 +114,32 @@ export function registerAdminCreditRoutes(app: FastifyInstance): void {
         .send(setCreditLimitResponse.parse({ status: result.status, ...(result.newLimit !== undefined ? { newLimit: money(result.newLimit) } : {}) }));
     }
   );
+
+  // GET /admin/dual-control · auth(admin) — real gap found building the
+  // credit/ZATCA critical-journey e2e test: setCreditLimitRequest's own
+  // pending_dual_control branch (EP-AC-021) had no read path at all, so a
+  // different super_admin had no way to ever discover a pending approval's
+  // id to acknowledge it. Same read permission as GET /admin/suppliers
+  // (any admin can see what's pending); acknowledging itself stays
+  // super_admin-only, enforced below exactly as it already was.
+  app.get("/api/v1/admin/dual-control", { preHandler: requirePermission("read", "credit_limit") }, async (_request, reply) => {
+    const items = await withServiceRoleTransaction(async (client) => {
+      const res = await client.query<{ id: string; payload: { supplier_id: string; new_limit: number }; requested_by: string; created_at: Date }>(
+        `select id, payload, requested_by, created_at from audit.dual_control_approvals
+         where request_kind = 'credit_limit_over_threshold' and status = 'pending'
+         order by created_at`
+      );
+      return res.rows.map((r) => ({
+        approvalId: r.id,
+        requestKind: "credit_limit_over_threshold" as const,
+        supplierId: r.payload.supplier_id,
+        newLimit: money(Number(r.payload.new_limit)),
+        requestedBy: r.requested_by,
+        createdAt: r.created_at.toISOString()
+      }));
+    });
+    return reply.code(200).send(dualControlListResponse.parse({ items }));
+  });
 
   // EP-AC-022 · POST /admin/dual-control/{approvalId}/acknowledge · auth(super_admin)
   app.post<{ Params: { approvalId: string } }>(

@@ -707,6 +707,8 @@ const ar = {
   "admin.dualPending": "بانتظار موافقة مشرف عام آخر",
   "admin.dualApproved": "تمت الموافقة وطُبِّق التغيير",
   "admin.dualRejected": "رُفض الطلب",
+  "admin.pendingApprovals": "طلبات بانتظار موافقة مشرف عام آخر",
+  "admin.acknowledgeAndApply": "الموافقة والتطبيق",
 
   // ---- admin: finance (AC-08) -----------------------------------------
   "admin.receivables": "الذمم المدينة وأعمارها",
@@ -1818,6 +1820,8 @@ const en: Record<StringKey, string> = {
   "admin.dualPending": "Waiting for a different super-admin to approve",
   "admin.dualApproved": "Approved and applied",
   "admin.dualRejected": "Request rejected",
+  "admin.pendingApprovals": "Waiting on a second super-admin",
+  "admin.acknowledgeAndApply": "Approve & apply",
 
   // ---- admin: finance (AC-08) -----------------------------------------
   "admin.receivables": "Receivables and aging",
