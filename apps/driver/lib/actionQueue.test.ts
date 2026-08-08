@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   MAX_ATTEMPTS,
   QUEUED_MEDIA,
+  driverIdFromToken,
   flushQueue,
   isConnectivityFailure,
   order,
@@ -10,6 +11,14 @@ import {
   type QueueStore,
   type QueuedAction
 } from "./actionQueue";
+
+/** A JWT-shaped string carrying the given claims — header/signature content
+ * does not matter here, only that `driverIdFromToken` finds the payload
+ * segment and base64url-decodes it the way a real access token requires. */
+function fakeToken(claims: Record<string, unknown>): string {
+  const base64url = (value: string) => Buffer.from(value).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  return `${base64url(JSON.stringify({ alg: "RS256" }))}.${base64url(JSON.stringify(claims))}.signature`;
+}
 
 // The queue's logic is deliberately separable from IndexedDB so it can be
 // tested exactly like this: in plain vitest, with no browser, no fake-indexeddb
@@ -59,6 +68,28 @@ describe("what counts as a connectivity failure", () => {
     // discarded would silently drop a real POD the moment a driver's token
     // expired mid-shift.
     expect(isConnectivityFailure(new Error("SESSION_EXPIRED"))).toBe(true);
+  });
+});
+
+describe("driverIdFromToken — the offline queue's per-driver isolation key", () => {
+  it("reads the driver_id claim out of a real access token shape", () => {
+    const token = fakeToken({ sub: "identity-1", role: "driver", driver_id: "driver-a", exp: 9999999999 });
+    expect(driverIdFromToken(token)).toBe("driver-a");
+  });
+
+  it("gives two different drivers two different keys, so their queues never share a database", () => {
+    const tokenA = fakeToken({ role: "driver", driver_id: "driver-a" });
+    const tokenB = fakeToken({ role: "driver", driver_id: "driver-b" });
+    expect(driverIdFromToken(tokenA)).not.toBe(driverIdFromToken(tokenB));
+  });
+
+  it("falls back to a fixed key rather than throwing, for every malformed or absent shape", () => {
+    expect(driverIdFromToken(null)).toBe("anonymous");
+    expect(driverIdFromToken(undefined)).toBe("anonymous");
+    expect(driverIdFromToken("")).toBe("anonymous");
+    expect(driverIdFromToken("not-a-jwt")).toBe("anonymous");
+    expect(driverIdFromToken("a.b.c")).toBe("anonymous"); // "b" is not valid base64 JSON
+    expect(driverIdFromToken(fakeToken({ role: "driver" }))).toBe("anonymous"); // no driver_id claim
   });
 });
 

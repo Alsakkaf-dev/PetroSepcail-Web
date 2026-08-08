@@ -200,13 +200,51 @@ export const QUEUED_MEDIA = "__ps-queued-media__";
 // The browser implementation of the port.
 // ---------------------------------------------------------------------------
 
-const DB_NAME = "ps-driver-queue";
+const DB_PREFIX = "ps-driver-queue";
 const DB_VERSION = 1;
 const STORE = "actions";
+// Same key apps/driver/lib/authClient.ts persists the bearer token under —
+// duplicated as a literal rather than imported, so this file's only
+// dependency stays the browser (indexedDB, localStorage), matching its own
+// "storage port is an interface" design and keeping the pure queue logic
+// above independently testable with no browser.
+const TOKEN_KEY = "ps-driver-token";
+
+/** The JWT's own `driver_id` claim, read without verifying the signature —
+ * this is a client-side storage key, not a security decision (every real
+ * check happens server-side against the verified token on each request).
+ * Pure and browser-free on purpose (takes the raw token, never touches
+ * `window`) so it stays testable in plain vitest alongside the rest of this
+ * file's logic — only its caller, `currentDriverKey()`, is the browser glue.
+ *
+ * A device handed from one driver to another mid-shift must not let the
+ * queue bleed between them: driver A's unflushed POD/transition, replayed
+ * under driver B's identity because they happen to share a browser, is
+ * exactly the "particular care" failure mode the brief calls out by name.
+ * Giving each driver their own IndexedDB database (not just their own rows
+ * in a shared one) makes that structurally impossible rather than a rule
+ * the rest of this file has to remember to enforce. */
+export function driverIdFromToken(token: string | null | undefined): string {
+  try {
+    const payload = token?.split(".")[1];
+    if (!payload) return "anonymous";
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(payload.length / 4) * 4, "=");
+    const claims = JSON.parse(atob(base64)) as { driver_id?: unknown };
+    return typeof claims.driver_id === "string" && claims.driver_id ? claims.driver_id : "anonymous";
+  } catch {
+    return "anonymous";
+  }
+}
+
+function currentDriverKey(): string {
+  if (typeof window === "undefined") return "anonymous";
+  return driverIdFromToken(window.localStorage.getItem(TOKEN_KEY));
+}
 
 function openDb(): Promise<IDBDatabase> {
+  const dbName = `${DB_PREFIX}-${currentDriverKey()}`;
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    const request = indexedDB.open(dbName, DB_VERSION);
     request.onupgradeneeded = () => {
       const db = request.result;
       if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: "id" });

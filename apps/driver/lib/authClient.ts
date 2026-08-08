@@ -57,6 +57,26 @@ export function clearToken(): void {
   window.localStorage.removeItem(TOKEN_KEY);
 }
 
+// EP-PC-005 · POST /auth/logout — no screen ever called this; "sign out"
+// did not exist at all in this app until now. This app never persists its
+// own refresh token, so — same as apps/admin/apps/supplier — the server
+// revokes every active family for this identity+role rather than one scoped
+// family. Best-effort: clearing the local session must not wait on it. The
+// offline queue itself needs no cleanup here — actionQueue.ts namespaces its
+// IndexedDB database by the token's own driver_id claim, so signing out
+// simply stops updating *this* driver's database; nothing to flush, block,
+// or lose.
+export async function logout(): Promise<void> {
+  const token = getToken();
+  clearToken();
+  if (!token) return;
+  try {
+    await fetch(apiUrl("/api/v1/auth/logout"), { method: "POST", headers: { authorization: `Bearer ${token}` } });
+  } catch {
+    // Local sign-out already happened.
+  }
+}
+
 // fetch() rejects with a bare TypeError ("Failed to fetch") for every
 // transport-level failure — DNS, TLS, refused connection, blocked mixed
 // content, CORS preflight — and that string is what the login screen was
