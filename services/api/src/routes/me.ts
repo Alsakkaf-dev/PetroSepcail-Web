@@ -1,6 +1,6 @@
 import { meResponse, meUpdateRequest } from "@petrospecial/contracts";
 import type { FastifyInstance } from "fastify";
-import { withRlsTransaction } from "../db.js";
+import { withRlsTransaction, withServiceRoleTransaction } from "../db.js";
 import { ApiError } from "../errors.js";
 
 interface IdentityRow {
@@ -9,6 +9,20 @@ interface IdentityRow {
   email: string;
   phone: string;
   locale: "ar" | "en";
+}
+
+// core.mfa_secrets carries no app_user RLS policy at all (0006 — deliberately
+// service-role-only, same treatment as auth_tokens), so a plain RLS
+// transaction sees zero rows regardless of ownership. This is the one place
+// /me needs the service role: a scoped existence check, not a data read.
+async function getMfaEnabled(identityId: string): Promise<boolean> {
+  return withServiceRoleTransaction(async (client) => {
+    const res = await client.query<{ confirmed_at: Date | null }>(
+      "select confirmed_at from core.mfa_secrets where identity_id = $1",
+      [identityId]
+    );
+    return res.rows[0]?.confirmed_at != null;
+  });
 }
 
 // EP-PC-011 · GET /me · auth -> "own identity via RLS". The first real
@@ -44,7 +58,8 @@ export function registerMeRoutes(app: FastifyInstance): void {
         email: result.identity.email,
         phone: result.identity.phone,
         locale: result.identity.locale,
-        roles: result.roles
+        roles: result.roles,
+        mfaEnabled: await getMfaEnabled(result.identity.id)
       })
     );
   });
@@ -79,6 +94,7 @@ export function registerMeRoutes(app: FastifyInstance): void {
         fullName: result.identity.full_name,
         email: result.identity.email,
         phone: result.identity.phone,
+        mfaEnabled: await getMfaEnabled(result.identity.id),
         locale: result.identity.locale,
         roles: result.roles
       })

@@ -80,7 +80,20 @@ export const passwordResetConfirmRequest = z.object({
 });
 export type PasswordResetConfirmRequest = z.infer<typeof passwordResetConfirmRequest>;
 
-// EP-PC-008 · POST /auth/mfa/enroll (auth, admin roles)
+// EP-PC-008 · POST /auth/mfa/enroll (auth, admin roles). `totp` is required
+// only when the caller already has a confirmed secret — re-enrolling without
+// proving the current device would silently strip MFA from the account (the
+// upsert always resets `confirmed_at` to null), so a reset must be
+// authorized by the credential it would replace, same as any other
+// security-boundary change.
+export const mfaEnrollRequest = z.object({
+  totp: z
+    .string()
+    .regex(/^\d{6}$/)
+    .optional()
+});
+export type MfaEnrollRequest = z.infer<typeof mfaEnrollRequest>;
+
 export const mfaEnrollResponse = z.object({
   otpauthUri: z.string(),
   secretMasked: z.string()

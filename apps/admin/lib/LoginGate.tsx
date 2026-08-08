@@ -53,7 +53,7 @@ export function LoginGate({ children }: { children: React.ReactNode }) {
         footer={<Banner tone="warn">{t(locale, "auth.adminMonitored")}</Banner>}
       >
         <SignInForm
-          signIn={({ email, password }) => login(email, password)}
+          signIn={({ email, password, totp }) => login(email, password, totp)}
           onSignedIn={onSignedIn}
           defaultEmail="admin.seed@petrospecial.internal"
         />

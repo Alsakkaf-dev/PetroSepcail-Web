@@ -69,6 +69,13 @@ export const transitionResponse = z.object({ status: deliveryStatus });
 
 const stockLine = z.object({ packSizeId: z.string().uuid(), qty: z.number().int().nonnegative() });
 
+export const varianceLine = z.object({
+  packSizeId: z.string().uuid(),
+  expected: z.number().int(),
+  counted: z.number().int(),
+  delta: z.number().int()
+});
+
 // EP-DL-001 · POST /driver/shifts/start · auth(driver)
 export const shiftStartRequest = z.object({ vanId: z.string().uuid(), load: z.array(stockLine) });
 export const shiftStartResponse = z.object({ shiftId: z.string().uuid(), openingStock: z.array(stockLine) });
@@ -81,7 +88,13 @@ export const shiftResponse = z
     status: z.enum(["open", "reconciling", "closed"]),
     available: z.boolean(),
     vanStock: z.array(stockLine),
-    custodyHeld: z.string()
+    custodyHeld: z.string(),
+    // Populated only once `delivery.reconcile_shift` has run and left a
+    // non-empty variance (`delivery.shifts.closing_variance`) — lets a
+    // driver who reloads/re-navigates mid-close still see the same blocked
+    // state the reconcile call originally produced, instead of the UI
+    // losing that fact the moment its own local state unmounts.
+    closingVariance: z.array(varianceLine).optional()
   })
   .nullable();
 export type ShiftResponse = z.infer<typeof shiftResponse>;
@@ -91,19 +104,16 @@ export const availabilityRequest = z.object({ available: z.boolean() });
 
 // EP-DL-004 · POST /driver/shifts/{id}/reconcile · auth(driver)
 export const reconcileRequest = z.object({ counted: z.array(stockLine) });
-export const varianceLine = z.object({
-  packSizeId: z.string().uuid(),
-  expected: z.number().int(),
-  counted: z.number().int(),
-  delta: z.number().int()
-});
 export const reconcileResponse = z.object({ variance: z.array(varianceLine) });
+export type ReconcileResponse = z.infer<typeof reconcileResponse>;
 
 // EP-DL-005 · POST /driver/shifts/{id}/remit-custody · auth(driver)
 export const remitCustodyResponse = z.object({ remitted: z.number().int(), amount: z.string() });
+export type RemitCustodyResponse = z.infer<typeof remitCustodyResponse>;
 
 // EP-DL-006 · POST /driver/shifts/{id}/close · auth(driver)
 export const closeShiftResponse = z.object({ status: z.literal("closed") });
+export type CloseShiftResponse = z.infer<typeof closeShiftResponse>;
 
 // --- DL-03 (S11): location streaming ---------------------------------------
 

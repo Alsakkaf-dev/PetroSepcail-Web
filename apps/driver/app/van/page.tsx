@@ -110,7 +110,7 @@ export default function VanPage() {
                         so there is no ledger to draw. Saying that beats an
                         empty table implying nothing has ever been collected. */}
                     <Banner tone="info">{t(locale, "driver.custodyFeedPending")}</Banner>
-                    <ButtonLink linkAs={Link} href="/shift" variant="dark">
+                    <ButtonLink linkAs={Link} href="/shift/close" variant="dark">
                       {t(locale, "driver.endShift")}
                     </ButtonLink>
                   </Stack>

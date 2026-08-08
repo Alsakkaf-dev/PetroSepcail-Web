@@ -373,6 +373,89 @@ describe("PC-01/02 auth E2E (real Postgres)", () => {
     expect(loginGoodTotp.json().role).toBe("admin");
   });
 
+  it("rejects mfa/enroll and mfa/confirm for a non-admin role", async () => {
+    const customerLogin = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: { email: SEED_EMAILS.customer, password: DEV_PASSWORD }
+    });
+    const { accessToken } = customerLogin.json();
+
+    const enroll = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/mfa/enroll",
+      headers: { authorization: `Bearer ${accessToken}` }
+    });
+    expect(enroll.statusCode).toBe(403);
+    expect(enroll.json().error.code).toBe("FORBIDDEN");
+
+    const confirm = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/mfa/confirm",
+      headers: { authorization: `Bearer ${accessToken}` },
+      payload: { totp: "123456" }
+    });
+    expect(confirm.statusCode).toBe(403);
+    expect(confirm.json().error.code).toBe("FORBIDDEN");
+  });
+
+  it("requires the current TOTP to re-enroll once MFA is already confirmed (prevents a stolen access token silently stripping MFA)", async () => {
+    // The admin identity already has a confirmed secret from the earlier
+    // enrollment test in this file (tests share the one ephemeral DB and
+    // run in order) — re-derive it from the DB the same way the app itself
+    // does, rather than threading state across `it` blocks.
+    const { decryptTotpSecret } = await import("../security/mfaCrypto.js");
+    const { currentTotp } = await import("../security/totp.js");
+    const existing = await dbClient.query("select totp_secret, confirmed_at from core.mfa_secrets where identity_id = $1", [
+      SEED_IDS.admin
+    ]);
+    expect(existing.rows[0]?.confirmed_at).toBeTruthy();
+    const currentSecret = decryptTotpSecret(existing.rows[0].totp_secret);
+
+    const adminLogin = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/login",
+      payload: { email: SEED_EMAILS.admin, password: DEV_PASSWORD, totp: currentTotp(currentSecret) }
+    });
+    const { accessToken } = adminLogin.json();
+
+    const withoutCode = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/mfa/enroll",
+      headers: { authorization: `Bearer ${accessToken}` }
+    });
+    expect(withoutCode.json().error.code).toBe("MFA_REQUIRED");
+
+    const wrongCode = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/mfa/enroll",
+      headers: { authorization: `Bearer ${accessToken}` },
+      payload: { totp: "000000" }
+    });
+    expect(wrongCode.json().error.code).toBe("MFA_INVALID");
+
+    // Neither rejected attempt touched the stored secret.
+    const stillConfirmed = await dbClient.query("select confirmed_at from core.mfa_secrets where identity_id = $1", [
+      SEED_IDS.admin
+    ]);
+    expect(stillConfirmed.rows[0].confirmed_at).toEqual(existing.rows[0].confirmed_at);
+
+    const withCorrectCode = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/mfa/enroll",
+      headers: { authorization: `Bearer ${accessToken}` },
+      payload: { totp: currentTotp(currentSecret) }
+    });
+    expect(withCorrectCode.statusCode).toBe(200);
+    expect(typeof withCorrectCode.json().otpauthUri).toBe("string");
+
+    // The reset is real: the old code no longer confirms a login, and the
+    // account is left mid-re-enrollment (unconfirmed) until the new secret
+    // is confirmed — proving this isn't a no-op re-issue of the same secret.
+    const reset = await dbClient.query("select confirmed_at from core.mfa_secrets where identity_id = $1", [SEED_IDS.admin]);
+    expect(reset.rows[0].confirmed_at).toBeNull();
+  });
+
   it("offers role selection for a multi-grant identity and honors the chosen role", async () => {
     await dbClient.query("insert into core.role_grants (identity_id, role) values ($1, 'admin')", [SEED_IDS.driver]);
 

@@ -63,8 +63,14 @@ export function registerDriverShiftRoutes(app: FastifyInstance): void {
     async (request, reply) => {
       const { actor, driverId } = requireDriver(request);
       const result = await withRlsTransaction(actor, async (client) => {
-        const shiftRes = await client.query<{ id: string; van_id: string; status: string; available: boolean }>(
-          "select id, van_id, status, available from delivery.shifts where driver_id = $1 and status <> 'closed'",
+        const shiftRes = await client.query<{
+          id: string;
+          van_id: string;
+          status: string;
+          available: boolean;
+          closing_variance: Array<{ packSizeId: string; expected: number; counted: number; delta: number }> | null;
+        }>(
+          "select id, van_id, status, available, closing_variance from delivery.shifts where driver_id = $1 and status <> 'closed'",
           [driverId]
         );
         const shift = shiftRes.rows[0];
@@ -84,6 +90,7 @@ export function registerDriverShiftRoutes(app: FastifyInstance): void {
       });
 
       if (!result) return reply.code(200).send(shiftResponse.parse(null));
+      const variance = (result.shift.closing_variance ?? []).filter((line) => line.delta !== 0);
       return reply.code(200).send(
         shiftResponse.parse({
           shiftId: result.shift.id,
@@ -91,7 +98,8 @@ export function registerDriverShiftRoutes(app: FastifyInstance): void {
           status: result.shift.status,
           available: result.shift.available,
           vanStock: result.vanStock.map((r) => ({ packSizeId: r.pack_size_id, qty: r.qty })),
-          custodyHeld: money(Number(result.custodyHeld))
+          custodyHeld: money(Number(result.custodyHeld)),
+          ...(variance.length > 0 ? { closingVariance: variance } : {})
         })
       );
     }

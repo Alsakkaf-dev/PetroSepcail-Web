@@ -28,11 +28,11 @@ export function clearToken(): void {
   window.localStorage.removeItem(TOKEN_KEY);
 }
 
-export async function login(email: string, password: string): Promise<string> {
+export async function login(email: string, password: string, totp?: string): Promise<string> {
   const res = await fetch(apiUrl("/api/v1/auth/login"), {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email, password })
+    body: JSON.stringify(totp ? { email, password, totp } : { email, password })
   });
   const body = await res.json();
   if (!res.ok) throw new Error(body.error?.message ?? "Login failed");

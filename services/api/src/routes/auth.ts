@@ -7,6 +7,7 @@ import {
   loginSuccessResponse,
   mfaConfirmRequest,
   mfaConfirmResponse,
+  mfaEnrollRequest,
   mfaEnrollResponse,
   passwordResetConfirmRequest,
   passwordResetRequestRequest,
@@ -341,10 +342,24 @@ export function registerAuthRoutes(app: FastifyInstance): void {
     return reply.code(200).send();
   });
 
-  // EP-PC-008 · POST /auth/mfa/enroll · auth (admin roles)
+  // EP-PC-008 · POST /auth/mfa/enroll · auth (admin roles). Re-enrolling
+  // always resets `confirmed_at` to null (repo.upsertPendingMfaSecret), which
+  // silently drops MFA enforcement for the account until the new secret is
+  // confirmed — so once a secret is already confirmed, this requires the
+  // *current* TOTP to authorize replacing it. First-time enrollment (nothing
+  // confirmed yet) needs no code, matching login's own bootstrap allowance.
   app.post("/api/v1/auth/mfa/enroll", async (request, reply) => {
     const actor = await requireAuth(request);
     if (!ADMIN_ROLES.includes(actor.role)) throw new ApiError("FORBIDDEN");
+    const body = mfaEnrollRequest.parse(request.body ?? {});
+
+    await withServiceRoleTransaction(async (client) => {
+      const existing = await repo.getMfaSecret(client, actor.sub);
+      if (existing?.confirmed_at) {
+        if (!body.totp) throw new ApiError("MFA_REQUIRED");
+        if (!verifyTotp(decryptTotpSecret(existing.totp_secret), body.totp)) throw new ApiError("MFA_INVALID");
+      }
+    });
 
     const secret = generateTotpSecret();
     await withServiceRoleTransaction(async (client) => {
@@ -361,6 +376,7 @@ export function registerAuthRoutes(app: FastifyInstance): void {
   // POST /auth/mfa/confirm (named EP-PC-009 inline in the EP-PC-008 spec entry)
   app.post("/api/v1/auth/mfa/confirm", async (request, reply) => {
     const actor = await requireAuth(request);
+    if (!ADMIN_ROLES.includes(actor.role)) throw new ApiError("FORBIDDEN");
     const body = mfaConfirmRequest.parse(request.body);
 
     await withServiceRoleTransaction(async (client) => {

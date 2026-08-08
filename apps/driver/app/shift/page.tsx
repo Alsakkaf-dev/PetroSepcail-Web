@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import type { ShiftResponse } from "@petrospecial/contracts";
 import {
+  Badge,
   Banner,
   Button,
   ButtonLink,
@@ -210,6 +211,7 @@ export default function ShiftPage() {
   const locale = useLocale();
   const [shift, setShift] = useState<ShiftResponse | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
+  const [availabilityBusy, setAvailabilityBusy] = useState(false);
 
   const load = useCallback(() => {
     setError(null);
@@ -219,6 +221,22 @@ export default function ShiftPage() {
   }, [locale]);
 
   useEffect(load, [load]);
+
+  async function toggleAvailability() {
+    if (!shift) return;
+    setAvailabilityBusy(true);
+    try {
+      await authedFetch("/api/v1/driver/availability", {
+        method: "PATCH",
+        body: JSON.stringify({ available: !shift.available })
+      });
+      setShift((prev) => (prev ? { ...prev, available: !prev.available } : prev));
+    } catch (thrown) {
+      setError(messageFor(locale, thrown));
+    } finally {
+      setAvailabilityBusy(false);
+    }
+  }
 
   return (
     <Page width="flush">
@@ -254,6 +272,15 @@ export default function ShiftPage() {
 
             {shift ? (
               <Stack gap="lg">
+                <Cluster gap="md" align="center">
+                  <Badge variant={shift.available ? "success" : "neutral"}>
+                    {t(locale, shift.available ? "driver.availableForTasks" : "driver.unavailableForTasks")}
+                  </Badge>
+                  <Button variant="ghost" size="sm" busy={availabilityBusy} onClick={toggleAvailability}>
+                    {t(locale, "driver.toggleAvailability")}
+                  </Button>
+                </Cluster>
+
                 <Cluster gap="md">
                   <StatCard
                     label={t(locale, "driver.vanPlate")}
@@ -299,6 +326,9 @@ export default function ShiftPage() {
                   </ButtonLink>
                   <ButtonLink linkAs={Link} href="/audits" variant="ghost">
                     {t(locale, "driver.audits")}
+                  </ButtonLink>
+                  <ButtonLink linkAs={Link} href="/shift/close" variant="dark">
+                    {t(locale, "driver.endShift")}
                   </ButtonLink>
                 </Cluster>
               </Stack>

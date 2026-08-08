@@ -15,7 +15,12 @@ export const meResponse = z.object({
   email: z.string().email(),
   phone: z.string(),
   locale: z.enum(["ar", "en"]),
-  roles: z.array(userRole)
+  roles: z.array(userRole),
+  // Only ever true for admin/super_admin — the only roles core.mfa_secrets
+  // is ever written for (EP-PC-008 is ADMIN_ROLES-gated). Lets a settings
+  // screen show real enrollment status instead of assuming it from role
+  // alone, since MFA is required but not automatically enrolled.
+  mfaEnabled: z.boolean()
 });
 export type MeResponse = z.infer<typeof meResponse>;
 

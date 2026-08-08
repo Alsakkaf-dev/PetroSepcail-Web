@@ -1,10 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import {
   Badge,
   Banner,
   Button,
+  ButtonLink,
   Container,
   DataTable,
   DateTime,
@@ -232,6 +234,10 @@ function SettingsInner() {
         <Container width="wide">
           <Stack gap="lg">
             <SectionHead level={1} titleId="settings-title" title={t(locale, "settings.title")} />
+
+            <ButtonLink linkAs={Link} href="/settings/security" variant="ghost">
+              {t(locale, "settings.securityTitle")}
+            </ButtonLink>
 
             <Banner tone="info" icon="clipboard">
               {t(locale, "settings.auditNote")}

@@ -46,7 +46,12 @@ const EN_MESSAGE_TO_CODE: Record<string, string> = {
   "This order total exceeds the cash-on-delivery limit. Please use bank transfer.": "COD_LIMIT_EXCEEDED",
   "The payment window for this order has expired.": "PAYMENT_WINDOW_EXPIRED",
   "This order can no longer be cancelled.": "ORDER_NOT_CANCELLABLE",
-  "This order is no longer eligible for return.": "RETURN_WINDOW_CLOSED"
+  "This order is no longer eligible for return.": "RETURN_WINDOW_CLOSED",
+  // Driver shift close (EP-DL-003..006).
+  "This load or hand-over exceeds available stock.": "STOCK_INSUFFICIENT",
+  "This action requires an active, van-loaded shift.": "SHIFT_REQUIRED",
+  "A stock variance must be resolved before this can close.": "AUDIT_VARIANCE",
+  "Unremitted cash custody must be cleared before this can close.": "CUSTODY_OPEN"
 };
 
 /** Looks like an error code rather than a sentence: `OTP_MISMATCH`. */
