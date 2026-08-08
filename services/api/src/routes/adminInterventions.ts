@@ -14,7 +14,7 @@ import { withServiceRoleTransaction } from "../db.js";
 import { ApiError } from "../errors.js";
 import { buildPage, decodeCursor, encodeCursor, parsePagination } from "../gateway/pagination.js";
 import { requirePermission } from "../gateway/requirePermission.js";
-import type { AccessTokenClaims } from "../security/jwt.js";
+import type { AccessTokenClaims, UserRole } from "../security/jwt.js";
 
 // 40-admin-center/05-api-specification.md §4 (AC-05, S18).
 
@@ -23,6 +23,15 @@ function requireActor(request: { ctx: { actor: AccessTokenClaims | null } }): Ac
   if (!actor) throw new ApiError("INVALID_CREDENTIALS");
   return actor;
 }
+
+// retail_order:update is also granted to `customer` (04-roles §3: cancelling
+// their OWN order before 'preparing', via the separate orders.cancel_order
+// path — not this one); review:delete is also granted to `customer` (editing
+// their own review). orders.admin_force_cancel/admin_edit_address/
+// admin_moderate_review take an explicit p_admin id for the audit trail but
+// never verify that id's actual role — found sweeping every admin route file
+// for the same defect class 0078/adminFleet.ts's fixes closed.
+const ADMIN_ROLES: readonly UserRole[] = ["admin", "super_admin"];
 
 function mapDbError(err: unknown): never {
   const message = err instanceof Error ? err.message : String(err);
@@ -112,6 +121,7 @@ export function registerAdminInterventionRoutes(app: FastifyInstance): void {
     { preHandler: requirePermission("update", "retail_order") },
     async (request, reply) => {
       const actor = requireActor(request);
+      if (!ADMIN_ROLES.includes(actor.role)) throw new ApiError("FORBIDDEN");
       const body = forceCancelRequest.parse(request.body);
       try {
         await withServiceRoleTransaction(async (client) => {
@@ -130,6 +140,7 @@ export function registerAdminInterventionRoutes(app: FastifyInstance): void {
     { preHandler: requirePermission("update", "retail_order") },
     async (request, reply) => {
       const actor = requireActor(request);
+      if (!ADMIN_ROLES.includes(actor.role)) throw new ApiError("FORBIDDEN");
       const body = addressEditRequest.parse(request.body);
       try {
         await withServiceRoleTransaction(async (client) => {
@@ -178,6 +189,7 @@ export function registerAdminInterventionRoutes(app: FastifyInstance): void {
     { preHandler: requirePermission("delete", "review") },
     async (request, reply) => {
       const actor = requireActor(request);
+      if (!ADMIN_ROLES.includes(actor.role)) throw new ApiError("FORBIDDEN");
       const body = reviewModerateRequest.parse(request.body);
       try {
         await withServiceRoleTransaction(async (client) => {

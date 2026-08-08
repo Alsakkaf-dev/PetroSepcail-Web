@@ -13,7 +13,7 @@ import { withServiceRoleTransaction } from "../db.js";
 import { ApiError } from "../errors.js";
 import { buildPage, decodeCursor, encodeCursor, parsePagination } from "../gateway/pagination.js";
 import { requirePermission } from "../gateway/requirePermission.js";
-import type { AccessTokenClaims } from "../security/jwt.js";
+import type { AccessTokenClaims, UserRole } from "../security/jwt.js";
 
 // 40-admin-center/05-api-specification.md §5 (AC-08, S18). Exposure/aging =
 // SP-03's own credit.v_exposure/v_receivables_aging verbatim (NFR-AC-007);
@@ -26,12 +26,21 @@ function requireActor(request: { ctx: { actor: AccessTokenClaims | null } }): Ac
   return actor;
 }
 
+// credit_limit:read and payment:read are also granted to `supplier`
+// (04-roles §3: reading their OWN exposure/credit limit, their OWN payment
+// records) — a legitimately narrower case these platform-wide admin
+// dashboards were never meant to share. Found sweeping every admin route
+// file for the same defect class 0078/adminFleet.ts's fixes closed.
+const ADMIN_ROLES: readonly UserRole[] = ["admin", "super_admin"];
+
 export function registerAdminFinanceRoutes(app: FastifyInstance): void {
   // EP-AC-070 · GET /admin/finance/receivables · auth(admin)
   app.get<{ Querystring: { cursor?: string; limit?: string } }>(
     "/api/v1/admin/finance/receivables",
     { preHandler: requirePermission("read", "credit_limit") },
     async (request, reply) => {
+      const actor = requireActor(request);
+      if (!ADMIN_ROLES.includes(actor.role)) throw new ApiError("FORBIDDEN");
       const { cursor, limit } = parsePagination(request.query);
       const after = cursor ? decodeCursor<{ id: string }>(cursor) : null;
 
@@ -92,7 +101,9 @@ export function registerAdminFinanceRoutes(app: FastifyInstance): void {
   app.get(
     "/api/v1/admin/finance/verification-queue",
     { preHandler: requirePermission("read", "payment") },
-    async (_request, reply) => {
+    async (request, reply) => {
+      const actor = requireActor(request);
+      if (!ADMIN_ROLES.includes(actor.role)) throw new ApiError("FORBIDDEN");
       const items = await withServiceRoleTransaction(async (client) => {
         const proofs = await client.query<{ id: string; amount: string; supplier_id: string; submitted_at: Date }>(
           "select id, amount, supplier_id, submitted_at from credit.payment_proofs where status = 'pending' order by submitted_at"
@@ -197,7 +208,9 @@ export function registerAdminFinanceRoutes(app: FastifyInstance): void {
 
   // EP-AC-075 · GET /admin/finance/custody · auth(admin) — Custody Funds
   // oversight ONLY, both holder kinds, no debt figure present (NFR-AC-007).
-  app.get("/api/v1/admin/finance/custody", { preHandler: requirePermission("read", "payment") }, async (_request, reply) => {
+  app.get("/api/v1/admin/finance/custody", { preHandler: requirePermission("read", "payment") }, async (request, reply) => {
+    const actor = requireActor(request);
+    if (!ADMIN_ROLES.includes(actor.role)) throw new ApiError("FORBIDDEN");
     const holders = await withServiceRoleTransaction(async (client) => {
       const driverRows = await client.query<{ driver_id: string; held: string | null; remitted: string | null }>(
         `select driver_id, sum(amount) filter (where status = 'held') as held, sum(amount) filter (where status = 'remitted') as remitted

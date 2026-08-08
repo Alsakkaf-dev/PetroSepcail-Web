@@ -43,7 +43,15 @@ export function registerAdminCatalogRoutes(app: FastifyInstance): void {
   // an additive read the console needs to display current values before
   // editing — no GET exists for AC-02 in 40-admin-center/05-api-
   // specification.md §2.
-  app.get("/api/v1/admin/catalog/skus", { preHandler: requirePermission("read", "catalog") }, async (_request, reply) => {
+  app.get("/api/v1/admin/catalog/skus", { preHandler: requirePermission("read", "catalog") }, async (request, reply) => {
+    // catalog:read is also granted to customer/supplier/driver (04-roles §3:
+    // browsing the public/tiered catalog) — a narrower case this console
+    // feed was never meant to share. Unlike the storefront catalog, this
+    // query is not filtered to is_active and includes live qty_on_hand/
+    // reserved inventory counts. Found sweeping every admin route file for
+    // the same defect class 0078/adminFleet.ts's fixes closed.
+    const actor = request.ctx.actor!;
+    if (actor.role !== "admin" && actor.role !== "super_admin") throw new ApiError("FORBIDDEN");
     const rows = await withServiceRoleTransaction(async (client) => {
       const res = await client.query(
         `select s.id as sku_id, s.slug, s.name_ar, s.name_en, s.is_active,

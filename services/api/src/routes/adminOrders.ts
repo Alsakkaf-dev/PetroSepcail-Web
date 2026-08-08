@@ -3,6 +3,15 @@ import type { FastifyInstance } from "fastify";
 import { withServiceRoleTransaction } from "../db.js";
 import { ApiError } from "../errors.js";
 import { requirePermission } from "../gateway/requirePermission.js";
+import type { UserRole } from "../security/jwt.js";
+
+// retail_order:update is also granted to `customer` (04-roles §3: cancelling
+// their OWN order before 'preparing' — a different action entirely) and
+// orders.mark_ready_for_pickup takes only an order id, no actor/ownership
+// check at all. Found sweeping every admin route file for the same defect
+// class 0078/adminFleet.ts's fixes closed: without this, any signed-in
+// customer could mark ANY order (not just their own) ready_for_pickup.
+const ADMIN_ROLES: readonly UserRole[] = ["admin", "super_admin"];
 
 // Pulled-forward AC-05 stand-in (SPEC-GAP, see db/migrations/0035 and
 // packages/contracts/src/dl-delivery.ts): the real warehouse fulfillment
@@ -21,6 +30,9 @@ export function registerAdminOrderRoutes(app: FastifyInstance): void {
     "/api/v1/admin/orders/:id/ready-for-pickup",
     { preHandler: requirePermission("update", "retail_order") },
     async (request, reply) => {
+      const actor = request.ctx.actor;
+      if (!actor) throw new ApiError("INVALID_CREDENTIALS");
+      if (!ADMIN_ROLES.includes(actor.role)) throw new ApiError("FORBIDDEN");
       try {
         await withServiceRoleTransaction(async (client) => {
           await client.query("select orders.mark_ready_for_pickup($1)", [request.params.id]);

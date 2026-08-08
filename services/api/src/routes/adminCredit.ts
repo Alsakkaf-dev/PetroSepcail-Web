@@ -15,7 +15,7 @@ import { withServiceRoleTransaction } from "../db.js";
 import { ApiError } from "../errors.js";
 import { buildPage, decodeCursor, encodeCursor, parsePagination } from "../gateway/pagination.js";
 import { requirePermission } from "../gateway/requirePermission.js";
-import type { AccessTokenClaims } from "../security/jwt.js";
+import type { AccessTokenClaims, UserRole } from "../security/jwt.js";
 
 // 40-admin-center/05-api-specification.md §2 (AC-03, S17).
 
@@ -25,12 +25,22 @@ function requireActor(request: { ctx: { actor: AccessTokenClaims | null } }): Ac
   return actor;
 }
 
+// supplier_master:read/update and credit_limit:read are also granted to
+// `supplier` (04-roles §3: reading/updating their OWN master data, reading
+// their OWN credit limit) — a legitimately narrower case these admin-console
+// routes were never meant to share. Found sweeping every admin route file
+// for the same defect class 0078/adminFleet.ts's fixes closed; confirmed by
+// direct read of services/api/src/authz.ts, not assumed.
+const ADMIN_ROLES: readonly UserRole[] = ["admin", "super_admin"];
+
 export function registerAdminCreditRoutes(app: FastifyInstance): void {
   // EP-AC-020 · GET /admin/suppliers · auth(admin)
   app.get<{ Querystring: { cursor?: string; limit?: string } }>(
     "/api/v1/admin/suppliers",
     { preHandler: requirePermission("read", "supplier_master") },
     async (request, reply) => {
+      const actor = requireActor(request);
+      if (!ADMIN_ROLES.includes(actor.role)) throw new ApiError("FORBIDDEN");
       const { cursor, limit } = parsePagination(request.query);
       const after = cursor ? decodeCursor<{ businessNameEn: string; id: string }>(cursor) : null;
 
@@ -122,7 +132,9 @@ export function registerAdminCreditRoutes(app: FastifyInstance): void {
   // id to acknowledge it. Same read permission as GET /admin/suppliers
   // (any admin can see what's pending); acknowledging itself stays
   // super_admin-only, enforced below exactly as it already was.
-  app.get("/api/v1/admin/dual-control", { preHandler: requirePermission("read", "credit_limit") }, async (_request, reply) => {
+  app.get("/api/v1/admin/dual-control", { preHandler: requirePermission("read", "credit_limit") }, async (request, reply) => {
+    const actor = requireActor(request);
+    if (!ADMIN_ROLES.includes(actor.role)) throw new ApiError("FORBIDDEN");
     const items = await withServiceRoleTransaction(async (client) => {
       const res = await client.query<{ id: string; payload: { supplier_id: string; new_limit: number }; requested_by: string; created_at: Date }>(
         `select id, payload, requested_by, created_at from audit.dual_control_approvals
@@ -173,6 +185,11 @@ export function registerAdminCreditRoutes(app: FastifyInstance): void {
     { preHandler: requirePermission("update", "supplier_master") },
     async (request, reply) => {
       const actor = requireActor(request);
+      // credit.admin_set_supplier_tier already checks this internally
+      // (0065), so a supplier was never actually able to reach it — this is
+      // defense-in-depth plus a clean 403 instead of an unmapped exception,
+      // matching every other route this sweep fixed.
+      if (!ADMIN_ROLES.includes(actor.role)) throw new ApiError("FORBIDDEN");
       const body = setSupplierTierRequest.parse(request.body);
       await withServiceRoleTransaction(async (client) => {
         await client.query("select credit.admin_set_supplier_tier($1, $2, $3)", [request.params.id, body.tier, body.reason]);
