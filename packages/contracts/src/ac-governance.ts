@@ -18,6 +18,7 @@ export type SalesAnalyticsResponse = z.infer<typeof salesAnalyticsResponse>;
 
 export const bestsellerRow = z.object({ week: z.string(), skuId: z.string().uuid(), qty: z.number().int(), revenue: z.string() });
 export const bestsellersResponse = z.object({ asOf: z.string().datetime(), rows: z.array(bestsellerRow) });
+export type BestsellersResponse = z.infer<typeof bestsellersResponse>;
 
 export const fulfillmentAnalyticsResponse = z.object({
   asOf: z.string().datetime(),

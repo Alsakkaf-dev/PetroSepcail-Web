@@ -1,6 +1,6 @@
 "use client";
 
-import type { FulfillmentAnalyticsResponse, SalesAnalyticsResponse } from "@petrospecial/contracts";
+import type { BestsellersResponse, FulfillmentAnalyticsResponse, SalesAnalyticsResponse } from "@petrospecial/contracts";
 import { useCallback, useEffect, useState } from "react";
 import {
   Banner,
@@ -10,6 +10,7 @@ import {
   Container,
   DataTable,
   Grid,
+  IdDisplay,
   KpiTile,
   Ltr,
   Money,
@@ -66,22 +67,28 @@ function DashboardInner() {
   const locale = useLocale();
   const [sales, setSales] = useState<SalesAnalyticsResponse | null>(null);
   const [fulfillment, setFulfillment] = useState<FulfillmentAnalyticsResponse | null>(null);
+  const [bestsellers, setBestsellers] = useState<BestsellersResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(() => {
     setError(null);
     Promise.all([
       authedFetch<SalesAnalyticsResponse>("/api/v1/admin/analytics/sales"),
-      authedFetch<FulfillmentAnalyticsResponse>("/api/v1/admin/analytics/fulfillment")
+      authedFetch<FulfillmentAnalyticsResponse>("/api/v1/admin/analytics/fulfillment"),
+      authedFetch<BestsellersResponse>("/api/v1/admin/analytics/bestsellers")
     ])
-      .then(([salesRes, fulfillmentRes]) => {
+      .then(([salesRes, fulfillmentRes, bestsellersRes]) => {
         setSales(salesRes);
         setFulfillment(fulfillmentRes);
+        setBestsellers(bestsellersRes);
       })
       .catch((thrown) => setError(messageFor(locale, thrown)));
   }, [locale]);
 
   useEffect(load, [load]);
+
+  const bestsellerRows = bestsellers?.rows ?? [];
+  const bestsellersState = error ? "error" : !bestsellers ? "loading" : bestsellerRows.length === 0 ? "empty" : "ready";
 
   const rows = sales?.rows ?? [];
   const state = error ? "error" : !sales ? "loading" : rows.length === 0 ? "empty" : "ready";
@@ -212,6 +219,40 @@ function DashboardInner() {
                 }
               ]}
             />
+
+            <Stack gap="md">
+              <h2 className="ps-section-head__title">{t(locale, "admin.bestsellers")}</h2>
+              <Banner tone="info">{t(locale, "admin.bestsellersHint")}</Banner>
+              <DataTable
+                caption={t(locale, "admin.bestsellers")}
+                state={bestsellersState}
+                stickyHeader
+                errorMessage={error ?? undefined}
+                onRetry={load}
+                retryLabel={t(locale, "common.retry")}
+                emptyTitle={t(locale, "admin.noData")}
+                emptyDescription={t(locale, "admin.noDataHint")}
+                rows={bestsellerRows}
+                getRowKey={(row) => `${row.week}-${row.skuId}`}
+                columns={[
+                  { key: "week", header: t(locale, "admin.week"), emphasis: "primary", render: (row) => <Ltr>{row.week}</Ltr> },
+                  {
+                    key: "sku",
+                    header: t(locale, "admin.sku"),
+                    render: (row) => (
+                      <IdDisplay id={row.skuId} copy={{ label: t(locale, "common.copy"), copiedLabel: t(locale, "common.copied") }} />
+                    )
+                  },
+                  { key: "qty", header: t(locale, "orders.qty"), align: "end", render: (row) => <Ltr>{count(row.qty)}</Ltr> },
+                  {
+                    key: "revenue",
+                    header: t(locale, "admin.revenue"),
+                    align: "end",
+                    render: (row) => <Money amount={row.revenue} locale={locale} emphasis="strong" />
+                  }
+                ]}
+              />
+            </Stack>
 
             <Stack gap="sm">
               <Cluster gap="sm">

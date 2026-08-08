@@ -163,4 +163,28 @@ describe("Admin routes with a shared coarse permission genuinely refuse the narr
       expect(res.statusCode).not.toBe(403);
     }
   });
+
+  // EP-AC-002 (session 2, 2026-08-08) — analytics:read is already
+  // admin/super_admin-only in the matrix (confirmed by this sweep), so this
+  // route was never the missing-role-check defect; it simply had no UI
+  // caller until the admin dashboard's own bestsellers panel. First real
+  // proof this ever returns a well-formed response against a real database.
+  it("GET /admin/analytics/bestsellers: refuses a customer, returns a well-formed page for an admin", async () => {
+    const asCustomer = await app.inject({
+      method: "GET",
+      url: "/api/v1/admin/analytics/bestsellers",
+      headers: { authorization: `Bearer ${customerToken}` }
+    });
+    expect(asCustomer.statusCode).toBe(403);
+
+    const asAdmin = await app.inject({
+      method: "GET",
+      url: "/api/v1/admin/analytics/bestsellers",
+      headers: { authorization: `Bearer ${adminToken}` }
+    });
+    expect(asAdmin.statusCode).toBe(200);
+    const body = asAdmin.json();
+    expect(typeof body.asOf).toBe("string");
+    expect(Array.isArray(body.rows)).toBe(true);
+  });
 });

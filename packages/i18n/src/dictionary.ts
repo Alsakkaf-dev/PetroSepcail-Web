@@ -699,6 +699,11 @@ const ar = {
   "admin.noData": "لا توجد بيانات لهذه الفترة",
   "admin.noDataHint": "تظهر الأرقام بعد أول طلب مكتمل",
   "admin.exportNote": "التصدير يحتوي على نفس الإجماليات المعروضة — لا يوجد تصدير على مستوى العميل",
+  "admin.bestsellers": "الأكثر مبيعًا",
+  "admin.bestsellersHint": "الكمية والإيراد لكل منتج، أسبوعيًا",
+  "admin.week": "الأسبوع",
+  "admin.revenue": "الإيراد",
+  "admin.sku": "المنتج",
 
   // ---- admin: catalogue & prices (AC-02) ------------------------------
   "admin.skuNameAr": "الاسم (عربي)",
@@ -1887,6 +1892,11 @@ const en: Record<StringKey, string> = {
   "admin.noData": "No data for this period",
   "admin.noDataHint": "Figures appear after the first completed order",
   "admin.exportNote": "The export contains the same aggregates shown here — there is no per-customer export",
+  "admin.bestsellers": "Bestsellers",
+  "admin.bestsellersHint": "Quantity and revenue per product, by week",
+  "admin.week": "Week",
+  "admin.revenue": "Revenue",
+  "admin.sku": "Product",
 
   // ---- admin: catalogue & prices (AC-02) ------------------------------
   "admin.skuNameAr": "Name (Arabic)",
