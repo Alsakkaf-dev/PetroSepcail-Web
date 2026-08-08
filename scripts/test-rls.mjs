@@ -267,6 +267,236 @@ async function main() {
       await admin.query("reset role");
     }
 
+    // Per-user data isolation, server side (hardening-plan session 2, 2026-08-08
+    // brief Part 2): every table above already had at least one policy proven;
+    // this section is the brief's own explicit list — carts, orders, payment
+    // records, notifications, wishlist, driver shifts/custody, supplier
+    // credit/invoices, loyalty points — each proven with two REAL, DIFFERENT
+    // identities of the SAME role, not one identity checked against a blank
+    // claim. Fixed ids below are new fixtures, chosen to not collide with the
+    // 000...001-005 seed identities or the 100...0001/2 addresses fixture above.
+    console.log("[test:rls] per-user isolation — two customers: carts, orders, payments, notification prefs, wishlist, points");
+    {
+      const custA = "20000000-0000-0000-0000-000000000001";
+      const custB = "20000000-0000-0000-0000-000000000002";
+      const orderA = "50000000-0000-0000-0000-000000000001";
+      const orderB = "50000000-0000-0000-0000-000000000002";
+
+      await asRole(admin, "app_service_role");
+      const sku = await admin.query("select id from catalog.skus limit 1");
+      await admin.query(
+        `insert into core.identities (id, full_name, email, phone, password_hash, status)
+         values
+           ($1, 'RLS Customer A', 'rls-cust-a@petrospecial.internal', '+966500000101', 'x', 'active'),
+           ($2, 'RLS Customer B', 'rls-cust-b@petrospecial.internal', '+966500000102', 'x', 'active')`,
+        [custA, custB]
+      );
+      await admin.query(
+        "insert into core.role_grants (identity_id, role) values ($1, 'customer'), ($2, 'customer')",
+        [custA, custB]
+      );
+      for (const [orderId, custId] of [
+        [orderA, custA],
+        [orderB, custB]
+      ]) {
+        await admin.query(
+          `insert into orders.orders
+             (id, user_id, status, payment_method, subtotal, vat_amount, total, address_snapshot, delivery_slot)
+           values ($1, $2, 'confirmed', 'cod', 100, 15, 115, '{}'::jsonb, 'same_day')`,
+          [orderId, custId]
+        );
+      }
+      await admin.query("insert into orders.carts (user_id) values ($1), ($2)", [custA, custB]);
+      await admin.query(
+        `insert into orders.payments (order_id, method, amount, status) values ($1, 'cod', 115, 'pending'), ($2, 'cod', 115, 'pending')`,
+        [orderA, orderB]
+      );
+      await admin.query(
+        "insert into core.notification_preferences (identity_id, notification_type, channel) values ($1, 'order_update', 'email'), ($2, 'order_update', 'email')",
+        [custA, custB]
+      );
+      await admin.query(
+        "insert into orders.wishlist_items (user_id, sku_id) values ($1, $2), ($3, $2)",
+        [custA, sku.rows[0].id, custB]
+      );
+      await admin.query(
+        "insert into loyalty.points_ledger (user_id, kind, points) values ($1, 'earn', 100), ($2, 'earn', 200)",
+        [custA, custB]
+      );
+      await admin.query("reset role");
+
+      await asRole(admin, "app_user");
+      await setClaims(admin, { sub: custA, role: "customer" });
+
+      const carts = await admin.query("select user_id from orders.carts where user_id in ($1, $2)", [custA, custB]);
+      ok("customer A's cart list shows only their own cart, not B's", carts.rowCount === 1 && carts.rows[0].user_id === custA);
+
+      const orders = await admin.query("select id from orders.orders where id in ($1, $2)", [orderA, orderB]);
+      ok("customer A's order list shows only their own order, not B's", orders.rowCount === 1 && orders.rows[0].id === orderA);
+
+      const payments = await admin.query(
+        "select order_id from orders.payments where order_id in ($1, $2)",
+        [orderA, orderB]
+      );
+      ok(
+        "customer A's payment list shows only their own order's payment, not B's",
+        payments.rowCount === 1 && payments.rows[0].order_id === orderA
+      );
+
+      const prefs = await admin.query(
+        "select identity_id from core.notification_preferences where identity_id in ($1, $2)",
+        [custA, custB]
+      );
+      ok(
+        "customer A's notification preferences show only their own row, not B's",
+        prefs.rowCount === 1 && prefs.rows[0].identity_id === custA
+      );
+
+      const wishlist = await admin.query(
+        "select user_id from orders.wishlist_items where user_id in ($1, $2)",
+        [custA, custB]
+      );
+      ok(
+        "customer A's wishlist shows only their own item, not B's",
+        wishlist.rowCount === 1 && wishlist.rows[0].user_id === custA
+      );
+
+      const ledger = await admin.query(
+        "select user_id from loyalty.points_ledger where user_id in ($1, $2)",
+        [custA, custB]
+      );
+      ok(
+        "customer A's points ledger shows only their own entries, not B's",
+        ledger.rowCount === 1 && ledger.rows[0].user_id === custA
+      );
+
+      let crossWriteBlocked = false;
+      try {
+        await admin.query("insert into orders.wishlist_items (user_id, sku_id) values ($1, $2)", [custB, sku.rows[0].id]);
+      } catch {
+        crossWriteBlocked = true;
+      }
+      ok("customer A cannot insert a wishlist item for customer B (with check blocks it)", crossWriteBlocked);
+
+      await admin.query("reset role");
+    }
+
+    console.log("[test:rls] per-user isolation — two drivers: shifts, cash custody");
+    {
+      const identA = "30000000-0000-0000-0000-000000000001";
+      const identB = "30000000-0000-0000-0000-000000000002";
+      const driverA = "31000000-0000-0000-0000-000000000001";
+      const driverB = "31000000-0000-0000-0000-000000000002";
+      // Reuses the two orders the customer block above already created —
+      // driver_cash_custody's FK only needs a real order, not one placed by
+      // this driver's own recipient; which order is immaterial to what this
+      // block is actually proving (custody row ownership).
+      const orderA = "50000000-0000-0000-0000-000000000001";
+      const orderB = "50000000-0000-0000-0000-000000000002";
+
+      await asRole(admin, "app_service_role");
+      await admin.query(
+        `insert into core.identities (id, full_name, email, phone, password_hash, status)
+         values
+           ($1, 'RLS Driver A', 'rls-driver-a@petrospecial.internal', '+966500000201', 'x', 'active'),
+           ($2, 'RLS Driver B', 'rls-driver-b@petrospecial.internal', '+966500000202', 'x', 'active')`,
+        [identA, identB]
+      );
+      await admin.query("insert into core.role_grants (identity_id, role) values ($1, 'driver'), ($2, 'driver')", [
+        identA,
+        identB
+      ]);
+      await admin.query(
+        "insert into delivery.drivers (id, identity_id) values ($1, $2), ($3, $4)",
+        [driverA, identA, driverB, identB]
+      );
+      await admin.query(
+        "insert into delivery.shifts (driver_id, status, available) values ($1, 'open', true), ($2, 'open', true)",
+        [driverA, driverB]
+      );
+      await admin.query(
+        `insert into delivery.driver_cash_custody (driver_id, order_id, amount, status)
+         values ($1, $2, 50, 'held'), ($3, $4, 75, 'held')`,
+        [driverA, orderA, driverB, orderB]
+      );
+      await admin.query("reset role");
+
+      await asRole(admin, "app_user");
+      await setClaims(admin, { sub: identA, role: "driver", driver_id: driverA });
+
+      const shifts = await admin.query("select driver_id from delivery.shifts where driver_id in ($1, $2)", [
+        driverA,
+        driverB
+      ]);
+      ok("driver A's shift list shows only their own shift, not B's", shifts.rowCount === 1 && shifts.rows[0].driver_id === driverA);
+
+      const custody = await admin.query(
+        "select driver_id from delivery.driver_cash_custody where driver_id in ($1, $2)",
+        [driverA, driverB]
+      );
+      ok(
+        "driver A's cash-custody list shows only their own holdings, not B's",
+        custody.rowCount === 1 && custody.rows[0].driver_id === driverA
+      );
+
+      await admin.query("reset role");
+    }
+
+    console.log("[test:rls] per-user isolation — two suppliers: supplier master, invoices");
+    {
+      const identA = "40000000-0000-0000-0000-000000000001";
+      const identB = "40000000-0000-0000-0000-000000000002";
+      const supA = "41000000-0000-0000-0000-000000000001";
+      const supB = "41000000-0000-0000-0000-000000000002";
+      const orderA = "50000000-0000-0000-0000-000000000001";
+      const orderB = "50000000-0000-0000-0000-000000000002";
+
+      await asRole(admin, "app_service_role");
+      await admin.query(
+        `insert into core.identities (id, full_name, email, phone, password_hash, status)
+         values
+           ($1, 'RLS Supplier A', 'rls-supplier-a@petrospecial.internal', '+966500000301', 'x', 'active'),
+           ($2, 'RLS Supplier B', 'rls-supplier-b@petrospecial.internal', '+966500000302', 'x', 'active')`,
+        [identA, identB]
+      );
+      await admin.query("insert into core.role_grants (identity_id, role) values ($1, 'supplier'), ($2, 'supplier')", [
+        identA,
+        identB
+      ]);
+      await admin.query(
+        `insert into credit.suppliers (id, identity_id, business_name_ar, business_name_en)
+         values ($1, $2, 'مورد أ', 'Supplier A'), ($3, $4, 'مورد ب', 'Supplier B')`,
+        [supA, identA, supB, identB]
+      );
+      await admin.query(
+        `insert into credit.invoices (supplier_id, order_id, subtotal, vat_amount, total, open_balance, due_at)
+         values ($1, $2, 100, 15, 115, 115, now() + interval '30 day'),
+                ($3, $4, 200, 30, 230, 230, now() + interval '30 day')`,
+        [supA, orderA, supB, orderB]
+      );
+      await admin.query("reset role");
+
+      await asRole(admin, "app_user");
+      await setClaims(admin, { sub: identA, role: "supplier", supplier_id: supA });
+
+      const suppliers = await admin.query("select id from credit.suppliers where id in ($1, $2)", [supA, supB]);
+      ok(
+        "supplier A's own-master-data read shows only their own row, not B's",
+        suppliers.rowCount === 1 && suppliers.rows[0].id === supA
+      );
+
+      const invoices = await admin.query("select supplier_id from credit.invoices where supplier_id in ($1, $2)", [
+        supA,
+        supB
+      ]);
+      ok(
+        "supplier A's invoice list shows only their own invoices, not B's",
+        invoices.rowCount === 1 && invoices.rows[0].supplier_id === supA
+      );
+
+      await admin.query("reset role");
+    }
+
     console.log("[test:rls] audit.audit_log — immutability + hash-chain tamper detection (TC-PC10-002)");
     {
       await admin.query(
